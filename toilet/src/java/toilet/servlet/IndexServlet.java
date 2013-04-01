@@ -1,0 +1,91 @@
+package toilet.servlet;
+
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.util.Date;
+import java.util.List;
+import javax.ejb.EJB;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import toilet.IndexFetcher;
+import toilet.UtilStatic;
+import toilet.bean.ArticleStateCache;
+import toilet.db.Article;
+
+@WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/index", "/index/*"})
+public class IndexServlet extends HttpServlet {
+
+    public static final String HOME_JSP = "/WEB-INF/home.jsp";
+    private static final Date EPOCH = new Date(0);
+    @EJB
+    private ArticleStateCache cache;
+
+    @Override
+    public void init() throws ServletException {
+    }
+
+    @Override
+    protected long getLastModified(HttpServletRequest request) {
+        Date latest = EPOCH;
+
+        IndexFetcher f = new IndexFetcher(request.getRequestURI());
+
+        for (Article a : f.getArticles()) {
+            if (a.getModified().after(latest)) {
+                latest = a.getModified();
+            }
+        }
+
+        return latest.getTime();
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        IndexFetcher f = new IndexFetcher(request.getRequestURI());
+        if (!f.isValid()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        List<Article> lEntry = f.getArticles();
+        if (lEntry.isEmpty() && !(f.getGroup() == null && f.getPage() == 1)) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        String ifNoneMatch = request.getHeader("If-None-Match");
+        MessageDigest md = UtilStatic.getHasher();
+        for (String cat : cache.getArticleCategories()) {
+            md.update(cat.getBytes());
+        }
+        for (Article a : lEntry) {
+            md.update(a.getEtag().getBytes());
+        }
+        String etag = "\"" + UtilStatic.getBase64(md.digest()) + "\"";
+        if (etag.equals(ifNoneMatch)) {
+            response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
+            return;
+        }
+        response.setHeader("ETag", etag);
+        request.setAttribute("curGroup", f.getGroup());
+        request.setAttribute("title", f.getGroup());
+
+        // dont bother if there is only 1 page total
+        if (f.getCount() > 1) {
+            request.setAttribute("pagen_first", f.getFirst());
+            request.setAttribute("pagen_last", f.getLast());
+            request.setAttribute("pagen_link", f.getLink());
+            request.setAttribute("pagen_current", f.getPage());
+            request.setAttribute("pagen_count", f.getCount());
+        }
+
+        request.setAttribute("index", true);
+        request.setAttribute("articles", lEntry);
+        request.setAttribute("description", f.getDescription());
+        request.setAttribute("articleCategory", f.getGroup());
+        request.getServletContext().getRequestDispatcher(HOME_JSP).forward(request, response);
+    }
+}

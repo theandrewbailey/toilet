@@ -1,0 +1,6 @@
+<%@taglib prefix="ody" uri="/WEB-INF/Odyssey" %><br/><footer id="downContent">
+<p><ody:ResponseTag><imead:keyVal key="page_footFormat">
+    <imead:param><h:time datetime="${requestTime}"/></imead:param>
+    <imead:param object="${renderMillis}"/>
+</imead:keyVal></ody:ResponseTag></p>
+</footer></body></html>

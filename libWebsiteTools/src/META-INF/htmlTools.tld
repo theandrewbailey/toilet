@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<taglib version="2.1" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd">
+    <tlib-version>1.0</tlib-version>
+    <short-name>html</short-name>
+    <uri>/WEB-INF/htmlTools</uri>
+    <tag>
+        <name>title</name>
+        <tag-class>libWebsiteTools.tag.Titler</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>pageTitle</name>
+            <description>the title of the page</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>siteTitle</name>
+            <description>the name/title of the site</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>siteTitleHide</name>
+            <description>do not display the site title</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <!--<attribute>     unsupported
+            <name>siteTitleBefore</name>
+            <description>display the site title before page title</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>-->
+    </tag>
+    <tag>
+        <name>time</name>
+        <description>will place a &lt;time&gt; tag using the given datetime object. will format the displayed time with pattern, or look for a $_LIBHTMLTOOLS_DATETIME_FORMAT attribute, or the default SimpleDateFormat format.</description>
+        <tag-class>libWebsiteTools.tag.HtmlTime</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>datetime</name>
+            <description>date to be formatted</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.util.Date</type>
+        </attribute>
+        <attribute>
+            <name>pattern</name>
+            <description>how text should be formatted to the user</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>pubdate</name>
+            <description>is this the date time this thing was published?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>password</name>
+        <tag-class>libWebsiteTools.tag.Password</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>label</name>
+            <description>label</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>labelNextLine</name>
+            <description>place a &lt;br/&gt; between label and control</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>size</name>
+            <description>num of chars to display (approx)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>textbox</name>
+        <tag-class>libWebsiteTools.tag.Textbox</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>label</name>
+            <description>label</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>labelNextLine</name>
+            <description>place a &lt;br/&gt; between label and control</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>length</name>
+            <description>length of field</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>maxLength</name>
+            <description>maxLength of field</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>size</name>
+            <description>num of chars to display (approx)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>value</name>
+            <description>inital text value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>checkbox</name>
+        <tag-class>libWebsiteTools.tag.Checkbox</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>checked</name>
+            <description>is the box checked?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>label</name>
+            <description>label</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>value</name>
+            <description>what text gets submitted back to server</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>file</name>
+        <tag-class>libWebsiteTools.tag.FileSelect</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>label</name>
+            <description>label</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>labelNextLine</name>
+            <description>place a &lt;br/&gt; between label and control</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>size</name>
+            <description>num of chars to display (approx)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>textarea</name>
+        <tag-class>libWebsiteTools.tag.Textarea</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>height</name>
+            <description>height of field (rows)</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>label</name>
+            <description>label</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>length</name>
+            <description>length of field (cols)</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>value</name>
+            <description>inital text value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>hidden</name>
+        <tag-class>libWebsiteTools.tag.Hidden</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>value</name>
+            <description>value</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>submit</name>
+        <tag-class>libWebsiteTools.tag.Submit</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>value</name>
+            <description>value</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>requestToken</name>
+        <description>places a UUID on the page and in the session, along with the current URI and query string. libHtmlTools.RequestTokenChecker will check all POST requests for these tokens, and this will allow POST requests to proceed.</description>
+        <tag-class>libWebsiteTools.tag.RequestToken</tag-class>
+        <body-content>empty</body-content>
+    </tag>
+    <function>
+        <name>url</name>
+        <function-class>java.net.URLEncoder</function-class>
+        <function-signature>String encode(java.lang.String, java.lang.String)</function-signature>
+    </function>
+</taglib>

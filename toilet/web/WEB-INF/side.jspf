@@ -1,0 +1,19 @@
+<%@ taglib prefix="sp" uri="http://theandrewbailey.com/spruce" %><%@ taglib prefix="t" uri="/WEB-INF/toilet" %><aside class="noPrint">
+    <nav><h1><imead:keyVal key="page_topics" /></h1><ul><t:categorizer>
+        <li><c:choose><c:when test="${group == curGroup}">${group}</c:when><c:otherwise><a href="<imead:keyVal key="thisURL"/>index/${url}/1">${group}</a></c:otherwise></c:choose></li></t:categorizer>
+    </ul></nav>
+
+    <sp:sentence><div id="spruceBox"><a href="<imead:keyVal key="thisURL"/>spruce"><span id="spruceQuote">${spruce_sentence}</span>
+    <br/><span id="spruceName"><imead:keyVal key="spruce_name" /></span>
+    <p><imead:keyVal key="spruce_link"/></p></a>
+    </div></sp:sentence>
+
+    <c:if test="${articleCategory ne null}"><div id="recentCategoryEntries"><h1><imead:keyVal key="page_sideRecentCategory"><imead:param object="${articleCategory}"/></imead:keyVal></h1><ul><t:recentArticles number="10" category="${articleCategory}">
+        <li><t:articleUrl article="${_recentEntry}"/></li></t:recentArticles>
+    </ul></div></c:if>
+    <br/>
+    <div id="recentEntries"><h1><imead:keyVal key="page_sideRecent"/></h1><ul><t:recentArticles number="10">
+        <li><t:articleUrl article="${_recentEntry}"/></li></t:recentArticles>
+    </ul></div>
+    <div class="side"><imead:keyVal key="page_side"/></div>
+</aside>
