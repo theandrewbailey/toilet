@@ -3,6 +3,8 @@
 <sun-web-app error-url="">
   <class-loader delegate="true"/>
   <jsp-config>
+    <property name="compilerSourceVM" value="1.7"/>
+    <property name="compilerTargetVM" value="1.7"/>
     <property name="keepgenerated" value="true">
       <description>Keep a copy of the generated servlet class' java code.</description>
     </property>

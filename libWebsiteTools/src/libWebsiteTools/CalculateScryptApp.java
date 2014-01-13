@@ -12,7 +12,7 @@ import java.io.InputStreamReader;
  */
 public class CalculateScryptApp {
 
-    private static String[] PASSWORDS = new String[]{
+    private static final String[] PASSWORDS = new String[]{
         "this is just a test of the emergency hashing system",
         "if this was a real emergency, you would have been hacked already",
         "so use scrypt and change the passwords in the toilet app"};

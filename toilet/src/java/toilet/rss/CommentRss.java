@@ -46,7 +46,7 @@ public class CommentRss extends AbstractRssFeed {
         List<Comment> lComments = entry.getCommentArchive(numEntries);
 
         for (Comment c : lComments) {
-            RssItem i = new RssItem(c.getPostedtext());
+            RssItem i = new RssItem(c.getPostedhtml());
             i.addCategory(c.getArticleid().getSectionid().getName(), imead.getValue(UtilBean.THISURL) + "index/group=" + c.getArticleid().getSectionid().getName());
             i.setLink(ArticleUrl.getUrl(imead.getValue(UtilBean.THISURL), c.getArticleid()) + "#" + c.getCommentid());
             i.setGuid(i.getLink());

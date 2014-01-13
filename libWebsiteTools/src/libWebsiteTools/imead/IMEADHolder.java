@@ -13,8 +13,6 @@ import javax.ejb.Singleton;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-import libWebsiteTools.imead.db.Keyvalue;
-import libWebsiteTools.imead.db.Localization;
 
 /**
  * Internationalization Made Easy And Dynamic
@@ -26,6 +24,7 @@ import libWebsiteTools.imead.db.Localization;
 @Singleton
 public class IMEADHolder {
 
+    public static final String LOCAL_NAME = "java:module/IMEADHolder";
     @PersistenceUnit
     private EntityManagerFactory PU;
     private static final String DISTINCT_LOCALE_QUERY = "SELECT DISTINCT l.localizationPK.localecode FROM Localization l";

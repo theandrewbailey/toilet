@@ -39,9 +39,8 @@ public class ErrorRss extends AbstractRssFeed {
 
     @Override
     public Document preWrite(HttpServletRequest req) {
-        if (AdminServlet.LOG.equals(req.getSession().getAttribute("login"))) {
+//        if (AdminServlet.LOG.equals(req.getSession().getAttribute("login"))) {
             log.fine("Exception RSS feed requested");
-            log.fine("Generating error RSS feed");
             RssChannel badRequests = new RssChannel("running log", req.getRequestURL().toString(), "404s, etc.");
             badRequests.setLimit(1000);
             List<Exceptionevent> exceptions = exr.getAll();
@@ -52,8 +51,8 @@ public class ErrorRss extends AbstractRssFeed {
                 badRequests.addItem(ri);
             }
             return super.refreshFeed(badRequests);
-        }
-        log.fine("Error RSS feed invalid authentication");
-        throw new RuntimeException();
+//        }
+//        log.fine("Error RSS feed invalid authentication");
+//        throw new RuntimeException();
     }
 }

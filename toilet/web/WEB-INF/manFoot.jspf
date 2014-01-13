@@ -3,4 +3,5 @@
     <imead:param><h:time datetime="${requestTime}"/></imead:param>
     <imead:param object="${renderMillis}"/>
 </imead:keyVal></ody:ResponseTag></p>
+<p><a href="${thisURL}riddle.jsp">Return</a></p>
 </footer></body></html>

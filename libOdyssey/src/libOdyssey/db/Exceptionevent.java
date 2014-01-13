@@ -1,7 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -25,8 +27,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author
- * alpha
+ * @author alphavm
  */
 @Entity
 @Table(name = "exceptionevent", schema = "odyssey")
@@ -35,8 +36,8 @@ import javax.xml.bind.annotation.XmlRootElement;
     @NamedQuery(name = "Exceptionevent.findAll", query = "SELECT e FROM Exceptionevent e"),
     @NamedQuery(name = "Exceptionevent.findByExceptioneventid", query = "SELECT e FROM Exceptionevent e WHERE e.exceptioneventid = :exceptioneventid"),
     @NamedQuery(name = "Exceptionevent.findByAtime", query = "SELECT e FROM Exceptionevent e WHERE e.atime = :atime"),
-    @NamedQuery(name = "Exceptionevent.findByTitle", query = "SELECT e FROM Exceptionevent e WHERE e.title = :title"),
-    @NamedQuery(name = "Exceptionevent.findByDescription", query = "SELECT e FROM Exceptionevent e WHERE e.description = :description")})
+    @NamedQuery(name = "Exceptionevent.findByDescription", query = "SELECT e FROM Exceptionevent e WHERE e.description = :description"),
+    @NamedQuery(name = "Exceptionevent.findByTitle", query = "SELECT e FROM Exceptionevent e WHERE e.title = :title")})
 public class Exceptionevent implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -51,14 +52,14 @@ public class Exceptionevent implements Serializable {
     private Date atime;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 65000)
-    @Column(name = "title", nullable = false, length = 65000)
-    private String title;
+    @Size(min = 1, max = 2147483647)
+    @Column(name = "description", nullable = false, length = 2147483647)
+    private String description;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 65000)
-    @Column(name = "description", nullable = false, length = 65000)
-    private String description;
+    @Column(name = "title", nullable = false, length = 65000)
+    private String title;
     @JoinColumn(name = "pagerequestid", referencedColumnName = "pagerequestid")
     @ManyToOne
     private Pagerequest pagerequestid;
@@ -70,11 +71,11 @@ public class Exceptionevent implements Serializable {
         this.exceptioneventid = exceptioneventid;
     }
 
-    public Exceptionevent(Integer exceptioneventid, Date atime, String title, String description) {
+    public Exceptionevent(Integer exceptioneventid, Date atime, String description, String title) {
         this.exceptioneventid = exceptioneventid;
         this.atime = atime;
-        this.title = title;
         this.description = description;
+        this.title = title;
     }
 
     public Integer getExceptioneventid() {
@@ -93,20 +94,20 @@ public class Exceptionevent implements Serializable {
         this.atime = atime;
     }
 
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
     public String getDescription() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public Pagerequest getPagerequestid() {

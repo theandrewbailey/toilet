@@ -26,6 +26,15 @@ public class Textarea extends AbstractInput {
         if (getTitle() != null) {
             out.append("\" title=\"").append(getTitle());
         }
+        if (getAutofocus()) {
+            out.append("\" autofocus=\"autofocus");
+        }
+        if (getDisabled()) {
+            out.append("\" disabled=\"disabled");
+        }
+        if (getRequired()) {
+            out.append("\" required=\"required");
+        }
         out.append("\">");
         if (getValue() != null) {
             out.append(getValue());

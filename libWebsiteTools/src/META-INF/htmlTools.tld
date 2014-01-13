@@ -2,7 +2,7 @@
 <taglib version="2.1" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd">
     <tlib-version>1.0</tlib-version>
     <short-name>html</short-name>
-    <uri>/WEB-INF/htmlTools</uri>
+    <uri>uri:libwebsitetools:htmlTools</uri>
     <tag>
         <name>title</name>
         <tag-class>libWebsiteTools.tag.Titler</tag-class>
@@ -28,13 +28,16 @@
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Boolean</type>
         </attribute>
-        <!--<attribute>     unsupported
-            <name>siteTitleBefore</name>
-            <description>display the site title before page title</description>
-            <required>false</required>
-            <rtexprvalue>true</rtexprvalue>
-            <type>java.lang.Boolean</type>
-        </attribute>-->
+    </tag>
+    <tag>
+        <name>link</name>
+        <tag-class>libWebsiteTools.tag.HtmlLink</tag-class>
+        <body-content>empty</body-content>
+    </tag>
+    <tag>
+        <name>meta</name>
+        <tag-class>libWebsiteTools.tag.HtmlMeta</tag-class>
+        <body-content>empty</body-content>
     </tag>
     <tag>
         <name>time</name>
@@ -73,6 +76,27 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autofocus</name>
+            <description>should this have focus by default?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>disabled</name>
+            <description>should this be disabled?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>required</name>
+            <description>should the browser prevent form submission without this?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
         </attribute>
         <attribute>
             <name>id</name>
@@ -134,6 +158,27 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autofocus</name>
+            <description>should this have focus by default?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>disabled</name>
+            <description>should this be disabled?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>required</name>
+            <description>should the browser prevent form submission without this?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
         </attribute>
         <attribute>
             <name>id</name>
@@ -218,6 +263,20 @@
             <type>java.lang.String</type>
         </attribute>
         <attribute>
+            <name>autofocus</name>
+            <description>should this have focus by default?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>disabled</name>
+            <description>should this be disabled?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
             <name>checked</name>
             <description>is the box checked?</description>
             <required>false</required>
@@ -268,6 +327,109 @@
         </attribute>
     </tag>
     <tag>
+        <name>select</name>
+        <tag-class>libWebsiteTools.tag.Select</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autofocus</name>
+            <description>should this have focus by default?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>disabled</name>
+            <description>should this be disabled?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>required</name>
+            <description>should the browser prevent form submission without this?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>multiple</name>
+            <description>should the user be able to select multiple items?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>label</name>
+            <description>label</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>parameters</name>
+            <description>what should this elements items be?</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.util.Map</type>
+        </attribute>
+        <attribute>
+            <name>labelNextLine</name>
+            <description>place a &lt;br/&gt; between label and control</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>size</name>
+            <description>num of options to display</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>selected</name>
+            <description>id of value to be shown by default</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
         <name>file</name>
         <tag-class>libWebsiteTools.tag.FileSelect</tag-class>
         <body-content>empty</body-content>
@@ -277,6 +439,27 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autofocus</name>
+            <description>should this have focus by default?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>disabled</name>
+            <description>should this be disabled?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>required</name>
+            <description>should the browser prevent form submission without this?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
         </attribute>
         <attribute>
             <name>id</name>
@@ -345,6 +528,27 @@
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>autofocus</name>
+            <description>should this have focus by default?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>disabled</name>
+            <description>should this be disabled?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>required</name>
+            <description>should the browser prevent form submission without this?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
         </attribute>
         <attribute>
             <name>id</name>

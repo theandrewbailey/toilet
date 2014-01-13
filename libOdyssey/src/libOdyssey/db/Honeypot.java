@@ -1,7 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -23,8 +25,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author
- * alpha
+ * @author alphavm
  */
 @Entity
 @Table(name = "honeypot", schema = "odyssey")
@@ -32,9 +33,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 @NamedQueries({
     @NamedQuery(name = "Honeypot.findAll", query = "SELECT h FROM Honeypot h"),
     @NamedQuery(name = "Honeypot.findByHoneypotid", query = "SELECT h FROM Honeypot h WHERE h.honeypotid = :honeypotid"),
+    @NamedQuery(name = "Honeypot.findByExpiresatatime", query = "SELECT h FROM Honeypot h WHERE h.expiresatatime = :expiresatatime"),
     @NamedQuery(name = "Honeypot.findByIp", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip"),
-    @NamedQuery(name = "Honeypot.findByStartedatatime", query = "SELECT h FROM Honeypot h WHERE h.startedatatime = :startedatatime"),
-    @NamedQuery(name = "Honeypot.findByExpiresatatime", query = "SELECT h FROM Honeypot h WHERE h.expiresatatime = :expiresatatime")})
+    @NamedQuery(name = "Honeypot.findByStartedatatime", query = "SELECT h FROM Honeypot h WHERE h.startedatatime = :startedatatime")})
 public class Honeypot implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -42,6 +43,11 @@ public class Honeypot implements Serializable {
     @Basic(optional = false)
     @Column(name = "honeypotid", nullable = false)
     private Integer honeypotid;
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "expiresatatime", nullable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date expiresatatime;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 100)
@@ -52,11 +58,6 @@ public class Honeypot implements Serializable {
     @Column(name = "startedatatime", nullable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date startedatatime;
-    @Basic(optional = false)
-    @NotNull
-    @Column(name = "expiresatatime", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date expiresatatime;
 
     public Honeypot() {
     }
@@ -65,11 +66,11 @@ public class Honeypot implements Serializable {
         this.honeypotid = honeypotid;
     }
 
-    public Honeypot(Integer honeypotid, String ip, Date startedatatime, Date expiresatatime) {
+    public Honeypot(Integer honeypotid, Date expiresatatime, String ip, Date startedatatime) {
         this.honeypotid = honeypotid;
+        this.expiresatatime = expiresatatime;
         this.ip = ip;
         this.startedatatime = startedatatime;
-        this.expiresatatime = expiresatatime;
     }
 
     public Integer getHoneypotid() {
@@ -78,6 +79,14 @@ public class Honeypot implements Serializable {
 
     public void setHoneypotid(Integer honeypotid) {
         this.honeypotid = honeypotid;
+    }
+
+    public Date getExpiresatatime() {
+        return expiresatatime;
+    }
+
+    public void setExpiresatatime(Date expiresatatime) {
+        this.expiresatatime = expiresatatime;
     }
 
     public String getIp() {
@@ -94,14 +103,6 @@ public class Honeypot implements Serializable {
 
     public void setStartedatatime(Date startedatatime) {
         this.startedatatime = startedatatime;
-    }
-
-    public Date getExpiresatatime() {
-        return expiresatatime;
-    }
-
-    public void setExpiresatatime(Date expiresatatime) {
-        this.expiresatatime = expiresatatime;
     }
 
     @Override

@@ -35,23 +35,6 @@ public class GuardRepo {
         em.getTransaction().commit();
     }
 
-    public boolean sessionsPerSecond(String ip, Integer numOfSessions, Integer seconds) {
-        TypedQuery<Long> q = PU.createEntityManager().createQuery("SELECT COUNT(h) FROM Httpsession h WHERE h.ip = :ip AND h.atime > :time", Long.class);
-        q.setParameter("ip", ip);
-        q.setParameter("time", new Date(new Date().getTime() - (seconds * 1000)));
-        Long res = q.getSingleResult();
-        return res.longValue() >= numOfSessions.longValue();
-    }
-
-    public boolean emptySessionCheck(String ip, Integer numOfSessions, Integer seconds, Integer limit) {
-        TypedQuery<Long> q = PU.createEntityManager().createQuery("SELECT COUNT(h) FROM Httpsession h WHERE h.ip = :ip AND h.atime > :time AND (SELECT COUNT(p) FROM Pagerequest p WHERE p.httpsessionid = h) >= :limit", Long.class);
-        q.setParameter("ip", ip);
-        q.setParameter("time", new Date(new Date().getTime() - (seconds * 1000)));
-        q.setParameter("limit", limit);
-        Long res = q.getSingleResult();
-        return res.longValue() >= numOfSessions.longValue();
-    }
-
     public boolean inHoneypot(String ip) {
         TypedQuery<Honeypot> q = PU.createEntityManager().createQuery("SELECT h FROM Honeypot h WHERE h.ip = :ip AND h.expiresatatime > CURRENT_TIMESTAMP", Honeypot.class);
         q.setParameter("ip", ip);
@@ -80,7 +63,7 @@ public class GuardRepo {
             }
             h.setExpiresatatime(new Date(time));
         } catch (NoResultException n) {
-            em.persist(new Honeypot(null, ip, now, new Date(now.getTime() + defaultTime)));
+            em.persist(new Honeypot(null, new Date(now.getTime() + defaultTime), ip, now));
         }
         em.getTransaction().commit();
     }

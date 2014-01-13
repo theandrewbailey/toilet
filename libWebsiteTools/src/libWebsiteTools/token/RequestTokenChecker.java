@@ -1,4 +1,4 @@
-package libWebsiteTools;
+package libWebsiteTools.token;
 
 import java.io.IOException;
 import javax.servlet.DispatcherType;
@@ -30,11 +30,12 @@ public class RequestTokenChecker implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
         if (req != null && !check(req)) {
+            //res.setStatus(424);//, "Failed Dependency");
             request.getInputStream().close();
             response.getOutputStream().close();
             return;
         }
-        req.setAttribute(ORIGINAL_REQUEST_URL, getTokenURL(req));
+        request.setAttribute(ORIGINAL_REQUEST_URL, getTokenURL(req));
         chain.doFilter(request, response);
     }
 
@@ -45,24 +46,27 @@ public class RequestTokenChecker implements Filter {
      * @throws SecurityTokenInvalidException if request is fraudulent
      */
     private boolean check(HttpServletRequest req) {
-        if ("POST".equalsIgnoreCase(req.getMethod()) && req.getServletContext().getAttribute(DISABLE_TOKEN_CHECKING) == null && req.getServletContext().getInitParameter(DISABLE_TOKEN_CHECKING) == null) {
-            if (req.getSession(false) == null || req.getParameter(RequestToken.ID_NAME) == null) {
+        if ("POST".equalsIgnoreCase(req.getMethod()) && req.getServletContext().getAttribute(DISABLE_TOKEN_CHECKING) == null) {
+            if (req.getSession(false) == null) {
                 throw new RequestTokenInvalidException();
             }
             if (req.getSession().getAttribute(DISABLE_TOKEN_CHECKING) != null) {
                 return true;
             }
+            String tokenHash = RequestToken.getHash(req);
+            if (tokenHash == null) {
+                throw new RequestTokenInvalidException();
+            }
             RequestTokenBucket bucket = RequestTokenBucket.getRequestTokenBucket(req);
+            req.setAttribute(RequestToken.ID_NAME, req.getParameter(tokenHash));
             if (req.getServletContext().getAttribute(DISABLE_REFERRER_CHECKING) == null && 
-                    req.getSession().getAttribute(DISABLE_REFERRER_CHECKING) == null && 
-                    req.getAttribute(DISABLE_REFERRER_CHECKING) == null &&
-                    req.getParameter(DISABLE_REFERRER_CHECKING) == null) {
-                if (!bucket.claimToken(req.getParameter(RequestToken.ID_NAME), req.getHeader("referer"))){
+                    req.getSession().getAttribute(DISABLE_REFERRER_CHECKING) == null) {
+                if (!bucket.claimToken(req.getParameter(tokenHash), req.getHeader("referer"))){
                     throw new RequestTokenInvalidException();
                 }
             }
             else {
-                if (!bucket.claimToken(req.getParameter(RequestToken.ID_NAME))) {
+                if (!bucket.claimToken(req.getParameter(tokenHash))) {
                     throw new RequestTokenInvalidException();
                 }
             }

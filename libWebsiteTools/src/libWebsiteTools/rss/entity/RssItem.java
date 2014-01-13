@@ -28,8 +28,8 @@ public class RssItem implements Serializable, iPublishable {
     private String eMime;
     private Integer eLength;
     private Date pubDate = new Date();
-    private Boolean guidPermaLink;
-    private ArrayList<RssCategory> cats = new ArrayList<RssCategory>();
+    private boolean guidPermaLink = true;
+    private final ArrayList<RssCategory> cats = new ArrayList<>();
 
     /**
      * default constructor
@@ -61,16 +61,15 @@ public class RssItem implements Serializable, iPublishable {
         Element n;
         chan.appendChild(item);
 
-        RssChannel.textNode(item, "description", getDescription());
-        RssChannel.textNode(item, "title", getTitle());
-        RssChannel.textNode(item, "link", getLink());
-        RssChannel.textNode(item, "author", getAuthor());
+        RssChannel.textNode(item, "title", getTitle(), true);
+        RssChannel.textNode(item, "link", getLink(), true);
+        RssChannel.textNode(item, "author", getAuthor(), true);
 
         for (RssCategory c : cats) {
             c.publish(item);
         }
 
-        RssChannel.textNode(item, "comments", getComments());
+        RssChannel.textNode(item, "comments", getComments(), true);
 
         if (getEnclosure() != null) {
             n = XML.createElement("enclosure");
@@ -81,19 +80,21 @@ public class RssItem implements Serializable, iPublishable {
         }
 
         if (getGuid() != null) {
-            n = RssChannel.textNode(item, "guid", getGuid());
+            n = RssChannel.textNode(item, "guid", getGuid(), false);
 
-            if (getGuidPermaLink() != null) {
-                n.setAttribute("isPermaLink", getGuidPermaLink().toString());
+            if (!isGuidPermaLink()) {
+                n.setAttribute("isPermaLink", "false");
             }
         }
         if (getPubDate() != null) {
-            RssChannel.textNode(item, "pubDate", "").setTextContent(new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()));
+            RssChannel.textNode(item, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()), true);
         }
         if (getSrc() != null) {
-            n = RssChannel.textNode(item, "source", getSrc());
+            n = RssChannel.textNode(item, "source", getSrc(), true);
             n.setAttribute("url", getSrcUrl());
         }
+
+        RssChannel.textNode(item, "description", getDescription(), true);
         return item;
     }
 
@@ -268,14 +269,14 @@ public class RssItem implements Serializable, iPublishable {
     /**
      * @return the guidPermaLink
      */
-    public Boolean getGuidPermaLink() {
+    public boolean isGuidPermaLink() {
         return guidPermaLink;
     }
 
     /**
      * @param guidPermaLink the guidPermaLink to set
      */
-    public void setGuidPermaLink(Boolean guidPermaLink) {
+    public void setGuidPermaLink(boolean guidPermaLink) {
         this.guidPermaLink = guidPermaLink;
     }
 }

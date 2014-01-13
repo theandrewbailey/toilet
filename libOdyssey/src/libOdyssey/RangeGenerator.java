@@ -30,13 +30,13 @@ public class RangeGenerator implements Iterable<DateRange>, Iterator<DateRange> 
         subtract();
         // check
         boolean processed = anal.isRangeProcessed(startDate.getTime(), dayInterval);
-        if (!processed && !anal.getSessionsInRange(startDate.getTime(), endDate).isEmpty()) {
-            return true;
-        }
-        if (processed || anal.getSessionsInRange(new Date(0L), startDate.getTime()).isEmpty()) {
-            switchModes();
-            subtract();
-        }
+//        if (!processed && !anal.getSessionsInRange(startDate.getTime(), endDate).isEmpty()) {
+//            return true;
+//        }
+//        if (processed || anal.getSessionsInRange(new Date(0L), startDate.getTime()).isEmpty()) {
+//            switchModes();
+//            subtract();
+//        }
         return tryAgain();
     }
 

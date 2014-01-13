@@ -11,7 +11,7 @@ import libWebsiteTools.tag.HtmlTime;
  *
  * @author alpha
  */
-@WebListener
+@WebListener("Sets the default time format from imead value \"page_dateFormat\".")
 public class TimeFormatSetter implements ServletRequestListener {
 
     @EJB

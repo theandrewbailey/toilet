@@ -19,7 +19,9 @@ import org.w3c.dom.Element;
  *
  * extend this class to quickly create your own feeds, and use @Feed
  *
- * to have a feed automatically add to the feed manager, register this as a servlet listener, like by adding @WebListener to your classes.
+ * to have a feed automatically add to the feed manager, register this as a
+ * servlet listener, like by adding @WebListener to your classes.
+ *
  * @author alpha
  * @see libWebsiteTools.rss.Feed
  */
@@ -27,10 +29,10 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
 
     @EJB
     protected iFeedBucket feeds;
-    private Collection<RssChannel> channels = new ArrayList<RssChannel>();
+    protected final Collection<RssChannel> channels = new ArrayList<>();
 
     /**
-     * 
+     *
      * @param chan
      */
     public void addChannel(RssChannel chan) {
@@ -38,16 +40,9 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
     }
 
     /**
-     *
-     * @param chan
-     */
-    public void removeChannel(RssChannel chan) {
-        channels.remove(chan);
-    }
-
-    /**
      * builds the entire DOM behind this RSS feed with all built-in channels,
      * controlled by addChannel and removeChannel
+     *
      * @return XML document
      */
     public Document refreshFeed() {
@@ -56,6 +51,7 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
 
     /**
      * rebuild the XML DOM behind this RSS feed, with the given channel
+     *
      * @param channel
      * @return RSS XML output
      */
@@ -65,6 +61,7 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
 
     /**
      * rebuild the DOM behind this RSS feed, with the given channels
+     *
      * @param channels
      * @return RSS XML output
      */
@@ -117,7 +114,8 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
      * automatically adds this feed to the feed manager
      *
      * unless explicitly called, this will only happen when this is a listener
-     * @param ServletContextEvent (can be null)
+     *
+     * @param e ServletContextEvent (can be null)
      */
     @Override
     public void contextInitialized(ServletContextEvent e) {
@@ -128,7 +126,8 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
      * attempts to remove this feed
      *
      * unless explicitly called, this will only happen when this is a listener
-     * @param ServletContextEvent (can be null)
+     *
+     * @param e ServletContextEvent (can be null)
      */
     @Override
     public void contextDestroyed(ServletContextEvent e) {

@@ -1,22 +1,23 @@
 package libWebsiteTools.imead;
 
+import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletRequestEvent;
-import javax.servlet.ServletRequestListener;
-import javax.servlet.annotation.WebListener;
+import javax.ejb.EJBException;
 import javax.servlet.http.HttpServletRequest;
-
+import javax.servlet.jsp.JspException;
+import javax.servlet.jsp.PageContext;
+import libWebsiteTools.imead.LocalizedStringNotFoundException;
+import libWebsiteTools.NullWriter;
 
 /**
  *
  * @author alpha
  */
-@WebListener("places a list of locale objects on the request")
-//@WebFilter(filterName="LocaleResolver", description="places a list of locale objects on the request", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.INCLUDE}, urlPatterns = {"*.jsp", "*.jspf", "*.jspx"})
-public class LocaleResolver implements ServletRequestListener {
+public class Local extends KeyVal {
+
     /**
      * this is the request attribute name that holds the list of user agent locales + server default locale.
      */
@@ -25,6 +26,8 @@ public class LocaleResolver implements ServletRequestListener {
      * to override default locale selection, place a java.util.Locale object on the SESSION with this name, and it will have first priority over user agent and server locales. if a resource cannot be resolved for the overriden locale, default behavior will be used.
      */
     public static final String OVERRIDE_LOCALE_PARAM = "$_LIBIMEAD_OVERRIDE_LOCALE";
+
+    private String locale;
 
     /**
      * retrieves locales off request. returned list can have (in order):
@@ -51,14 +54,41 @@ public class LocaleResolver implements ServletRequestListener {
     }
 
     @Override
-    public void requestInitialized(ServletRequestEvent sre) {
-        ServletRequest request=sre.getServletRequest();
-        if (request.getAttribute(LOCALE_PARAM) == null) {
-            request.setAttribute(LOCALE_PARAM, resolveLocales((HttpServletRequest) request));
+    @SuppressWarnings("unchecked")
+    protected String getValue() {
+        try {
+            getJspBody().invoke(new NullWriter());
+        } catch (Exception n) {
+        }
+        if (locale != null) {
+            try {
+                return MessageFormat.format(imead.getLocal(getKey(), locale), getParams().toArray());
+            } catch (EJBException e) {
+                if (!(e.getCause() instanceof LocalizedStringNotFoundException)) {
+                    throw e;
+                }
+            }
+        }
+
+        List<Locale> locales = (List<Locale>) getJspContext().findAttribute(LOCALE_PARAM);
+        if (locales == null) {
+            locales = resolveLocales((HttpServletRequest)((PageContext)getJspContext()).getRequest());
+            getJspContext().setAttribute(LOCALE_PARAM, locales, PageContext.REQUEST_SCOPE);
+        }
+        try {
+            return MessageFormat.format(imead.getLocal(getKey(), locales), getParams().toArray());
+        } catch (EJBException e) {
+            // not much that can be done; key was not found, must report
+            throw e;
         }
     }
 
     @Override
-    public void requestDestroyed(ServletRequestEvent sre) {
+    public void doTag() throws JspException, IOException {
+        getJspContext().getOut().print(getValue());
+    }
+
+    public void setLocale(String l) {
+        locale = l;
     }
 }

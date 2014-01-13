@@ -22,12 +22,14 @@ public @interface Feed {
 
     /**
      * specifies the mime type of the feed
+     *
      * @return
      */
     String MIME() default MIME_RSS;
 
     /**
      * specifies the rss feed name
+     *
      * @return
      */
     String value();

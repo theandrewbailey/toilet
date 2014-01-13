@@ -2,20 +2,17 @@ package toilet;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.catalina.util.Base64;
+import libWebsiteTools.tag.AbstractInput;
 
 public final class UtilStatic {
 
     private static final Logger logger = Logger.getLogger(UtilStatic.class.getName());
-    public static final String SHA256_UNSUPPORTED = "SHA-256 hashing is not supported on this JVM!";
 
     public UtilStatic() {
         throw new UnsupportedOperationException("You cannot instantiate this class");
@@ -98,6 +95,7 @@ public final class UtilStatic {
      *
      * @param in input string
      * @param link keep "<" and ">", preserving embedded links
+     * @param addPtags
      * @return formatted string
      */
     public static String htmlFormat(String in, boolean link, boolean addPtags) {
@@ -167,6 +165,7 @@ public final class UtilStatic {
      * reverses htmlFormat
      *
      * @param s input string
+     * @param link
      * @return
      */
     public static String htmlUnformat(String s, boolean link) {
@@ -194,42 +193,6 @@ public final class UtilStatic {
     }
 
     /**
-     * @return SHA 256 MessageDigest
-     */
-    public static MessageDigest getHasher() {
-        try {
-            return MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException n) {
-            logger.severe(SHA256_UNSUPPORTED);
-            throw new RuntimeException(SHA256_UNSUPPORTED, n);
-        }
-    }
-
-    /**
-     * @param stuff
-     * @return stuff in Base64
-     */
-    public static String getBase64(byte[] stuff) {
-        return new String(Base64.encode(stuff));
-    }
-
-    /**
-     * @param toHash
-     * @return base64 SHA 256 hash
-     */
-    public static String getHash(String toHash) {
-        return getHash(toHash.getBytes());
-    }
-
-    /**
-     * @param toHash
-     * @return base64 SHA 256 hash
-     */
-    public static String getHash(byte[] toHash) {
-        return getBase64(getHasher().digest(toHash));
-    }
-
-    /**
      * tells the client to go to a new location. WHY is this not included in the standard servlet API????
      *
      * @param res
@@ -249,7 +212,7 @@ public final class UtilStatic {
      */
     public static String getParam(HttpServletRequest req, String param) {
         try {
-            return new BufferedReader(new InputStreamReader(req.getPart(param).getInputStream())).readLine();
+            return new BufferedReader(new InputStreamReader(AbstractInput.getPart(req, param).getInputStream())).readLine();
         } catch (Exception e) {
             return null;
         }

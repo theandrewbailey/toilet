@@ -1,7 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -21,12 +23,10 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
-import org.codehaus.jackson.annotate.JsonIgnore;
 
 /**
  *
- * @author
- * alpha
+ * @author alphavm
  */
 @Entity
 @Table(name = "page", schema = "odyssey")
@@ -51,12 +51,12 @@ public class Page implements Serializable {
     @Size(max = 2147483647)
     @Column(name = "parameters", length = 2147483647)
     private String parameters;
-    @OneToMany(mappedBy = "pageid")
-    private Collection<Httpsession> httpsessionCollection;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "page")
     private Collection<Pageonpageday> pageonpagedayCollection;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "pageid")
+    @OneToMany(mappedBy = "referredbypageid")
     private Collection<Pagerequest> pagerequestCollection;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "requestedpageid")
+    private Collection<Pagerequest> pagerequestCollection1;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "page")
     private Collection<Pageday> pagedayCollection;
 
@@ -97,17 +97,6 @@ public class Page implements Serializable {
     }
 
     @XmlTransient
-    @JsonIgnore
-    public Collection<Httpsession> getHttpsessionCollection() {
-        return httpsessionCollection;
-    }
-
-    public void setHttpsessionCollection(Collection<Httpsession> httpsessionCollection) {
-        this.httpsessionCollection = httpsessionCollection;
-    }
-
-    @XmlTransient
-    @JsonIgnore
     public Collection<Pageonpageday> getPageonpagedayCollection() {
         return pageonpagedayCollection;
     }
@@ -117,7 +106,6 @@ public class Page implements Serializable {
     }
 
     @XmlTransient
-    @JsonIgnore
     public Collection<Pagerequest> getPagerequestCollection() {
         return pagerequestCollection;
     }
@@ -127,7 +115,15 @@ public class Page implements Serializable {
     }
 
     @XmlTransient
-    @JsonIgnore
+    public Collection<Pagerequest> getPagerequestCollection1() {
+        return pagerequestCollection1;
+    }
+
+    public void setPagerequestCollection1(Collection<Pagerequest> pagerequestCollection1) {
+        this.pagerequestCollection1 = pagerequestCollection1;
+    }
+
+    @XmlTransient
     public Collection<Pageday> getPagedayCollection() {
         return pagedayCollection;
     }

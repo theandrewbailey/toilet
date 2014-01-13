@@ -1,3 +1,7 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package toilet.db;
 
 import java.io.Serializable;
@@ -19,87 +23,83 @@ import javax.persistence.OrderBy;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import javax.persistence.Transient;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
+/**
+ *
+ * @author alphavm
+ */
 @Entity
-@Table(name = "article", schema = "toilet")
+@Table(name = "article", catalog = "toilet", schema = "toilet")
+@XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a ORDER BY a.posted"),
+    @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a"),
     @NamedQuery(name = "Article.findByArticleid", query = "SELECT a FROM Article a WHERE a.articleid = :articleid"),
     @NamedQuery(name = "Article.findByArticletitle", query = "SELECT a FROM Article a WHERE a.articletitle = :articletitle"),
-    @NamedQuery(name = "Article.findByPosted", query = "SELECT a FROM Article a WHERE a.posted = :posted"),
-    @NamedQuery(name = "Article.findByPostedtext", query = "SELECT a FROM Article a WHERE a.postedtext = :postedtext"),
     @NamedQuery(name = "Article.findByEtag", query = "SELECT a FROM Article a WHERE a.etag = :etag"),
     @NamedQuery(name = "Article.findByModified", query = "SELECT a FROM Article a WHERE a.modified = :modified"),
+    @NamedQuery(name = "Article.findByPosted", query = "SELECT a FROM Article a WHERE a.posted = :posted"),
+    @NamedQuery(name = "Article.findByPostedhtml", query = "SELECT a FROM Article a WHERE a.postedhtml = :postedhtml"),
+    @NamedQuery(name = "Article.findByPostedmarkdown", query = "SELECT a FROM Article a WHERE a.postedmarkdown = :postedmarkdown"),
     @NamedQuery(name = "Article.findByPostedname", query = "SELECT a FROM Article a WHERE a.postedname = :postedname"),
     @NamedQuery(name = "Article.findByComments", query = "SELECT a FROM Article a WHERE a.comments = :comments"),
     @NamedQuery(name = "Article.findByDescription", query = "SELECT a FROM Article a WHERE a.description = :description")})
 public class Article implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
-    @Basic(optional = false)
-    @Column(name = "articleid")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Basic(optional = false)
+    @Column(name = "articleid", nullable = false)
     private Integer articleid;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 0, max = 250)
-    @Column(name = "articletitle")
+    @Size(min = 1, max = 250)
+    @Column(name = "articletitle", nullable = false, length = 250)
     private String articletitle;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "posted")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date posted;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 0, max = 65000)
-    @Column(name = "postedtext")
-    private String postedtext;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 0, max = 250)
-    @Column(name = "etag")
+    @Size(min = 1, max = 250)
+    @Column(name = "etag", nullable = false, length = 250)
     private String etag;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "modified")
+    @Column(name = "modified", nullable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date modified;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 0, max = 250)
-    @Column(name = "postedname")
+    @Column(name = "posted", nullable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date posted;
+    @Basic(optional = false)
+    @NotNull
+    @Size(min = 1, max = 10485760)
+    @Column(name = "postedhtml", nullable = false, length = 10485760)
+    private String postedhtml;
+    @Basic(optional = false)
+    @NotNull
+    @Size(min = 1, max = 10485760)
+    @Column(name = "postedmarkdown", nullable = false, length = 10485760)
+    private String postedmarkdown;
+    @Basic(optional = false)
+    @NotNull
+    @Size(min = 1, max = 250)
+    @Column(name = "postedname", nullable = false, length = 250)
     private String postedname;
     @Column(name = "comments")
     private Boolean comments;
-    @Size(max = 65000)
-    @Column(name = "description")
+    @Size(max = 1000)
+    @Column(name = "description", length = 1000)
     private String description;
-//    @JoinColumn(name = "urlid", referencedColumnName = "urlid")
-//    @ManyToOne
-//    private Url urlid;
-    @JoinColumn(name = "sectionid", referencedColumnName = "sectionid")
+    @JoinColumn(name = "sectionid", referencedColumnName = "sectionid", nullable = false)
     @ManyToOne(optional = false)
     private Section sectionid;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "articleid")
     @OrderBy("posted")
     private Collection<Comment> commentCollection;
-
-    @Transient
-    private int commentCount=0;
-
-    public int getCommentCount(){
-        if (commentCollection != null) {
-            return commentCollection.size();
-        }
-        return commentCount;
-    }
-    public void setCommentCount(int c){
-        commentCount=c;
-    }
 
     public Article() {
     }
@@ -108,13 +108,14 @@ public class Article implements Serializable {
         this.articleid = articleid;
     }
 
-    public Article(Integer articleid, String articletitle, Date posted, String postedtext, String etag, Date modified, String postedname) {
+    public Article(Integer articleid, String articletitle, String etag, Date modified, Date posted, String postedhtml, String postedmarkdown, String postedname) {
         this.articleid = articleid;
         this.articletitle = articletitle;
-        this.posted = posted;
-        this.postedtext = postedtext;
         this.etag = etag;
         this.modified = modified;
+        this.posted = posted;
+        this.postedhtml = postedhtml;
+        this.postedmarkdown = postedmarkdown;
         this.postedname = postedname;
     }
 
@@ -134,22 +135,6 @@ public class Article implements Serializable {
         this.articletitle = articletitle;
     }
 
-    public Date getPosted() {
-        return posted;
-    }
-
-    public void setPosted(Date posted) {
-        this.posted = posted;
-    }
-
-    public String getPostedtext() {
-        return postedtext;
-    }
-
-    public void setPostedtext(String postedtext) {
-        this.postedtext = postedtext;
-    }
-
     public String getEtag() {
         return etag;
     }
@@ -164,6 +149,30 @@ public class Article implements Serializable {
 
     public void setModified(Date modified) {
         this.modified = modified;
+    }
+
+    public Date getPosted() {
+        return posted;
+    }
+
+    public void setPosted(Date posted) {
+        this.posted = posted;
+    }
+
+    public String getPostedhtml() {
+        return postedhtml;
+    }
+
+    public void setPostedhtml(String postedhtml) {
+        this.postedhtml = postedhtml;
+    }
+
+    public String getPostedmarkdown() {
+        return postedmarkdown;
+    }
+
+    public void setPostedmarkdown(String postedmarkdown) {
+        this.postedmarkdown = postedmarkdown;
     }
 
     public String getPostedname() {
@@ -190,14 +199,6 @@ public class Article implements Serializable {
         this.description = description;
     }
 
-//    public Url getUrlid() {
-//        return urlid;
-//    }
-//
-//    public void setUrlid(Url urlid) {
-//        this.urlid = urlid;
-//    }
-
     public Section getSectionid() {
         return sectionid;
     }
@@ -206,6 +207,7 @@ public class Article implements Serializable {
         this.sectionid = sectionid;
     }
 
+    @XmlTransient
     public Collection<Comment> getCommentCollection() {
         return commentCollection;
     }

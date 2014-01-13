@@ -16,7 +16,7 @@ public class HtmlTime extends SimpleTagSupport {
     private String pattern;
     private Date datetime;
     private Boolean pubdate = false;
-    private SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    private final SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
     @Override
     public void doTag() throws JspException, IOException {
@@ -27,9 +27,11 @@ public class HtmlTime extends SimpleTagSupport {
         out.append("\" >");
         Object uniFormat = getJspContext().findAttribute(FORMAT_VAR);
         if (pattern != null) {
-            out.append(new SimpleDateFormat(pattern).format(datetime));
+            htmlFormat.applyPattern(pattern);
+            out.append(htmlFormat.format(datetime));
         } else if (uniFormat != null) {
-            out.append(new SimpleDateFormat(uniFormat.toString()).format(datetime));
+            htmlFormat.applyPattern(uniFormat.toString());
+            out.append(htmlFormat.format(datetime));
         } else {
             out.append(new SimpleDateFormat().format(datetime));
         }
@@ -45,7 +47,7 @@ public class HtmlTime extends SimpleTagSupport {
     }
 
     /**
-     * @param format the format to set
+     * @param pattern
      */
     public void setPattern(String pattern) {
         this.pattern = pattern;

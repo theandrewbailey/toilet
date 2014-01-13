@@ -1,7 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -21,42 +23,41 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author
- * alpha
+ * @author alphavm
  */
 @Entity
 @Table(name = "pageonpageday", schema = "odyssey")
 @XmlRootElement
 @NamedQueries({
     @NamedQuery(name = "Pageonpageday.findAll", query = "SELECT p FROM Pageonpageday p"),
-    @NamedQuery(name = "Pageonpageday.findByPageid", query = "SELECT p FROM Pageonpageday p WHERE p.pageonpagedayPK.pageid = :pageid"),
     @NamedQuery(name = "Pageonpageday.findByDay", query = "SELECT p FROM Pageonpageday p WHERE p.pageonpagedayPK.day = :day"),
     @NamedQuery(name = "Pageonpageday.findByDayinterval", query = "SELECT p FROM Pageonpageday p WHERE p.pageonpagedayPK.dayinterval = :dayinterval"),
+    @NamedQuery(name = "Pageonpageday.findByPageid", query = "SELECT p FROM Pageonpageday p WHERE p.pageonpagedayPK.pageid = :pageid"),
     @NamedQuery(name = "Pageonpageday.findBySecondarypage", query = "SELECT p FROM Pageonpageday p WHERE p.pageonpagedayPK.secondarypage = :secondarypage"),
-    @NamedQuery(name = "Pageonpageday.findByLinkedtopercent", query = "SELECT p FROM Pageonpageday p WHERE p.linkedtopercent = :linkedtopercent"),
     @NamedQuery(name = "Pageonpageday.findByLinkedfrompercent", query = "SELECT p FROM Pageonpageday p WHERE p.linkedfrompercent = :linkedfrompercent"),
-    @NamedQuery(name = "Pageonpageday.findByLinkedtotimes", query = "SELECT p FROM Pageonpageday p WHERE p.linkedtotimes = :linkedtotimes"),
-    @NamedQuery(name = "Pageonpageday.findByLinkedfromtimes", query = "SELECT p FROM Pageonpageday p WHERE p.linkedfromtimes = :linkedfromtimes")})
+    @NamedQuery(name = "Pageonpageday.findByLinkedfromtimes", query = "SELECT p FROM Pageonpageday p WHERE p.linkedfromtimes = :linkedfromtimes"),
+    @NamedQuery(name = "Pageonpageday.findByLinkedtopercent", query = "SELECT p FROM Pageonpageday p WHERE p.linkedtopercent = :linkedtopercent"),
+    @NamedQuery(name = "Pageonpageday.findByLinkedtotimes", query = "SELECT p FROM Pageonpageday p WHERE p.linkedtotimes = :linkedtotimes")})
 public class Pageonpageday implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected PageonpagedayPK pageonpagedayPK;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "linkedtopercent", nullable = false)
-    private float linkedtopercent;
-    @Basic(optional = false)
-    @NotNull
     @Column(name = "linkedfrompercent", nullable = false)
     private float linkedfrompercent;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "linkedtotimes", nullable = false)
-    private long linkedtotimes;
-    @Basic(optional = false)
-    @NotNull
     @Column(name = "linkedfromtimes", nullable = false)
     private long linkedfromtimes;
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "linkedtopercent", nullable = false)
+    private float linkedtopercent;
+    @Basic(optional = false)
+    @NotNull
+    @Column(name = "linkedtotimes", nullable = false)
+    private long linkedtotimes;
     @JoinColumns({
         @JoinColumn(name = "pageid", referencedColumnName = "pageid", nullable = false, insertable = false, updatable = false),
         @JoinColumn(name = "day", referencedColumnName = "day", nullable = false, insertable = false, updatable = false),
@@ -74,16 +75,16 @@ public class Pageonpageday implements Serializable {
         this.pageonpagedayPK = pageonpagedayPK;
     }
 
-    public Pageonpageday(PageonpagedayPK pageonpagedayPK, float linkedtopercent, float linkedfrompercent, long linkedtotimes, long linkedfromtimes) {
+    public Pageonpageday(PageonpagedayPK pageonpagedayPK, float linkedfrompercent, long linkedfromtimes, float linkedtopercent, long linkedtotimes) {
         this.pageonpagedayPK = pageonpagedayPK;
-        this.linkedtopercent = linkedtopercent;
         this.linkedfrompercent = linkedfrompercent;
-        this.linkedtotimes = linkedtotimes;
         this.linkedfromtimes = linkedfromtimes;
+        this.linkedtopercent = linkedtopercent;
+        this.linkedtotimes = linkedtotimes;
     }
 
-    public Pageonpageday(int pageid, Date day, String dayinterval, int secondarypage) {
-        this.pageonpagedayPK = new PageonpagedayPK(pageid, day, dayinterval, secondarypage);
+    public Pageonpageday(Date day, String dayinterval, int pageid, int secondarypage) {
+        this.pageonpagedayPK = new PageonpagedayPK(day, dayinterval, pageid, secondarypage);
     }
 
     public PageonpagedayPK getPageonpagedayPK() {
@@ -94,14 +95,6 @@ public class Pageonpageday implements Serializable {
         this.pageonpagedayPK = pageonpagedayPK;
     }
 
-    public float getLinkedtopercent() {
-        return linkedtopercent;
-    }
-
-    public void setLinkedtopercent(float linkedtopercent) {
-        this.linkedtopercent = linkedtopercent;
-    }
-
     public float getLinkedfrompercent() {
         return linkedfrompercent;
     }
@@ -110,20 +103,28 @@ public class Pageonpageday implements Serializable {
         this.linkedfrompercent = linkedfrompercent;
     }
 
-    public long getLinkedtotimes() {
-        return linkedtotimes;
-    }
-
-    public void setLinkedtotimes(long linkedtotimes) {
-        this.linkedtotimes = linkedtotimes;
-    }
-
     public long getLinkedfromtimes() {
         return linkedfromtimes;
     }
 
     public void setLinkedfromtimes(long linkedfromtimes) {
         this.linkedfromtimes = linkedfromtimes;
+    }
+
+    public float getLinkedtopercent() {
+        return linkedtopercent;
+    }
+
+    public void setLinkedtopercent(float linkedtopercent) {
+        this.linkedtopercent = linkedtopercent;
+    }
+
+    public long getLinkedtotimes() {
+        return linkedtotimes;
+    }
+
+    public void setLinkedtotimes(long linkedtotimes) {
+        this.linkedtotimes = linkedtotimes;
     }
 
     public Pageday getPageday() {

@@ -10,7 +10,7 @@ import javax.persistence.NoResultException;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
 import javax.servlet.http.HttpServletRequest;
-import org.eclipse.persistence.exceptions.DatabaseException;
+import org.postgresql.util.PSQLException;
 import toilet.db.Fileupload;
 
 @Stateless
@@ -50,8 +50,11 @@ public class FileRepo {
         try {
             em.getTransaction().commit();
             log.log(Level.FINE, "File committed to db: {0}", upload.getFilename());
-        } catch (DatabaseException d) {
-            log.log(Level.INFO, "File already exists: {0}", upload.getFilename());
+        } catch (RuntimeException d) {
+            if (d.getCause() != null && d.getCause().getCause() instanceof PSQLException){
+                log.log(Level.INFO, "File already exists: {0}", upload.getFilename());
+            }
+            throw d;
         }
     }
 

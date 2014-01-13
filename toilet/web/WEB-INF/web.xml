@@ -18,6 +18,9 @@
         <name>libHtmlTools</name>
         <others/>
     </absolute-ordering>
+    <welcome-file-list>
+        <welcome-file>index</welcome-file>
+    </welcome-file-list>
     <jsp-config>
         <jsp-property-group>
             <url-pattern>*.jsp</url-pattern>

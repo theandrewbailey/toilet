@@ -4,7 +4,7 @@
     <description>Spruce TagLib</description>
     <display-name>Spruce</display-name>
     <short-name>sp</short-name>
-    <uri>http://theandrewbailey.com/spruce</uri>
+    <uri>uri:spruce</uri>
     <tag>
         <description>Injects a random sentence</description>
         <name>sentence</name>

@@ -22,7 +22,7 @@ import javax.xml.transform.TransformerFactory;
 
 /**
  * the feed bucket, the source from which all RSS feeds come
- * 
+ *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
 @Singleton
@@ -36,15 +36,16 @@ public class FeedBucket implements iFeedBucket {
 
     /**
      * returns an XML factory good to use.
+     *
      * @param indent
-     * @return 
+     * @return
      * @throws RuntimeException if the transformer cannot be created
      */
     public static Transformer getTransformer(boolean indent) {
         TransformerFactory xFormFact = TransformerFactory.newInstance();
         xFormFact.setAttribute("indent-number", new Integer(4));
         try {
-            Transformer trans=xFormFact.newTransformer();
+            Transformer trans = xFormFact.newTransformer();
             if (indent) {
                 trans.setOutputProperty(OutputKeys.INDENT, "yes");
             }
@@ -72,9 +73,7 @@ public class FeedBucket implements iFeedBucket {
     @Override
     public void addFeed(iFeed feed) {
         if (feed.getClass().getAnnotation(Feed.class) == null) {
-            // TODO: instead of annotation, use class name
-            log.log(Level.SEVERE, "@Feed not found on {0}", feed.getClass().getName());
-            throw new NullPointerException("@Feed not found on " + feed.getClass().getName());
+            addFeed(feed.getClass().getSimpleName(), feed);
         }
         addFeed(feed.getClass().getAnnotation(Feed.class).value(), feed);
     }
@@ -82,15 +81,13 @@ public class FeedBucket implements iFeedBucket {
     @Override
     public void addFeed(String className) {
         try {
-            addFeed((iFeed) Class.forName(className).getConstructors()[0].newInstance());
+            addFeed((iFeed) Class.forName(className).newInstance());
         } catch (InstantiationException ex) {
             log.log(Level.SEVERE, "Feed " + className + " is not instantiatable", ex);
         } catch (IllegalAccessException ex) {
             log.log(Level.SEVERE, "Feed " + className + " has an inaccessable constructor", ex);
         } catch (IllegalArgumentException ex) {
             log.log(Level.SEVERE, "Feed " + className + " has invalid constructor arguments", ex);
-        } catch (InvocationTargetException ex) {
-            log.log(Level.SEVERE, "Feed " + className + " constructor not invoked", ex);
         } catch (ClassNotFoundException ex) {
             log.log(Level.SEVERE, "Feed " + className + " was not found", ex);
         } catch (ClassCastException ex) {

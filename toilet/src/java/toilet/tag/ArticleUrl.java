@@ -6,6 +6,7 @@ import java.net.URLEncoder;
 import javax.ejb.EJB;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
+import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.bean.UtilBean;
 import toilet.db.Article;
@@ -15,50 +16,42 @@ public class ArticleUrl extends SimpleTagSupport {
     @EJB
     private IMEADHolder imead;
     private Article article;
-    private Boolean link = true;
+    private boolean link = true;
     private String anchor;
+    private String cssClass;
     private String text;
     private String id;
 
     @Override
     public void doTag() throws JspException, IOException {
         StringBuilder b = new StringBuilder(link ? "<a href=\"" : "");
-        b.append(getUrl(imead.getValue(UtilBean.THISURL), article));
-        if (anchor != null) {
-            b.append('#');
-            b.append(anchor);
+        b.append(getUrl(imead.getValue(UtilBean.THISURL), article, anchor));
+        if (link && id != null) {
+            b.append("\" id=\"").append(id);
         }
-        if (link && id!=null){
-            b.append("\" id=\"");
-            b.append(id);
+        if (link && cssClass != null) {
+            b.append("\" class=\"").append(cssClass);
         }
         if (link) {
-            b.append("\">");
-            b.append(text == null ? article.getArticletitle() : text);
-            b.append("</a>");
+            b.append("\">").append(text == null ? article.getArticletitle() : text).append("</a>");
         }
         getJspContext().getOut().print(b.toString());
     }
 
     public static String getUrl(String thisURL, Article article, String anchor) {
-        return getUrl(thisURL, article) + "#" + anchor;
+        return anchor == null ? getUrl(thisURL, article)
+                : getUrl(thisURL, article) + "#" + anchor;
     }
 
     public static String getUrl(String thisURL, Article article) {
-        StringBuilder out = new StringBuilder(thisURL);
-        out.append("article/");
-        out.append(article.getArticleid());
-        out.append('/');
+        StringBuilder out = new StringBuilder(thisURL).append("article/").append(article.getArticleid()).append('/');
         try {
             String title = URLEncoder.encode(article.getArticletitle(), "UTF-8");
-            title = title.replaceAll("%[0-9A-F]{2}", "");
-            title = title.replace(":", "");
-            title = title.replace("+", "-");
+            title = title.replaceAll("%[0-9A-F]{2}", "").replace(":", "").replace("+", "-");
             out.append(title);
         } catch (UnsupportedEncodingException ex) {
-            // not gonna happen
-            throw new RuntimeException(UtilBean.UTF8_UNSUPPORTED, ex);
-        }   // F U JAVA
+            throw new JVMNotSupportedError(ex);
+        }
         return out.toString();
     }
 
@@ -74,11 +67,15 @@ public class ArticleUrl extends SimpleTagSupport {
         this.text = text;
     }
 
-    public void setLink(Boolean link) {
+    public void setLink(boolean link) {
         this.link = link;
     }
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public void setCssClass(String cssClass) {
+        this.cssClass = cssClass;
     }
 }

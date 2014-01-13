@@ -18,8 +18,8 @@ import javax.xml.transform.stream.StreamResult;
 /**
  * praetor_alpha libRssServlet
  *
- * Feel free to use this in your websites, blogs, or anything else you can think of.
- * If you have improvements, please, do tell.
+ * Feel free to use this in your websites, blogs, or anything else you can think
+ * of. If you have improvements, please, do tell.
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
@@ -45,8 +45,9 @@ public class RssServlet extends HttpServlet {
     }
 
     /**
-     * outputs an RSS XML on the request, the URL determines which feed gets written out
-     * /rss/peanutButter writes feed peanutButter to response
+     * outputs an RSS XML on the request, the URL determines which feed gets
+     * written out /rss/peanutButter writes feed peanutButter to response
+     *
      * @param request
      * @param response
      * @throws javax.servlet.ServletException

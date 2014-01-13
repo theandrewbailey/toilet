@@ -64,7 +64,7 @@ public class ExceptionRepo {
 
         desc = additionalDesc.toString();
 
-        Exceptionevent e = new Exceptionevent(null, new Date(), title, desc);
+        Exceptionevent e = new Exceptionevent(null, new Date(), desc, title);
         EntityManager em = PU.createEntityManager();
         em.getTransaction().begin();
         em.persist(e);

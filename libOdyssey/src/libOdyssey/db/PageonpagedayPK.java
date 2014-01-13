@@ -1,7 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -16,15 +18,10 @@ import javax.validation.constraints.Size;
 
 /**
  *
- * @author
- * alpha
+ * @author alphavm
  */
 @Embeddable
 public class PageonpagedayPK implements Serializable {
-    @Basic(optional = false)
-    @NotNull
-    @Column(name = "pageid", nullable = false)
-    private int pageid;
     @Basic(optional = false)
     @NotNull
     @Column(name = "day", nullable = false)
@@ -37,25 +34,21 @@ public class PageonpagedayPK implements Serializable {
     private String dayinterval;
     @Basic(optional = false)
     @NotNull
+    @Column(name = "pageid", nullable = false)
+    private int pageid;
+    @Basic(optional = false)
+    @NotNull
     @Column(name = "secondarypage", nullable = false)
     private int secondarypage;
 
     public PageonpagedayPK() {
     }
 
-    public PageonpagedayPK(int pageid, Date day, String dayinterval, int secondarypage) {
-        this.pageid = pageid;
+    public PageonpagedayPK(Date day, String dayinterval, int pageid, int secondarypage) {
         this.day = day;
         this.dayinterval = dayinterval;
-        this.secondarypage = secondarypage;
-    }
-
-    public int getPageid() {
-        return pageid;
-    }
-
-    public void setPageid(int pageid) {
         this.pageid = pageid;
+        this.secondarypage = secondarypage;
     }
 
     public Date getDay() {
@@ -74,6 +67,14 @@ public class PageonpagedayPK implements Serializable {
         this.dayinterval = dayinterval;
     }
 
+    public int getPageid() {
+        return pageid;
+    }
+
+    public void setPageid(int pageid) {
+        this.pageid = pageid;
+    }
+
     public int getSecondarypage() {
         return secondarypage;
     }
@@ -85,9 +86,9 @@ public class PageonpagedayPK implements Serializable {
     @Override
     public int hashCode() {
         int hash = 0;
-        hash += (int) pageid;
         hash += (day != null ? day.hashCode() : 0);
         hash += (dayinterval != null ? dayinterval.hashCode() : 0);
+        hash += (int) pageid;
         hash += (int) secondarypage;
         return hash;
     }
@@ -99,13 +100,13 @@ public class PageonpagedayPK implements Serializable {
             return false;
         }
         PageonpagedayPK other = (PageonpagedayPK) object;
-        if (this.pageid != other.pageid) {
-            return false;
-        }
         if ((this.day == null && other.day != null) || (this.day != null && !this.day.equals(other.day))) {
             return false;
         }
         if ((this.dayinterval == null && other.dayinterval != null) || (this.dayinterval != null && !this.dayinterval.equals(other.dayinterval))) {
+            return false;
+        }
+        if (this.pageid != other.pageid) {
             return false;
         }
         if (this.secondarypage != other.secondarypage) {
@@ -116,7 +117,7 @@ public class PageonpagedayPK implements Serializable {
 
     @Override
     public String toString() {
-        return "libOdyssey.db.PageonpagedayPK[ pageid=" + pageid + ", day=" + day + ", dayinterval=" + dayinterval + ", secondarypage=" + secondarypage + " ]";
+        return "libOdyssey.db.PageonpagedayPK[ day=" + day + ", dayinterval=" + dayinterval + ", pageid=" + pageid + ", secondarypage=" + secondarypage + " ]";
     }
     
 }

@@ -2,8 +2,6 @@ package toilet.servlet;
 
 import com.lambdaworks.crypto.SCryptUtil;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -12,8 +10,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
 import libWebsiteTools.imead.IMEADHolder;
-import toilet.bean.ArticleStateCache;
+import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.UtilBean;
+import toilet.db.Article;
 import toilet.rss.ErrorRss;
 
 @WebServlet(name = "AdminServlet", description = "Populates the various admin view JSPs", urlPatterns = {"/admin"})
@@ -40,12 +39,10 @@ public class AdminServlet extends HttpServlet {
     private ExceptionRepo error;
     @EJB
     private IMEADHolder imead;
-    @EJB
-    private ArticleStateCache cache;
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String answer = request.getParameter("answer");
+        String answer = AbstractInput.getParameter(request, "answer");
         if (SCryptUtil.check(answer, imead.getValue(IMPORT))) {
             request.getSession().setAttribute("login", IMPORT);
             request.getRequestDispatcher(MAN_IMPORT).forward(request, response);
@@ -55,16 +52,10 @@ public class AdminServlet extends HttpServlet {
             response.sendRedirect(imead.getValue(UtilBean.THISURL).toString() + "rss/" + ErrorRss.NAME);
 
         } else if (SCryptUtil.check(answer, imead.getValue(POSTS))) {
-            request.getSession().setAttribute("login", AdminServlet.POSTS);
-            request.getRequestDispatcher("/adminPost").forward(request, response);
+            AdminPost.showList(request, response);
 
         } else if (SCryptUtil.check(answer, imead.getValue(ADDENTRY))) {
-            request.getSession().setAttribute("article", ADDENTRY);
-            List<String> groups = new ArrayList<String>(cache.getArticleCategories());
-            request.setAttribute("entryType", "entry");
-            request.setAttribute("title", "Add Entry");
-            request.setAttribute("groups", groups);
-            request.getRequestDispatcher(MAN_ADD_ENTRY).forward(request, response);
+            AdminPost.displayArticleEdit(request, response, new Article());
 
         } else if (SCryptUtil.check(answer, imead.getValue(CONTENT))) {
             AdminContent.showFileList(request, response);

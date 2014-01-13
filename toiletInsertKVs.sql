@@ -5,8 +5,8 @@ COMMIT;
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ WRITE;
 
 -- env specific vars
-INSERT INTO imead.keyvalue (key, value) VALUES ('libOdyssey_guard_host', '192.168.0.198:8080');
-INSERT INTO imead.keyvalue (key, value) VALUES ('thisURL', 'http://192.168.0.198:8080/toilet/');
+INSERT INTO imead.keyvalue (key, value) VALUES ('libOdyssey_guard_host', 'localhost:8080');
+INSERT INTO imead.keyvalue (key, value) VALUES ('thisURL', 'http://localhost:8080/toilet/');
 INSERT INTO imead.keyvalue (key, value) VALUES ('page_redirect', '');
 INSERT INTO imead.keyvalue (key, value) VALUES ('page_title', 'toilet Blog Engine');
 INSERT INTO imead.keyvalue (key, value) VALUES ('page_tagline', 'the Development Environment');
@@ -47,6 +47,7 @@ INSERT INTO imead.keyvalue (key, value) VALUES ('entry_spruce', '<p>Spruce is a 
 INSERT INTO imead.keyvalue (key, value) VALUES ('index_pac', '2');
 INSERT INTO imead.keyvalue (key, value) VALUES ('index_ppp', '5');
 INSERT INTO imead.keyvalue (key, value) VALUES ('page_articleFooter', 'Posted {0} under {1}. ');
+INSERT INTO imead.keyvalue (key, value) VALUES ('page_commentDisabled', '<p class="noComment noPrint">No new comments may be posted for this article at this time.</p>');
 INSERT INTO imead.keyvalue (key, value) VALUES ('page_commentFooter', 'Posted {0} by {1}. ');
 INSERT INTO imead.keyvalue (key, value) VALUES ('page_commentPostDelay', '3000');
 INSERT INTO imead.keyvalue (key, value) VALUES ('page_css', 'content/style/toilet.css');
@@ -77,13 +78,12 @@ INSERT INTO imead.keyvalue (key, value) VALUES ('rss_spruceCount', '200');
 
 
 INSERT INTO imead.keyvalue (key, value) VALUES ('libOdyssey_guard_denyUserAgents', '.*ZmEu.*
-\QMozilla/5.0 (compatible; WBSearchBot/1.1; +http://www.warebay.com/bot.html)\E
-\QMozilla/5.0 (compatible; SISTRIX Crawler; http://crawler.sistrix.net/)\E
+\QMozilla/5\.0 (compatible; WBSearchBot/1\.1; +http://www\.warebay\.com/bot\.html)\E
+\QMozilla/5\.0 (compatible; SISTRIX Crawler; http://crawler\.sistrix\.net/)\E
 \QMorfeus Fucking Scanner\E
-\Qwww.socialayer.com Agent 0.1\E
-\QTurnitinBot/2.1 (http://www.turnitin.com/robot/crawlerinfo.html)\E
+\Qwww\.socialayer\.com Agent 0.1\E
+\QTurnitinBot/2\.1 (http://www\.turnitin\.com/robot/crawlerinfo\.html)\E
 .*Mail\.RU.*
-.*\QMozilla/4.0 (compatible; MSIE 5\E.*
 .*AhrefsBot.*');
 INSERT INTO imead.keyvalue (key, value) VALUES ('libOdyssey_guard_honeypots', '.*muieblackcat.*
 .*/user/soapCaller.*
@@ -91,9 +91,17 @@ INSERT INTO imead.keyvalue (key, value) VALUES ('libOdyssey_guard_honeypots', '.
 .*/catalog/.*
 .*/shop.*
 .*#.*
-.*php.*
-.*PHP.*
+.*\.php.*
+.*\.PHP.*
 .*data:image/x-icon;base64.*');
+INSERT INTO imead.keyvalue (key, value) VALUES ('site_spamwords', '.*http://.*');
+INSERT INTO imead.keyvalue (key, value) VALUES ('site_acceptableContentDomains', 'http[s]?://(www|images|encrypted)\.google(\.com)?(\.[a-zA-Z]{2}){0,2}/.*
+http[s]?://([a-zA-Z]*\.)?feedly\.com/.*
+http[s]?://(www|[a-zA-Z]{2})\.bing\.com/.*
+http[s]?://images.yandex(\.com)?(\.[a-zA-Z]{2})?/.*
+http[s]?://images\.rambler\.ru/.*
+http[s]?://([a-zA-Z]{2}\.)?images\.search\.yahoo\.com/.*
+http[s]?://image\.baidu\.com/.*');
 
 COMMIT WORK;
 -- INSERT INTO imead.keyvalue (key, value) VALUES ('', '');

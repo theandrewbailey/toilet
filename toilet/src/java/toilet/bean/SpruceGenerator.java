@@ -6,11 +6,7 @@ import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
-import javax.ejb.Lock;
-import javax.ejb.LockType;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.servlet.http.HttpServletRequest;
@@ -26,7 +22,6 @@ import org.w3c.dom.Document;
 @Startup
 @Singleton
 @Feed(SpruceGenerator.SPRUCE_FEED_NAME)
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class SpruceGenerator extends AbstractRssFeed {
 
     public static final String LOCAL_NAME = "java:module/SpruceGenerator";
@@ -44,6 +39,7 @@ public class SpruceGenerator extends AbstractRssFeed {
     private final RssChannel entries = new RssChannel("Spruce", LINK, "Some wisdom from Spruce");
     private Date lastEntry = new Date();
     private boolean changed = true;
+//    private ScriptEngine py;
     private PythonInterpreter py;
 
     @PostConstruct
@@ -51,26 +47,20 @@ public class SpruceGenerator extends AbstractRssFeed {
         feeds.addFeed(this);
     }
 
-    @Lock(LockType.READ)
     public boolean ready() {
         return py != null;
     }
 
-//    @Lock(LockType.WRITE)
-//    public String getRandomWord() {
-//        py.exec("w=randomWord()");
-//        return py.get("w").toString();
-//    }
-
-    @Lock(LockType.WRITE)
-    private String getSentence() {
-        lastEntry = new Date();
-        py.exec("s=doClause()");
-        return py.get("s").toString();
+    private synchronized String getSentence() {
+        try {
+            lastEntry = new Date();
+            return py.eval("doClause()").toString();
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
-    @Lock(LockType.WRITE)
-    private void addSentence(String s) {
+    private synchronized void addSentence(String s) {
         if (s == null) {
             s = getSentence();
         }
@@ -83,42 +73,58 @@ public class SpruceGenerator extends AbstractRssFeed {
         changed = true;
     }
 
-    @Lock(LockType.READ)
     public String getAddSentence() {
         String out = getSentence();
         addSentence(out);
         return out;
     }
 
+    private class InitializeSpruce implements Runnable {
+
+        @Override
+        public synchronized void run() {
+            if (py == null) {
+                log.info("starting Spruce");
+                try {
+                    byte[] dictionaryxml = file.getFile(imead.getValue(DICTIONARY_XML)).getBinarydata();
+//                    ScriptEngine pyse = new ScriptEngineManager().getEngineByName("python");
+//                    pyse.eval("from spruce import *");
+//                    pyse.put("dicxml", new String(dictionaryxml));
+//                    pyse.eval("loadDicStr(dicxml)");
+//                    pyse.eval("dicxml=None");
+//                    py = pyse;
+                    PythonInterpreter pi = new PythonInterpreter();
+                    pi.exec("from spruce import *");
+                    pi.set("dicxml", new String(dictionaryxml));
+                    pi.exec("loadDicStr(dicxml)");
+                    pi.exec("dicxml=None");
+                    py = pi;
+                    getAddSentence();
+                    log.info("Spruce has been reset");
+                } catch (Exception ex) {
+                    log.log(Level.SEVERE, ERROR, ex);
+                    postRemove();
+                    StringWriter w = new StringWriter();
+                    PrintWriter p = new PrintWriter(w, false);
+                    ex.printStackTrace(p);
+                    p.flush();
+                    RssItem i = new RssItem(w.toString().replace("\n\tat ", ExceptionRepo.NEWLINE + " at "));
+                    i.setTitle(ERROR);
+                    i.setLink(entries.getLink());
+                    i.setPubDate(lastEntry);
+                    entries.addItem(i);
+                }
+            }
+        }
+    }
+
     @Override
-    @Lock(LockType.WRITE)
-    public void preAdd() {
+    public synchronized void preAdd() {
         log.entering(SpruceGenerator.class.getName(), "preAdd");
         postRemove();
 
-        try {
-            byte[] dictionaryxml = file.getFile(imead.getValue(DICTIONARY_XML)).getBinarydata();
-            StringBuilder loaddictionary = new StringBuilder("loadDicStr(\"\"\"");
-            loaddictionary.append(new String(dictionaryxml));
-            loaddictionary.append("\"\"\")");
-            py = new PythonInterpreter();
-            py.exec("from spruce import *");
-            py.exec(loaddictionary.toString());
-            getAddSentence();
-            log.info("Spruce has been reset");
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, ERROR, ex);
-            postRemove();
-            StringWriter w = new StringWriter();
-            PrintWriter p = new PrintWriter(w, false);
-            ex.printStackTrace(p);
-            p.flush();
-            RssItem i = new RssItem(w.toString().replace("\n\tat ", ExceptionRepo.NEWLINE + " at "));
-            i.setTitle(ERROR);
-            i.setLink(entries.getLink());
-            i.setPubDate(lastEntry);
-            entries.addItem(i);
-        }
+        // because ManagedThreadFactory and/or ManagedExecutorService suck
+        new Thread(new InitializeSpruce()).start();
 
         entries.clearFeed();
         entries.setLink(imead.getValue(UtilBean.THISURL) + LINK);
@@ -133,7 +139,6 @@ public class SpruceGenerator extends AbstractRssFeed {
     }
 
     @Override
-    @Lock(LockType.READ)
     public Document preWrite(HttpServletRequest req) {
         if (new Date().getTime() - lastEntry.getTime() > 300000) {
             getAddSentence();
@@ -148,8 +153,7 @@ public class SpruceGenerator extends AbstractRssFeed {
     }
 
     @Override
-    @Lock(LockType.WRITE)
-    public void postRemove() {
+    public synchronized void postRemove() {
         if (py != null) {
             py.cleanup();
             py = null;

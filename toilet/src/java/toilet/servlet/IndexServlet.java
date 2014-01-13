@@ -10,9 +10,10 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import libWebsiteTools.HashUtil;
+import libWebsiteTools.tag.HtmlMeta;
 import toilet.IndexFetcher;
-import toilet.UtilStatic;
-import toilet.bean.ArticleStateCache;
+import toilet.bean.StateCache;
 import toilet.db.Article;
 
 @WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/index", "/index/*"})
@@ -21,7 +22,7 @@ public class IndexServlet extends HttpServlet {
     public static final String HOME_JSP = "/WEB-INF/home.jsp";
     private static final Date EPOCH = new Date(0);
     @EJB
-    private ArticleStateCache cache;
+    private StateCache cache;
 
     @Override
     public void init() throws ServletException {
@@ -57,14 +58,14 @@ public class IndexServlet extends HttpServlet {
         }
 
         String ifNoneMatch = request.getHeader("If-None-Match");
-        MessageDigest md = UtilStatic.getHasher();
+        MessageDigest md = HashUtil.getSHA256();
         for (String cat : cache.getArticleCategories()) {
             md.update(cat.getBytes());
         }
         for (Article a : lEntry) {
             md.update(a.getEtag().getBytes());
         }
-        String etag = "\"" + UtilStatic.getBase64(md.digest()) + "\"";
+        String etag = "\"" + HashUtil.getBase64(md.digest()) + "\"";
         if (etag.equals(ifNoneMatch)) {
             response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
             return;
@@ -84,8 +85,9 @@ public class IndexServlet extends HttpServlet {
 
         request.setAttribute("index", true);
         request.setAttribute("articles", lEntry);
-        request.setAttribute("description", f.getDescription());
         request.setAttribute("articleCategory", f.getGroup());
+        request.setAttribute("singleArticle", false);
+        HtmlMeta.addTag(request, "description", f.getDescription());
         request.getServletContext().getRequestDispatcher(HOME_JSP).forward(request, response);
     }
 }

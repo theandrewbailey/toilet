@@ -34,12 +34,12 @@ public class GuardHolder {
 
     @PostConstruct
     public void refresh() {
-        List<Pattern> tempHoney = new ArrayList<Pattern>();
+        List<Pattern> tempHoney = new ArrayList<>();
         for (String h : imead.getValue(HONEYPOTS).split("\n")) {
             tempHoney.add(Pattern.compile(h));
         }
         honeyList = tempHoney;
-        List<Pattern> tempUAs = new ArrayList<Pattern>();
+        List<Pattern> tempUAs = new ArrayList<>();
         for (String ua : imead.getValue(DENY_USER_AGENTS).split("\n")) {
             tempUAs.add(Pattern.compile(ua));
         }

@@ -4,14 +4,12 @@
     <non-jta-data-source>toiletPS</non-jta-data-source>
     <class>libOdyssey.db.Exceptionevent</class>
     <class>libOdyssey.db.Honeypot</class>
-    <class>libOdyssey.db.Httpsession</class>
-    <class>libOdyssey.db.Ipday</class>
     <class>libOdyssey.db.Page</class>
     <class>libOdyssey.db.Pageday</class>
     <class>libOdyssey.db.Pageonpageday</class>
     <class>libOdyssey.db.Pagerequest</class>
-    <class>libWebsiteTools.imead.db.Keyvalue</class>
-    <class>libWebsiteTools.imead.db.Localization</class>
+    <class>libWebsiteTools.imead.Keyvalue</class>
+    <class>libWebsiteTools.imead.Localization</class>
     <class>toilet.db.Article</class>
     <class>toilet.db.Comment</class>
     <class>toilet.db.Fileupload</class>

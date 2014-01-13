@@ -53,22 +53,29 @@ public class RssChannel implements Serializable, iPublishable {
     private boolean[] skipDays=new boolean[7];
     private int limit=0;
 
-    private ArrayList<RssItem> items=new ArrayList<RssItem>();
-    private ArrayList<RssCategory> cats=new ArrayList<RssCategory>();
+    private final ArrayList<RssItem> items=new ArrayList<>();
+    private final ArrayList<RssCategory> cats=new ArrayList<>();
 
     /**
-     * conditionally attaches a new node to the given node with the content as text
-     * if content == null, no node is created and this method will return null
+     * conditionally attaches a new node to the given node with the content as
+     * text if content == null, no node is created and this method will return
+     * null
+     *
      * @param parent node to attach to
      * @param name what the node should be named
      * @param content text to put into the node (toString is called on this)
+     * @param cdata wrap text in CDATA tags?
      * @return new node, or null if content == null
      */
-    public static Element textNode(Element parent, String name, Object content) {
+    public static Element textNode(Element parent, String name, Object content, boolean cdata) {
         if (content != null) {
             Element n = parent.getOwnerDocument().createElement(name);
-            n.setTextContent(content.toString());
             parent.appendChild(n);
+            if (cdata){
+            n.appendChild(parent.getOwnerDocument().createCDATASection(content.toString()));
+            }else{
+            n.setTextContent(content.toString());
+            }
             return n;
         }
         return null;
@@ -157,27 +164,27 @@ public class RssChannel implements Serializable, iPublishable {
         Element chan = XML.createElement("channel");
         root.appendChild(chan);
         Element n;
-        textNode(chan, "title", getTitle());
-        textNode(chan, "link", getLink());
-        textNode(chan, "description", getDescription());
-        textNode(chan, "language", getLanguage());
-        textNode(chan, "copyright", getCopyright());
-        textNode(chan, "managingEditor", getManagingEditor());
-        textNode(chan, "webMaster", getWebMaster());
+        textNode(chan, "title", getTitle(), true);
+        textNode(chan, "link", getLink(), true);
+        textNode(chan, "description", getDescription(), true);
+        textNode(chan, "language", getLanguage(), true);
+        textNode(chan, "copyright", getCopyright(), true);
+        textNode(chan, "managingEditor", getManagingEditor(), true);
+        textNode(chan, "webMaster", getWebMaster(), true);
 
         if (getPubDate() != null) {
-            textNode(chan, "pubDate", "").setTextContent(new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()));
+            textNode(chan, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()), true);
         }
         if (getLastBuildDate() != null) {
-            textNode(chan, "lastBuildDate", "").setTextContent(new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getLastBuildDate()));
+            textNode(chan, "lastBuildDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getLastBuildDate()), true);
         }
 
         for (RssCategory c : cats) {
             c.publish(chan);
         }
 
-        textNode(chan, "generator", getGenerator());
-        textNode(chan, "docs", getDocs());
+        textNode(chan, "generator", getGenerator(), true);
+        textNode(chan, "docs", getDocs(), true);
 
         if (getIUrl() != null) {
             n = XML.createElement("cloud");
@@ -188,27 +195,27 @@ public class RssChannel implements Serializable, iPublishable {
             n.setAttribute("registerProcedure", getCRegister());
             n.setAttribute("protocol", getCProtocol());
         }
-        textNode(chan, "ttl", getTtl());
+        textNode(chan, "ttl", getTtl(), true);
 
         if (getIUrl() != null) {
             Element image = XML.createElement("image");
             XML.appendChild(image);
-            textNode(image, "url", getIUrl());
-            textNode(image, "title", getITitle());
-            textNode(image, "link", getILink());
-            textNode(image, "description", getIDesc());
-            textNode(image, "height", getIHeight());
-            textNode(image, "width", getIWidth());
+            textNode(image, "url", getIUrl(), true);
+            textNode(image, "title", getITitle(), true);
+            textNode(image, "link", getILink(), true);
+            textNode(image, "description", getIDesc(), true);
+            textNode(image, "height", getIHeight(), true);
+            textNode(image, "width", getIWidth(), true);
         }
-        textNode(chan, "rating", getRating());
+        textNode(chan, "rating", getRating(), true);
 
         if (getTTitle() != null) {
             Element text = XML.createElement("textInput");
             XML.appendChild(text);
-            textNode(text, "title", getTTitle());
-            textNode(text, "description", getTDesc());
-            textNode(text, "name", getTName());
-            textNode(text, "link", getTLink());
+            textNode(text, "title", getTTitle(), true);
+            textNode(text, "description", getTDesc(), true);
+            textNode(text, "name", getTName(), true);
+            textNode(text, "link", getTLink(), true);
         }
 
         n = null;
@@ -630,7 +637,7 @@ public class RssChannel implements Serializable, iPublishable {
     }
 
     /**
-     * @param The maximum amount of items that this channel can hold, and automatically removes items, if needed
+     * @param limit The maximum amount of items that this channel can hold, and automatically removes items, if needed
      */
     public void setLimit(int limit) {
         this.limit = limit;

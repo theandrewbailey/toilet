@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,26 +27,32 @@ import javax.ejb.EJB;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import libOdyssey.bean.ExceptionRepo;
+import libWebsiteTools.HashUtil;
+import libWebsiteTools.JVMNotSupportedError;
+import libWebsiteTools.Markdowner;
 import libWebsiteTools.XmlNodeSearcher;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.rss.iFeedBucket;
+import org.markdownj.MarkdownProcessor;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import toilet.UtilStatic;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Fileupload;
 import toilet.db.Section;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
+import toilet.rss.MarkdownRssItem;
 
 /**
  * so I can sleep at night, knowing my stuff is being backed up
@@ -68,6 +76,8 @@ public class BackupDaemon {
     private FileRepo file;
     @EJB
     private iFeedBucket src;
+    @EJB
+    private Markdowner markdown;
 
     /**
      * dumps articles, comments, and uploaded files to a directory (specified by site_backup key in imead.keyValue)
@@ -124,29 +134,36 @@ public class BackupDaemon {
     public void restoreFromZip(ZipInputStream zip) throws Exception {
         InputStream articleStream = null;
         InputStream commentStream = null;
-        HashMap<String, String> mimes = new HashMap<String, String>(100);
-        HashMap<String, Fileupload> files = new HashMap<String, Fileupload>(100);
+        HashMap<String, String> mimes = new HashMap<>(100);
+        HashMap<String, Fileupload> files = new HashMap<>(100);
+        ScriptEngineManager manager = new ScriptEngineManager();
+        ScriptEngine engine = null;
         for (ZipEntry zipEntry = zip.getNextEntry(); zipEntry != null; zipEntry = zip.getNextEntry()) {
             if (zipEntry.isDirectory()) {
                 continue;
             }
-            if (zipEntry.getName().equals(ArticleRss.NAME)) {
-                articleStream = new ByteArrayInputStream(getByteArray(zip));
-            } else if (zipEntry.getName().equals(CommentRss.NAME)) {
-                commentStream = new ByteArrayInputStream(getByteArray(zip));
-            } else if (zipEntry.getName().equals(BackupDaemon.MIMES_TXT)) {
-                String mimeString = new String(getByteArray(zip));
-                for (String mimeEntry : mimeString.split("\n")) {
-                    try {
-                        String[] parts = mimeEntry.split(": ");
-                        mimes.put(parts[0], parts[1]);
-                    } catch (ArrayIndexOutOfBoundsException a) {
+            switch (zipEntry.getName()) {
+                case ArticleRss.NAME:
+                    articleStream = new ByteArrayInputStream(getByteArray(zip));
+                    break;
+                case CommentRss.NAME:
+                    commentStream = new ByteArrayInputStream(getByteArray(zip));
+                    break;
+                case BackupDaemon.MIMES_TXT:
+                    String mimeString = new String(getByteArray(zip));
+                    for (String mimeEntry : mimeString.split("\n")) {
+                        try {
+                            String[] parts = mimeEntry.split(": ");
+                            mimes.put(parts[0], parts[1]);
+                        } catch (ArrayIndexOutOfBoundsException a) {
+                        }
                     }
-                }
-            } else {
-                Fileupload fileUpload = new Fileupload(null, getByteArray(zip), null, zipEntry.getName().replace("content/", ""), "application/octet-stream", new Date(zipEntry.getTime()));
-                fileUpload.setEtag(UtilStatic.getHash(fileUpload.getBinarydata()));
-                files.put(fileUpload.getFilename(), fileUpload);
+                    break;
+                default:
+                    Fileupload fileUpload = new Fileupload(null, getByteArray(zip), null, zipEntry.getName().replace("content/", ""), "application/octet-stream", new Date(zipEntry.getTime()));
+                    fileUpload.setEtag(HashUtil.getHashAsBase64(fileUpload.getBinarydata()));
+                    files.put(fileUpload.getFilename(), fileUpload);
+                    break;
             }
         }
         zip.close();
@@ -168,14 +185,11 @@ public class BackupDaemon {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setIgnoringElementContentWhitespace(true);
         Element articleRoot = dbf.newDocumentBuilder().parse(articleStream).getDocumentElement();
-        ArrayList<Article> articles = new ArrayList<Article>();
+        ArrayList<Article> articles = new ArrayList<>();
         for (Node item : new XmlNodeSearcher(articleRoot.getFirstChild(), "item")) {
             Article article = new Article();
+            article.setComments(Boolean.FALSE);
             articles.add(article);
-            for (Node component : new XmlNodeSearcher(item, "description")) {
-                String text = component.getTextContent();
-                article.setPostedtext(text.replace("&lt;", "<").replace("&gt;", ">"));
-            }
             for (Node component : new XmlNodeSearcher(item, "title")) {
                 String[] parts = component.getTextContent().split(": ", 2);
                 article.setArticletitle(parts.length == 2 ? parts[1] : imead.getValue(EntryRepo.DEFAULT_CATEGORY));
@@ -186,17 +200,52 @@ public class BackupDaemon {
             for (Node component : new XmlNodeSearcher(item, "category")) {
                 article.setSectionid(new Section(null, component.getTextContent()));
             }
-            for (Node component : new XmlNodeSearcher(item, "comments")) {
+            for (Node component : new XmlNodeSearcher(item, "link")) {
                 article.setEtag(component.getTextContent());
+            }
+            for (Node component : new XmlNodeSearcher(item, "comments")) {
+                article.setComments(Boolean.TRUE);
             }
             for (Node component : new XmlNodeSearcher(item, "author")) {
                 article.setPostedname(component.getTextContent());
             }
             for (Node component : new XmlNodeSearcher(item, "guid")) {
-                article.setDescription(component.getTextContent());
+                try {
+                    article.setDescription(URLDecoder.decode(component.getTextContent(), "UTF-8"));
+                } catch (UnsupportedEncodingException enc) {
+                    throw new JVMNotSupportedError(enc);
+                }
             }
-            article.setComments(article.getEtag() != null);
-            article.setCommentCollection(article.getComments() ? new ArrayList<Comment>() : null);
+            for (Node component : new XmlNodeSearcher(item, MarkdownRssItem.FULL_ELEMENT_NAME)) {
+                article.setPostedmarkdown(component.getTextContent());
+            }
+            for (Node component : new XmlNodeSearcher(item, "description")) {
+                article.setPostedhtml(component.getTextContent());
+            }
+
+            // conversion
+            if (article.getPostedhtml() == null && article.getPostedmarkdown() != null) {
+                article.setPostedhtml(markdown.getHtml(article.getPostedmarkdown()));
+                log.log(Level.INFO, "The HTML for article {0} had to be generated from markdown.", article.getArticletitle());
+            }
+            else if (article.getPostedmarkdown() == null && article.getPostedhtml() != null) {
+                for (Node component : new XmlNodeSearcher(item, "description")) {
+                    article.setPostedhtml(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
+                    if (engine == null) {
+                        engine = manager.getEngineByName("JavaScript");
+                        engine.eval("var toMarkdown=function(string){var ELEMENTS=[{patterns:'p',replacement:function(str,attrs,innerHTML){return innerHTML?'\\n\\n'+innerHTML+'\\n':''}},{patterns:'br',type:'void',replacement:'\\n'},{patterns:'h([1-6])',replacement:function(str,hLevel,attrs,innerHTML){var hPrefix='';for(var i=0;i<hLevel;i++){hPrefix+='#'}return'\\n\\n'+hPrefix+' '+innerHTML+'\\n'}},{patterns:'hr',type:'void',replacement:'\\n\\n* * *\\n'},{patterns:'a',replacement:function(str,attrs,innerHTML){var href=attrs.match(attrRegExp('href')),title=attrs.match(attrRegExp('title'));return href?'['+innerHTML+']'+'('+href[1]+(title&&title[1]?' \"'+title[1]+'\"':'')+')':str}},{patterns:['b','strong'],replacement:function(str,attrs,innerHTML){return innerHTML?'**'+innerHTML+'**':''}},{patterns:['i','em'],replacement:function(str,attrs,innerHTML){return innerHTML?'_'+innerHTML+'_':''}},{patterns:'code',replacement:function(str,attrs,innerHTML){return innerHTML?'`'+innerHTML+'`':''}},{patterns:'img',type:'void',replacement:function(str,attrs,innerHTML){var src=attrs.match(attrRegExp('src')),alt=attrs.match(attrRegExp('alt')),title=attrs.match(attrRegExp('title'));return'!['+(alt&&alt[1]?alt[1]:'')+']'+'('+src[1]+(title&&title[1]?' \"'+title[1]+'\"':'')+')'}}];for(var i=0,len=ELEMENTS.length;i<len;i++){if(typeof ELEMENTS[i].patterns==='string'){string=replaceEls(string,{tag:ELEMENTS[i].patterns,replacement:ELEMENTS[i].replacement,type:ELEMENTS[i].type})}else{for(var j=0,pLen=ELEMENTS[i].patterns.length;j<pLen;j++){string=replaceEls(string,{tag:ELEMENTS[i].patterns[j],replacement:ELEMENTS[i].replacement,type:ELEMENTS[i].type})}}}function replaceEls(html,elProperties){var pattern=elProperties.type==='void'?'<'+elProperties.tag+'\\\\b([^>]*)\\\\/?>':'<'+elProperties.tag+'\\\\b([^>]*)>([\\\\s\\\\S]*?)<\\\\/'+elProperties.tag+'>',regex=new RegExp(pattern,'gi'),markdown='';if(typeof elProperties.replacement==='string'){markdown=html.replace(regex,elProperties.replacement)}else{markdown=html.replace(regex,function(str,p1,p2,p3){return elProperties.replacement.call(this,str,p1,p2,p3)})}return markdown}function attrRegExp(attr){return new RegExp(attr+'\\\\s*=\\\\s*[\"\\']?([^\"\\']*)[\"\\']?','i')}string=string.replace(/<pre\\b[^>]*>`([\\s\\S]*)`<\\/pre>/gi,function(str,innerHTML){innerHTML=innerHTML.replace(/^\\t+/g,'  ');innerHTML=innerHTML.replace(/\\n/g,'\\n    ');return'\\n\\n    '+innerHTML+'\\n'});string=string.replace(/^(\\s{0,3}\\d+)\\. /g,'$1\\\\. ');var noChildrenRegex=/<(ul|ol)\\b[^>]*>(?:(?!<ul|<ol)[\\s\\S])*?<\\/\\1>/gi;while(string.match(noChildrenRegex)){string=string.replace(noChildrenRegex,function(str){return replaceLists(str)})}function replaceLists(html){html=html.replace(/<(ul|ol)\\b[^>]*>([\\s\\S]*?)<\\/\\1>/gi,function(str,listType,innerHTML){var lis=innerHTML.split('</li>');lis.splice(lis.length-1,1);for(i=0,len=lis.length;i<len;i++){if(lis[i]){var prefix=(listType==='ol')?(i+1)+\".  \":\"*   \";lis[i]=lis[i].replace(/\\s*<li[^>]*>([\\s\\S]*)/i,function(str,innerHTML){innerHTML=innerHTML.replace(/^\\s+/,'');innerHTML=innerHTML.replace(/\\n\\n/g,'\\n\\n    ');innerHTML=innerHTML.replace(/\\n([ ]*)+(\\*|\\d+\\.) /g,'\\n$1    $2 ');return prefix+innerHTML})}}return lis.join('\\n')});return'\\n\\n'+html.replace(/[ \\t]+\\n|\\s+$/g,'')}var deepest=/<blockquote\\b[^>]*>((?:(?!<blockquote)[\\s\\S])*?)<\\/blockquote>/gi;while(string.match(deepest)){string=string.replace(deepest,function(str){return replaceBlockquotes(str)})}function replaceBlockquotes(html){html=html.replace(/<blockquote\\b[^>]*>([\\s\\S]*?)<\\/blockquote>/gi,function(str,inner){inner=inner.replace(/^\\s+|\\s+$/g,'');inner=cleanUp(inner);inner=inner.replace(/^/gm,'> ');inner=inner.replace(/^(>([ \\t]{2,}>)+)/gm,'> >');return inner});return html}function cleanUp(string){string=string.replace(/^[\\t\\r\\n]+|[\\t\\r\\n]+$/g,'');string=string.replace(/\\n\\s+\\n/g,'\\n\\n');string=string.replace(/\\n{3,}/g,'\\n\\n');return string}return cleanUp(string)};if(typeof exports==='object'){exports.toMarkdown=toMarkdown}");
+                    }
+                    engine.put("article", component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
+                    engine.eval("var output = toMarkdown(article);");
+                    String markdownout = engine.get("output").toString();
+                    article.setPostedmarkdown(markdownout);
+                    article.setPostedhtml(new MarkdownProcessor().markdown(markdownout));
+                }
+                log.log(Level.INFO, "The markdown for article {0} had to be generated from HTML.", article.getArticletitle());
+            } else {
+                log.log(Level.INFO, "The text for article {0} cannot be recovered.", article.getArticletitle());
+            }
+            article.setCommentCollection(new ArrayList<Comment>());
         }
 
         dbf.setIgnoringElementContentWhitespace(true);
@@ -204,7 +253,7 @@ public class BackupDaemon {
         for (Node item : new XmlNodeSearcher(commentRoot.getFirstChild(), "item")) {
             Comment comm = new Comment();
             for (Node component : new XmlNodeSearcher(item, "description")) {
-                comm.setPostedtext(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
+                comm.setPostedhtml(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
             }
             for (Node component : new XmlNodeSearcher(item, "pubDate")) {
                 comm.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent()));
@@ -212,9 +261,10 @@ public class BackupDaemon {
             for (Node component : new XmlNodeSearcher(item, "author")) {
                 comm.setPostedname(component.getTextContent());
             }
-            for (Node component : new XmlNodeSearcher(item, "comments")) {
+            for (Node component : new XmlNodeSearcher(item, "link")) {
+                String lookfor=component.getTextContent().split("#\\d*$")[0];
                 for (Article a : articles) {
-                    if (component.getTextContent().equals(a.getEtag())) {
+                    if (lookfor.equals(a.getEtag())) {
                         a.getCommentCollection().add(comm);
                         break;
                     }
@@ -226,10 +276,12 @@ public class BackupDaemon {
         Collections.reverse(articles);
         for (Article article : articles) {
             List<Comment> artComm = (List<Comment>) article.getCommentCollection();
-            String section = article.getSectionid() != null ? article.getSectionid().getName() : imead.getValue(EntryRepo.DEFAULT_CATEGORY);
-            if (article.getComments()) {
+            if (artComm != null) {
                 Collections.reverse(artComm);
+            } else {
+                artComm = new ArrayList<>();
             }
+            String section = article.getSectionid() != null ? article.getSectionid().getName() : imead.getValue(EntryRepo.DEFAULT_CATEGORY);
             article.setCommentCollection(null);
 
             Article added = entry.addEntry(article, section);
@@ -254,10 +306,8 @@ public class BackupDaemon {
         log.info("Backup to zip procedure initiating");
         String master = imead.getValue(MASTER_DIR);
         String zipName = getZipName();
-        try {
-            FileOutputStream out = new FileOutputStream(master + zipName);
+        try (FileOutputStream out = new FileOutputStream(master + zipName)) {
             generateZip(out);
-            out.close();
         } catch (Exception ex) {
             log.log(Level.SEVERE, "Error writing zip file: " + zipName, ex);
         }
@@ -274,7 +324,7 @@ public class BackupDaemon {
     public void generateZip(OutputStream wrapped) throws IOException {
         String contentDir = CONTENT_DIR + "/";
         List<Fileupload> dbfiles = file.getUploadArchive();
-        List<String> directories = new ArrayList<String>();
+        List<String> directories = new ArrayList<>();
         ZipOutputStream zip = new ZipOutputStream(wrapped);
         StringBuilder mimes = new StringBuilder(dbfiles.size() * 40);
         long time = new Date().getTime();

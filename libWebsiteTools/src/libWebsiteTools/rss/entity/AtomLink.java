@@ -9,7 +9,6 @@ import org.w3c.dom.Element;
 public class AtomLink extends AtomCommonAttribs {
 
     public static enum RelType {
-
         alternate,
         related,
         self,

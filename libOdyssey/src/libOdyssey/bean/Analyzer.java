@@ -16,12 +16,8 @@ import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
 import libOdyssey.DateRange;
 import libOdyssey.RangeGenerator;
-import libOdyssey.db.Httpsession;
-import libOdyssey.db.Ipday;
-import libOdyssey.db.IpdayPK;
 import libOdyssey.db.Page;
 import libOdyssey.db.Pageday;
-import libOdyssey.db.PagedayPK;
 import libOdyssey.db.Pagerequest;
 
 /**
@@ -36,20 +32,6 @@ public class Analyzer {
     public static final String getTimesQuery = "SELECT DISTINCT CAST(EXTRACT(DAY FROM atime) AS INT) AS \"day\",CAST(EXTRACT(MONTH FROM atime) AS INT) AS \"month\",CAST(EXTRACT(YEAR FROM atime) AS INT) AS \"year\" FROM odyssey.httpsession ORDER BY \"year\" DESC,\"month\" DESC,\"day\" DESC;";
     private static final Logger log = Logger.getLogger(Analyzer.class.getName());
 
-    public Httpsession getSession(String sess, boolean refresh) {
-        EntityManager em = PU.createEntityManager();
-        TypedQuery<Httpsession> q = em.createNamedQuery("Httpsession.findByServersessionid", Httpsession.class).setParameter("serversessionid", sess);
-        try {
-            Httpsession hs = q.getSingleResult();
-            if (refresh) {
-                em.refresh(hs);
-            }
-            return hs;
-        } catch (NoResultException ex) {
-            return null;
-        }
-    }
-
     public Page getPageByUrl(String url) {
         EntityManager em = PU.createEntityManager();
         try {
@@ -61,13 +43,6 @@ public class Analyzer {
             em.getTransaction().commit();
             return getPageByUrl(url);
         }
-    }
-
-    public List<Httpsession> getSessionsInRange(Date start, Date end){
-        TypedQuery<Httpsession> q = PU.createEntityManager().createQuery("SELECT h FROM Httpsession h WHERE h.atime BETWEEN :start AND :end", Httpsession.class);
-        q.setParameter("start", start);
-        q.setParameter("end", end);
-        return q.getResultList();
     }
 
     public List<Pagerequest> getHitsInRange(Date start, Date end){
@@ -85,17 +60,6 @@ public class Analyzer {
         return q.getSingleResult().longValue() != 0L;
     }
 
-    public void deleteSession(Integer sessionId) {
-        EntityManager em = PU.createEntityManager();
-        em.getTransaction().begin();
-        Httpsession h = em.find(Httpsession.class, sessionId);
-        for (Pagerequest p : h.getPagerequestCollection()) {
-            em.remove(p);
-        }
-        em.remove(h);
-        em.getTransaction().commit();
-    }
-
 //    @Schedule(hour = "5")
     public void analyze() {
         log.entering(Analyzer.class.getName(), "analyze");
@@ -104,39 +68,7 @@ public class Analyzer {
         EntityManager em=PU.createEntityManager();
         for (DateRange range:new RangeGenerator(this)){
             log.info(String.format("Analyzing {0}, interval {1}", f.format(range.getStart()), range.getDayInterval()));
-        // sessions
-        // process regexp to determine browser type
-        // determine real person
-
-            List<Httpsession> sessions=getSessionsInRange(range.getStart(), range.getEnd());
-            Map<String, List<Httpsession>> sessionsByIp=new HashMap<String, List<Httpsession>>(sessions.size());
-            for (Httpsession h:sessions){
-                if (!sessionsByIp.containsKey(h.getIp())){
-                    sessionsByIp.put(h.getIp(), new ArrayList<Httpsession>());
-                }
-                sessionsByIp.get(h.getIp()).add(h);
-            }
-            sessions.clear();
             long totalCount=0L;
-            List<Ipday> ipdays=new ArrayList<Ipday>(sessionsByIp.size()+10);
-            for(Map.Entry<String, List<Httpsession>> ipSess:sessionsByIp.entrySet()){
-                long count=0L;
-                for(Httpsession h:ipSess.getValue()){
-                    count+=h.getPagerequestCollection().size();
-                }
-                ipdays.add(new Ipday(new IpdayPK(ipSess.getKey(), range.getStart(), range.getDayInterval()+""), count, 0, ipSess.getValue().size()));
-                totalCount+=count;
-            }
-            sessionsByIp.clear();
-            em.getTransaction().begin();
-            for (Ipday i:ipdays){
-                i.setTrafficpercent(1.0f*i.getRequestedpages()/totalCount);
-                em.persist(i);
-            }
-            em.getTransaction().commit();
-            ipdays.clear();
-            totalCount=0L;
-            
         // get pages in range
         // count hits
         // trace where they went to
@@ -144,17 +76,17 @@ public class Analyzer {
         // do again for where they came from
             List<Pagerequest> hits=getHitsInRange(range.getStart(), range.getEnd());
             Map<String, List<Pagerequest>> hitMap=new HashMap<String, List<Pagerequest>>(hits.size());
-            for(Pagerequest hit:hits){
-                if (!hitMap.containsKey(hit.getPageid().getUrl())){
-                    hitMap.put(hit.getPageid().getUrl(), new ArrayList<Pagerequest>());
-                }
-                hitMap.get(hit.getPageid().getUrl()).add(hit);
-            }
+//            for(Pagerequest hit:hits){
+//                if (!hitMap.containsKey(hit.getPageid().getUrl())){
+//                    hitMap.put(hit.getPageid().getUrl(), new ArrayList<Pagerequest>());
+//                }
+//                hitMap.get(hit.getPageid().getUrl()).add(hit);
+//            }
             hits.clear();
             List<Pageday> pageDays=new ArrayList<Pageday>(hitMap.size()+10);
             for(Map.Entry<String, List<Pagerequest>> hit:hitMap.entrySet()){
                 double average=0, stdDev=0;
-                Page p=hit.getValue().get(0).getPageid();
+//                Page p=hit.getValue().get(0).getPageid();
                 totalCount+=hit.getValue().size();
                 for (Pagerequest pr:hit.getValue()){
                     average+=pr.getServed();
@@ -163,9 +95,10 @@ public class Analyzer {
                 for (Pagerequest pr:hit.getValue()){
                     stdDev += Math.pow(pr.getServed()-average, 2);
                 }
-                stdDev/=hit.getValue().size();
-                stdDev=Math.sqrt(stdDev);
-                pageDays.add(new Pageday(new PagedayPK(range.getStart(), range.getDayInterval()+"", p.getPageid()), hit.getValue().size(), 0, (float)average, (float)stdDev));
+                //stdDev/=hit.getValue().size();
+                //stdDev=Math.sqrt(stdDev);
+                // add to pagedays
+                //pageDays.add(new Pageday(new PagedayPK(range.getStart(), range.getDayInterval()+"", p.getPageid()), hit.getValue().size(), 0, (float)average, (float)stdDev));
             }
             hitMap.clear();
             em.getTransaction().begin();

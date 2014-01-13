@@ -7,7 +7,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.Guard;
+import libOdyssey.OdysseyFilter;
 import libWebsiteTools.imead.IMEADHolder;
 
 @WebServlet(name = "CoronerServlet", description = "Error page stuff", urlPatterns = {"/coroner", "/coroner/*"})
@@ -16,8 +16,8 @@ public class CoronerServlet extends HttpServlet {
     @EJB
     private IMEADHolder imead;
     public static final String ERROR_JSP = "/WEB-INF/Error.jsp";
-    private static final String CORONER_PREFIX="coroner_";
-    private String[] vars = {"javax.servlet.error.status_code",
+    public static final String CORONER_PREFIX="coroner_";
+    private final String[] vars = {"javax.servlet.error.status_code",
         "javax.servlet.error.exception_type", "javax.servlet.error.message",
         "javax.servlet.error.exception", "javax.servlet.error.request_uri"};
 
@@ -33,7 +33,7 @@ public class CoronerServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         if (request.getSession(false) == null || request.getSession().isNew()) { // trying to hack me? F U
-            Guard.kill(request, response);
+            OdysseyFilter.kill(request, response);
             return;
         }
 

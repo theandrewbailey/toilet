@@ -11,7 +11,6 @@ public class Titler extends SimpleTagSupport {
     private String pageTitle = "";
     private String siteTitle = "";
     private Boolean siteTitleHide = false;
-//    private Boolean siteTitleBefore = false;
 
     @Override
     public void doTag() throws JspException, IOException {
@@ -20,14 +19,6 @@ public class Titler extends SimpleTagSupport {
         do {
             if (siteTitleHide) {
                 title.append(pageTitle);
-//            } else if (siteTitleBefore) {     // unsupported
-//                title.append(siteTitle);
-//                if (title.length() - origCount + pageTitle.length() > SOFT_LIMIT) {
-//                    continue;
-//                }
-//                if (pageTitle.length() != 0) {
-//                    title.append(SEPARATOR).append(pageTitle);
-//                }
             } else {
                 title.append(pageTitle);
                 if (title.length() - origCount + siteTitle.length() > SOFT_LIMIT) {
@@ -47,27 +38,26 @@ public class Titler extends SimpleTagSupport {
      * @param pageTitle the pageTitle to set
      */
     public void setPageTitle(String pageTitle) {
-        this.pageTitle = pageTitle;
+        if (pageTitle != null) {
+            this.pageTitle = pageTitle;
+        }
     }
 
     /**
      * @param siteTitle the siteTitle to set
      */
     public void setSiteTitle(String siteTitle) {
-        this.siteTitle = siteTitle;
+        if (siteTitle != null) {
+            this.siteTitle = siteTitle;
+        }
     }
 
     /**
      * @param hideTitle the hideTitle to set
      */
     public void setSiteTitleHide(Boolean hideTitle) {
-        this.siteTitleHide = hideTitle;
+        if (hideTitle != null) {
+            this.siteTitleHide = hideTitle;
+        }
     }
-
-//    /**
-//     * @param siteTitleBefore the siteTitleBefore to set
-//     */
-//    public void setSiteTitleBefore(Boolean siteTitleBefore) {
-//        this.siteTitleBefore = siteTitleBefore;
-//    }
 }

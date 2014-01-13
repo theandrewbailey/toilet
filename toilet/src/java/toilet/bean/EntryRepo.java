@@ -14,8 +14,8 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
+import libWebsiteTools.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
-import toilet.UtilStatic;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Section;
@@ -35,7 +35,7 @@ public class EntryRepo {
     @EJB
     private IMEADHolder imead;
     @EJB
-    private ArticleStateCache cache;
+    private StateCache cache;
 
     public List<Article> getSection(String sect, Integer page, Integer perPage) {
         log.log(Level.FINE, "Retrieving articles, section {0}, page {1}, per page {2}", new Object[]{sect, page, perPage});
@@ -51,13 +51,7 @@ public class EntryRepo {
             q.setFirstResult(perPage * (page - 1));        // pagination start
             q.setMaxResults(perPage);                      // pagination limit
         }
-        List<Article> lEntry = q.getResultList();
-        for (Article e : lEntry) {
-            e.setCommentCount(e.getCommentCollection().size());
-            e.setCommentCollection(null);
-        }
-
-        return lEntry;
+        return q.getResultList();
     }
 
     public Long countArticlesInSection(String sect) {
@@ -85,7 +79,8 @@ public class EntryRepo {
         dbArt.setComments(art.getComments());
         dbArt.setCommentCollection(art.getComments() ? dbArt.getCommentCollection() : null);
         dbArt.setArticletitle(art.getArticletitle());
-        dbArt.setPostedtext(art.getPostedtext());
+        dbArt.setPostedhtml(art.getPostedhtml());
+        dbArt.setPostedmarkdown(art.getPostedmarkdown());
         dbArt.setPostedname(art.getPostedname());
         dbArt.setDescription(art.getDescription());
 
@@ -102,7 +97,7 @@ public class EntryRepo {
             }
             dbArt.setSectionid(esec);
         }
-        dbArt.setEtag(UtilStatic.getBase64(hashArticle(dbArt, dbArt.getCommentCollection(), sect)));
+        dbArt.setEtag(HashUtil.getHashAsBase64(hashArticle(dbArt, dbArt.getCommentCollection(), sect)));
 
         if (getnew) {
             em.persist(dbArt);
@@ -198,8 +193,8 @@ public class EntryRepo {
                 em.remove(e);
             }
         }
-        em.createNativeQuery("ALTER SEQUENCE toilet.comment_commentid_seq MINVALUE 1 RESTART WITH 1").executeUpdate();
-        em.createNativeQuery("ALTER SEQUENCE toilet.article_articleid_seq MINVALUE 1 RESTART WITH 1").executeUpdate();
+        em.createNativeQuery("ALTER SEQUENCE toilet.comment_commentid_seq RESTART").executeUpdate();
+        em.createNativeQuery("ALTER SEQUENCE toilet.article_articleid_seq RESTART").executeUpdate();
         em.getTransaction().commit();
     }
 
@@ -207,15 +202,15 @@ public class EntryRepo {
         EntityManager em = toiletPU.createEntityManager();
         em.getTransaction().begin();
         Article art = em.find(Article.class, articleId);
-        art.setEtag(UtilStatic.getBase64(hashArticle(art, art.getCommentCollection(), art.getSectionid().getName())));
+        art.setEtag(HashUtil.getBase64(hashArticle(art, art.getCommentCollection(), art.getSectionid().getName())));
         art.setModified(new Date(new Date().getTime() / 1000 * 1000));
         em.getTransaction().commit();
     }
 
     private byte[] hashArticle(Article e, Collection<Comment> comments, String sect) {
-        MessageDigest sha = UtilStatic.getHasher();
+        MessageDigest sha = HashUtil.getSHA256();
         sha.update(e.getArticletitle().getBytes());
-        sha.update(e.getPostedtext().getBytes());
+        sha.update(e.getPostedhtml().getBytes());
         sha.update(sect.getBytes());
         sha.update(e.getPostedname().getBytes());
         if (e.getDescription() != null) {
@@ -224,7 +219,7 @@ public class EntryRepo {
         sha.update(e.getModified().toString().getBytes());
         if (comments != null) {
             for (Comment c : comments) {
-                sha.update(c.getPostedtext().getBytes());
+                sha.update(c.getPostedhtml().getBytes());
                 sha.update(c.getPosted().toString().getBytes());
                 sha.update(c.getPostedname().getBytes());
             }

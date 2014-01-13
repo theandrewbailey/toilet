@@ -1,4 +1,4 @@
-package libWebsiteTools.imead.tag;
+package libWebsiteTools.imead;
 
 import java.io.IOException;
 import java.io.StringWriter;

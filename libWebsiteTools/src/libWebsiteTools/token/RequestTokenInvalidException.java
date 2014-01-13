@@ -1,4 +1,4 @@
-package libWebsiteTools;
+package libWebsiteTools.token;
 
 /**
  * A RuntimeException used to indicate that a request token check has failed.

@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.BackupDaemon;
 import toilet.bean.UtilBean;
 import static toilet.servlet.ArticleServlet.WORDS;
@@ -33,7 +34,8 @@ public class ImportServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminServlet.IMPORT.equals(request.getSession().getAttribute("login"))) {
+        Object seslog = request.getSession().getAttribute("login");
+        if (!AdminServlet.IMPORT.equals(seslog)) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
@@ -46,13 +48,13 @@ public class ImportServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         if (!AdminServlet.IMPORT.equals(request.getSession().getAttribute("login"))
-                || !SCryptUtil.check(request.getParameter("words"), imead.getValue(WORDS))) {
+                || !SCryptUtil.check(AbstractInput.getParameter(request, "words"), imead.getValue(WORDS))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
 
         try{
-            ZipInputStream zip = new ZipInputStream(request.getPart("zip").getInputStream());
+            ZipInputStream zip = new ZipInputStream(AbstractInput.getPart(request, "zip").getInputStream());
             backup.restoreFromZip(zip);
         } catch (Exception ex) {
             error.add(request, "Restore from zip failed", null, ex);

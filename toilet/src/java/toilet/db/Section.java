@@ -1,3 +1,7 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package toilet.db;
 
 import java.io.Serializable;
@@ -15,27 +19,34 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
 
+/**
+ *
+ * @author alphavm
+ */
 @Entity
-@Table(name = "section", schema = "toilet")
+@Table(name = "section", catalog = "toilet", schema = "toilet")
+@XmlRootElement
 @NamedQueries({
     @NamedQuery(name = "Section.findAll", query = "SELECT s FROM Section s"),
     @NamedQuery(name = "Section.findBySectionid", query = "SELECT s FROM Section s WHERE s.sectionid = :sectionid"),
     @NamedQuery(name = "Section.findByName", query = "SELECT s FROM Section s WHERE s.name = :name")})
 public class Section implements Serializable {
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "sectionid")
+    private Collection<Article> articleCollection;
     private static final long serialVersionUID = 1L;
     @Id
-    @Basic(optional = false)
-    @Column(name = "sectionid")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Basic(optional = false)
+    @Column(name = "sectionid", nullable = false)
     private Integer sectionid;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 0, max = 250)
-    @Column(name = "name")
+    @Size(min = 1, max = 250)
+    @Column(name = "name", nullable = false, length = 250)
     private String name;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "sectionid")
-    private Collection<Article> articleCollection;
 
     public Section() {
     }
@@ -65,14 +76,6 @@ public class Section implements Serializable {
         this.name = name;
     }
 
-    public Collection<Article> getArticleCollection() {
-        return articleCollection;
-    }
-
-    public void setArticleCollection(Collection<Article> articleCollection) {
-        this.articleCollection = articleCollection;
-    }
-
     @Override
     public int hashCode() {
         int hash = 0;
@@ -96,6 +99,15 @@ public class Section implements Serializable {
     @Override
     public String toString() {
         return "toilet.db.Section[ sectionid=" + sectionid + " ]";
+    }
+
+    @XmlTransient
+    public Collection<Article> getArticleCollection() {
+        return articleCollection;
+    }
+
+    public void setArticleCollection(Collection<Article> articleCollection) {
+        this.articleCollection = articleCollection;
     }
     
 }

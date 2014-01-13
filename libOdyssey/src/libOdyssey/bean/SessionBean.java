@@ -12,7 +12,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.RequestTime;
 import libOdyssey.ResponseTag;
-import libOdyssey.db.Httpsession;
 import libOdyssey.db.Page;
 import libOdyssey.db.Pagerequest;
 
@@ -20,7 +19,7 @@ import libOdyssey.db.Pagerequest;
  *
  * @author alpha
  */
-@Stateful
+@Stateful(mappedName = SessionBean.LOCAL_NAME)
 public class SessionBean {
 
     public static final String LOCAL_NAME = "java:module/SessionBean";
@@ -50,62 +49,39 @@ public class SessionBean {
 
         try {
             em.getTransaction().begin();
-            Httpsession sess = anal.getSession(req.getSession().getId(), false);
-            if (sess == null) {
-                sess = createSession(req.getSession().getId(), req.getHeader("User-Agent"), req.getHeader("Referer"), new Date(req.getSession().getCreationTime()), req.getRemoteAddr());
-                newSession = true;
-            }
 
             // get DB row corresponding to URL
             Page page = anal.getPageByUrl(urlstr);
 
             // create DB row for this page request
-            Pagerequest pr = new Pagerequest(null, new java.util.Date(), req.getRemoteAddr(), res.getStatus(), 0, req.getMethod());
-            pr.setPageid(page);
-            pr.setHttpsessionid(sess);
-            if (renderTime != null) {
-                pr.setRendered(renderTime.intValue());
-            }
-            if (req.getHeader("Referer") != null) {
-                TypedQuery<Pagerequest> q = em.createQuery(newSession ? FIRST_REQUEST : SUBSEQUENT_REQUEST, Pagerequest.class);
-                String referred=req.getHeader("Referer");
-                if (!newSession) {
-                    referred = referred.substring(referred.indexOf(guard.getHostValue()) + guard.getHostValue().length());
-                    referred = getURL(req.getServletContext().getContextPath(), referred, null);
-                    q.setParameter("http", sess);
-                }
-                q.setParameter("page", anal.getPageByUrl(referred).getPageid());
-                q.setMaxResults(1);
-                try {
-                    pr.setCamefrompagerequestid(q.getSingleResult());
-                } catch (NoResultException x) {
-                }
-            }
-            pr.setParameters(ExceptionRepo.getParameters(req, "\n"));
-
-            pr.setServed((int)(new Date().getTime() - ((Date)req.getAttribute(RequestTime.TIME_PARAM)).getTime()));
-            em.persist(pr);
+//            Pagerequest pr = new Pagerequest(null, new java.util.Date(), req.getMethod(), res.getStatus(), 0);
+//            pr.setPageid(page);
+//            if (renderTime != null) {
+//                pr.setRendered(renderTime.intValue());
+//            }
+//            if (req.getHeader("Referer") != null) {
+//                TypedQuery<Pagerequest> q = em.createQuery(newSession ? FIRST_REQUEST : SUBSEQUENT_REQUEST, Pagerequest.class);
+//                String referred=req.getHeader("Referer");
+//                if (!newSession) {
+//                    referred = referred.substring(referred.indexOf(guard.getHostValue()) + guard.getHostValue().length());
+//                    referred = getURL(req.getServletContext().getContextPath(), referred, null);
+//                }
+//                q.setParameter("page", anal.getPageByUrl(referred).getPageid());
+//                q.setMaxResults(1);
+//                try {
+//                    pr.setCamefrompagerequestid(q.getSingleResult());
+//                } catch (NoResultException x) {
+//                }
+//            }
+//            pr.setParameters(ExceptionRepo.getParameters(req, "\n"));
+//
+//            pr.setServed((int)(new Date().getTime() - ((Date)req.getAttribute(RequestTime.TIME_PARAM)).getTime()));
+//            em.persist(pr);
         } catch (Exception x) {
             exr.add(req, null, null, x);
         } finally {
             em.getTransaction().commit();
         }
-    }
-
-    public Httpsession createSession(String sess, String userAgent, String referrer, Date create, String ip) {
-        EntityManager em = PU.createEntityManager();
-        Httpsession s = new Httpsession(null, sess, create);
-        s.setUseragent(userAgent);
-        s.setIp(ip);
-
-        if (referrer != null) {
-            s.setPageid(anal.getPageByUrl(referrer));
-        }
-        em.getTransaction().begin();
-        em.persist(s);
-        em.getTransaction().commit();
-
-        return em.createNamedQuery("Httpsession.findByServersessionid", Httpsession.class).setParameter("serversessionid", sess).getSingleResult();
     }
 
     /**

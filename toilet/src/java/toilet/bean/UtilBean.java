@@ -13,6 +13,7 @@ import javax.ejb.Stateless;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import libOdyssey.bean.GuardHolder;
+import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.iFeedBucket;
 import toilet.rss.ArticleRss;
@@ -35,7 +36,6 @@ public class UtilBean {
     public static final String COPYRIGHT = "rss_copyright";
     public static final String LANGUAGE = "rss_language";
     public static final String MASTER = "rss_master";
-    public static final String UTF8_UNSUPPORTED = "UTF-8 encoding is not supported on this JVM!";
     private static final Logger log = Logger.getLogger(UtilBean.class.getName());
     @PersistenceUnit(name = UtilBean.PERSISTENCE)
     private EntityManagerFactory toiletPU;
@@ -47,18 +47,19 @@ public class UtilBean {
     private BackupDaemon backup;
     @EJB
     private GuardHolder guard;
+    @EJB
+    private StateCache cache;
 
     @PostConstruct
     public void init() {
         log.entering(UtilBean.class.getName(), "init");
 
         try {
-            src.getFeed(ArticleRss.NAME).preAdd();
-            src.getFeed(CommentRss.NAME).preAdd();
+            resetArticleFeed();
+            resetCommentFeed();
         } catch (NullPointerException ex) {
         }
 
-//        updatePageTemplate();
         log.exiting(UtilBean.class.getName(), "init");
     }
 
@@ -69,6 +70,7 @@ public class UtilBean {
         log.entering(UtilBean.class.getName(), "resetEverything");
         toiletPU.getCache().evictAll();
         imead.populateCache();
+        cache.reset();
         init();
         backup.backup();
         guard.refresh();
@@ -79,6 +81,14 @@ public class UtilBean {
         log.exiting(UtilBean.class.getName(), "resetEverything");
     }
 
+    public synchronized void resetArticleFeed() {
+        src.getFeed(ArticleRss.NAME).preAdd();
+    }
+
+    public synchronized void resetCommentFeed() {
+        src.getFeed(CommentRss.NAME).preAdd();
+    }
+
     @PreDestroy
     private void destroy() {
         log.info("UtilBean destroyed");
@@ -86,6 +96,8 @@ public class UtilBean {
 
     /**
      * counts slashes, and strips off the last element in the given URI
+     * 
+     * TODO: redo with regex
      *
      * @param URI
      * @return 
@@ -111,9 +123,9 @@ public class UtilBean {
                     return URLDecoder.decode(parts[x], "UTF-8");
                 } catch (UnsupportedEncodingException ex) {
                     // not gonna happen
-                    log.log(Level.SEVERE, UTF8_UNSUPPORTED, ex);
-                    throw new RuntimeException(UTF8_UNSUPPORTED, ex);
-                }   // F U JAVA
+                    log.log(Level.SEVERE, JVMNotSupportedError.UTF8_UNSUPPORTED, ex);
+                    throw new JVMNotSupportedError(ex);
+                }
             }
         } else if ("article".equals(parts[x])) {
             return parts[++x];

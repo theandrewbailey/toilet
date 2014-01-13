@@ -2,12 +2,12 @@
 <taglib version="2.1" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd">
   <tlib-version>1.0</tlib-version>
   <short-name>imead</short-name>
-  <uri>/WEB-INF/IMEAD</uri>
+  <uri>uri:libwebsitetools:IMEAD</uri>
   <description>Internationalization Made Easy And Dynamic. uses keyvalue and localization tables to fill in small pieces of localization specific and configuration text. see libIMEAD.IMEADBean.</description>
   <tag>
     <name>keyVal</name>
     <description>will print the value for given key from the KeyValue table. may contain &lt;param&gt; elements to fill {0} type parameters in the printed value, otherwise no text will be printed within this tag.</description>
-    <tag-class>libWebsiteTools.imead.tag.KeyVal</tag-class>
+    <tag-class>libWebsiteTools.imead.KeyVal</tag-class>
     <body-content>scriptless</body-content>
     <attribute>
       <description>the key for the desired value</description>
@@ -20,7 +20,7 @@
   <tag>
     <name>keyValVar</name>
     <description>same as keyVal, but will place the text that would have been printed into the given var (page scoped), which can be used later in the page.</description>
-    <tag-class>libWebsiteTools.imead.tag.KeyValVar</tag-class>
+    <tag-class>libWebsiteTools.imead.KeyValVar</tag-class>
     <body-content>scriptless</body-content>
     <attribute>
       <description>the key for the desired value</description>
@@ -40,7 +40,7 @@
   <tag>
     <name>local</name>
     <description>will print a localized string from the Localization table using the given locale, user agent specified locales, or the server default locale. may contain &lt;param&gt; elements to fill {0} type parameters in the printed value, otherwise no text will be printed within this tag.</description>
-    <tag-class>libWebsiteTools.imead.tag.Local</tag-class>
+    <tag-class>libWebsiteTools.imead.Local</tag-class>
     <body-content>scriptless</body-content>
     <attribute>
       <description>the key for the desired localized value</description>
@@ -60,7 +60,7 @@
   <tag>
     <name>localVar</name>
     <description>same as local, but will place the text that would have been printed into the given var (page scoped), which can be used later in the page.</description>
-    <tag-class>libWebsiteTools.imead.tag.LocalVar</tag-class>
+    <tag-class>libWebsiteTools.imead.LocalVar</tag-class>
     <body-content>scriptless</body-content>
     <attribute>
       <description>the key for the desired localized value</description>
@@ -87,18 +87,12 @@
   <tag>
     <name>param</name>
     <description>used to insert parameters into the values produced by keyVal, keyValVar, local, or localVar. will use (in order) the object attribute, or any text printed inside.</description>
-    <tag-class>libWebsiteTools.imead.tag.Parameter</tag-class>
+    <tag-class>libWebsiteTools.imead.Parameter</tag-class>
     <body-content>scriptless</body-content>
     <attribute>
       <name>object</name>
       <rtexprvalue>true</rtexprvalue>
       <type>java.lang.Object</type>
     </attribute>
-  </tag>
-  <tag>
-    <name>LocalInitializer</name>
-    <description>place near top of jsps that do not get caught by the servlet filter (does not end in .jsp || .jspf || .jspx) so that localization works properly.</description>
-    <tag-class>libWebsiteTools.imead.tag.LocalInitializer</tag-class>
-    <body-content>empty</body-content>
   </tag>
 </taglib>

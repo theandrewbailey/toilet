@@ -20,6 +20,6 @@
     <table class="secondmin">
         <c:forEach items="${visits}" var="a"><tr><td><c:out value="${a.key}"/></td><td>${a.value}</td></tr>
     </c:forEach></table>
-    <form action="admin" method="POST"><p><input type="submit" value="reanal" name="re-anal"/><input type="hidden" name="answer" value="${answer}"/></p><h:requestToken/></form>
+    <form action="admin" method="POST"><p><input type="submit" value="reanal" name="re-anal"/><input type="hidden" name="answer" value="${answer}"/></p></form>
 </div>
 <%@ include file="/WEB-INF/manFoot.jspf" %>

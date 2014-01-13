@@ -1,3 +1,7 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package toilet.db;
 
 import java.io.Serializable;
@@ -9,61 +13,64 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
+import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import javax.xml.bind.annotation.XmlRootElement;
 
+/**
+ *
+ * @author alphavm
+ */
 @Entity
-@Table(name = "fileupload", schema = "toilet")
+@Table(name = "fileupload", catalog = "toilet", schema = "toilet", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"filename"})})
+@XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f ORDER BY f.uploaded"),
+    @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f"),
     @NamedQuery(name = "Fileupload.findByFileuploadid", query = "SELECT f FROM Fileupload f WHERE f.fileuploadid = :fileuploadid"),
     @NamedQuery(name = "Fileupload.findByEtag", query = "SELECT f FROM Fileupload f WHERE f.etag = :etag"),
     @NamedQuery(name = "Fileupload.findByFilename", query = "SELECT f FROM Fileupload f WHERE f.filename = :filename"),
     @NamedQuery(name = "Fileupload.findByMimetype", query = "SELECT f FROM Fileupload f WHERE f.mimetype = :mimetype"),
     @NamedQuery(name = "Fileupload.findByUploaded", query = "SELECT f FROM Fileupload f WHERE f.uploaded = :uploaded")})
 public class Fileupload implements Serializable {
-    private static final long serialVersionUID = 1L;
-    @Id
-    @Basic(optional = false)
-    @Column(name = "fileuploadid")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer fileuploadid;
-    @Basic(optional = false, fetch=FetchType.LAZY)
+    @Basic(optional = false, fetch = FetchType.LAZY)
     @NotNull
     @Lob
-    @Column(name = "binarydata")
+    @Column(name = "binarydata", nullable = false)
     private byte[] binarydata;
+    private static final long serialVersionUID = 1L;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Basic(optional = false)
+    @Column(name = "fileuploadid", nullable = false)
+    private Integer fileuploadid;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 250)
-    @Column(name = "etag")
+    @Column(name = "etag", nullable = false, length = 250)
     private String etag;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 1000)
-    @Column(name = "filename")
+    @Column(name = "filename", nullable = false, length = 1000)
     private String filename;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 250)
-    @Column(name = "mimetype")
+    @Column(name = "mimetype", nullable = false, length = 250)
     private String mimetype;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "uploaded")
+    @Column(name = "uploaded", nullable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date uploaded;
-//    @JoinColumn(name = "urlid", referencedColumnName = "urlid")
-//    @ManyToOne
-//    private Url urlid;
 
     public Fileupload() {
     }
@@ -87,14 +94,6 @@ public class Fileupload implements Serializable {
 
     public void setFileuploadid(Integer fileuploadid) {
         this.fileuploadid = fileuploadid;
-    }
-
-    public byte[] getBinarydata() {
-        return binarydata;
-    }
-
-    public void setBinarydata(byte[] binarydata) {
-        this.binarydata = binarydata;
     }
 
     public String getEtag() {
@@ -129,14 +128,6 @@ public class Fileupload implements Serializable {
         this.uploaded = uploaded;
     }
 
-//    public Url getUrlid() {
-//        return urlid;
-//    }
-//
-//    public void setUrlid(Url urlid) {
-//        this.urlid = urlid;
-//    }
-
     @Override
     public int hashCode() {
         int hash = 0;
@@ -160,6 +151,14 @@ public class Fileupload implements Serializable {
     @Override
     public String toString() {
         return "toilet.db.Fileupload[ fileuploadid=" + fileuploadid + " ]";
+    }
+
+    public byte[] getBinarydata() {
+        return binarydata;
+    }
+
+    public void setBinarydata(byte[] binarydata) {
+        this.binarydata = binarydata;
     }
     
 }

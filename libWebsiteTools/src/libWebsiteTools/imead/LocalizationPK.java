@@ -1,8 +1,10 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package libWebsiteTools.imead.db;
+
+package libWebsiteTools.imead;
 
 import java.io.Serializable;
 import javax.persistence.Basic;
@@ -13,7 +15,7 @@ import javax.validation.constraints.Size;
 
 /**
  *
- * @author alpha
+ * @author alphavm
  */
 @Embeddable
 public class LocalizationPK implements Serializable {
@@ -78,7 +80,7 @@ public class LocalizationPK implements Serializable {
 
     @Override
     public String toString() {
-        return "toilet.db.LocalizationPK[ key=" + key + ", localecode=" + localecode + " ]";
+        return "libWebsiteTools.imead.db.LocalizationPK[ key=" + key + ", localecode=" + localecode + " ]";
     }
     
 }

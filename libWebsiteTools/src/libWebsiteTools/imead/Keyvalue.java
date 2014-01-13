@@ -1,23 +1,30 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package libWebsiteTools.imead.db;
+
+package libWebsiteTools.imead;
 
 import java.io.Serializable;
-import javax.persistence.*;
+import javax.persistence.Basic;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
+import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author alpha
+ * @author alphavm
  */
 @Entity
-@Table(name = "keyvalue", schema = "imead")
+@Table(name = "keyvalue", schema = "IMEAD")
 @XmlRootElement
-@Cacheable(false)
 @NamedQueries({
     @NamedQuery(name = "Keyvalue.findAll", query = "SELECT k FROM Keyvalue k"),
     @NamedQuery(name = "Keyvalue.findByKey", query = "SELECT k FROM Keyvalue k WHERE k.key = :key"),
@@ -32,8 +39,8 @@ public class Keyvalue implements Serializable {
     private String key;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 65000)
-    @Column(name = "value", nullable = false, length = 65000)
+    @Size(min = 1, max = 2147483647)
+    @Column(name = "value", nullable = false, length = 2147483647)
     private String value;
 
     public Keyvalue() {
@@ -86,7 +93,7 @@ public class Keyvalue implements Serializable {
 
     @Override
     public String toString() {
-        return "toilet.db.Keyvalue[ key=" + key + " ]";
+        return "libWebsiteTools.imead.db.Keyvalue[ key=" + key + " ]";
     }
     
 }

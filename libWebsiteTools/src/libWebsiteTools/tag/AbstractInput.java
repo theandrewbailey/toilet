@@ -1,15 +1,22 @@
 package libWebsiteTools.tag;
 
 import java.io.IOException;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.Part;
 import javax.servlet.jsp.JspException;
+import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
+import libWebsiteTools.HashUtil;
 
 /**
  * base class for all input elements
- * 
+ *
  * @author alpha
  */
 public abstract class AbstractInput extends SimpleTagSupport {
+
+    public static final String DISABLE_FIELDNAME_OBFUSCATION = "$_LIBWEBSITETOOLS_DISABLE_FIELDNAME_OBFUSCATION";
 
     private String accesskey;
     private Boolean checked = false;
@@ -23,11 +30,38 @@ public abstract class AbstractInput extends SimpleTagSupport {
     private Integer tabindex;
     private String value;
     private String title;
+    private Boolean autofocus = false;
+    private Boolean disabled = false;
+    private Boolean required = false;
+    protected HttpServletRequest req;
+    private String cachedId;
+
+    public static String getHash(HttpServletRequest req, String str) {
+        if (req.getServletContext().getAttribute(DISABLE_FIELDNAME_OBFUSCATION) != null){
+            return str;
+        }
+        Object token = req.getAttribute(RequestToken.ID_NAME);
+        if (token == null) {
+            token = req.getParameter(RequestToken.getHash(req));
+        }
+        return HashUtil.getHash(req.getSession().getId() + token.toString() + str);
+    }
+
+    public static String getParameter(HttpServletRequest req, String parameter) {
+        String lookfor = getHash(req, parameter);
+        return req.getParameter(lookfor);
+    }
+
+    public static Part getPart(HttpServletRequest req, String name) throws IOException, ServletException {
+        String lookfor = getHash(req, name);
+        return req.getPart(lookfor);
+    }
 
     public abstract String getType();
 
     @Override
     public void doTag() throws JspException, IOException {
+        req = (HttpServletRequest) ((PageContext) getJspContext()).getRequest();
         getJspContext().getOut().print(generateTag());
     }
 
@@ -41,7 +75,7 @@ public abstract class AbstractInput extends SimpleTagSupport {
     }
 
     public String generateTag() {
-        StringBuilder out = new StringBuilder(1000);
+        StringBuilder out = new StringBuilder(300);
 
         label(out);
 
@@ -53,6 +87,15 @@ public abstract class AbstractInput extends SimpleTagSupport {
         }
         if (getChecked()) {
             out.append("\" checked=\"checked");
+        }
+        if (getAutofocus()) {
+            out.append("\" autofocus=\"autofocus");
+        }
+        if (getDisabled()) {
+            out.append("\" disabled=\"disabled");
+        }
+        if (getRequired()) {
+            out.append("\" required=\"required");
         }
         if (getLength() != null) {
             out.append("\" length=\"").append(getLength().toString());
@@ -105,14 +148,19 @@ public abstract class AbstractInput extends SimpleTagSupport {
      * @param checked the checked to set
      */
     public void setChecked(Boolean checked) {
-        this.checked = checked;
+        if (checked != null) {
+            this.checked = checked;
+        }
     }
 
     /**
      * @return the id
      */
     public String getId() {
-        return id;
+        if (cachedId == null && req != null) {
+            cachedId = getHash(req, id);
+        }
+        return cachedId != null ? cachedId : id;
     }
 
     /**
@@ -246,5 +294,29 @@ public abstract class AbstractInput extends SimpleTagSupport {
      */
     public void setLabelNextLine(Boolean labelNextLine) {
         this.labelNextLine = labelNextLine;
+    }
+
+    public Boolean getAutofocus() {
+        return autofocus;
+    }
+
+    public void setAutofocus(Boolean autofocus) {
+        this.autofocus = autofocus;
+    }
+
+    public Boolean getDisabled() {
+        return disabled;
+    }
+
+    public void setDisabled(Boolean disabled) {
+        this.disabled = disabled;
+    }
+
+    public Boolean getRequired() {
+        return required;
+    }
+
+    public void setRequired(Boolean required) {
+        this.required = required;
     }
 }

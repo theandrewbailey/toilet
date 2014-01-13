@@ -4,6 +4,7 @@ public class Checkbox extends AbstractInput {
 
     public Checkbox() {
         setLabelNextLine(false);
+        setValue("true");
     }
 
     @Override

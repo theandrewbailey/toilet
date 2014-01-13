@@ -1,7 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -25,12 +27,10 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
-import org.codehaus.jackson.annotate.JsonIgnore;
 
 /**
  *
- * @author
- * alpha
+ * @author alphavm
  */
 @Entity
 @Table(name = "pagerequest", schema = "odyssey")
@@ -39,12 +39,11 @@ import org.codehaus.jackson.annotate.JsonIgnore;
     @NamedQuery(name = "Pagerequest.findAll", query = "SELECT p FROM Pagerequest p"),
     @NamedQuery(name = "Pagerequest.findByPagerequestid", query = "SELECT p FROM Pagerequest p WHERE p.pagerequestid = :pagerequestid"),
     @NamedQuery(name = "Pagerequest.findByAtime", query = "SELECT p FROM Pagerequest p WHERE p.atime = :atime"),
-    @NamedQuery(name = "Pagerequest.findByIp", query = "SELECT p FROM Pagerequest p WHERE p.ip = :ip"),
+    @NamedQuery(name = "Pagerequest.findByMethod", query = "SELECT p FROM Pagerequest p WHERE p.method = :method"),
     @NamedQuery(name = "Pagerequest.findByResponsecode", query = "SELECT p FROM Pagerequest p WHERE p.responsecode = :responsecode"),
     @NamedQuery(name = "Pagerequest.findByServed", query = "SELECT p FROM Pagerequest p WHERE p.served = :served"),
-    @NamedQuery(name = "Pagerequest.findByMethod", query = "SELECT p FROM Pagerequest p WHERE p.method = :method"),
-    @NamedQuery(name = "Pagerequest.findByRendered", query = "SELECT p FROM Pagerequest p WHERE p.rendered = :rendered"),
-    @NamedQuery(name = "Pagerequest.findByParameters", query = "SELECT p FROM Pagerequest p WHERE p.parameters = :parameters")})
+    @NamedQuery(name = "Pagerequest.findByParameters", query = "SELECT p FROM Pagerequest p WHERE p.parameters = :parameters"),
+    @NamedQuery(name = "Pagerequest.findByRendered", query = "SELECT p FROM Pagerequest p WHERE p.rendered = :rendered")})
 public class Pagerequest implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -60,8 +59,8 @@ public class Pagerequest implements Serializable {
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 100)
-    @Column(name = "ip", nullable = false, length = 100)
-    private String ip;
+    @Column(name = "method", nullable = false, length = 100)
+    private String method;
     @Basic(optional = false)
     @NotNull
     @Column(name = "responsecode", nullable = false)
@@ -70,27 +69,22 @@ public class Pagerequest implements Serializable {
     @NotNull
     @Column(name = "served", nullable = false)
     private int served;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 100)
-    @Column(name = "method", nullable = false, length = 100)
-    private String method;
-    @Column(name = "rendered")
-    private Integer rendered;
     @Size(max = 2147483647)
     @Column(name = "parameters", length = 2147483647)
     private String parameters;
+    @Column(name = "rendered")
+    private Integer rendered;
     @OneToMany(mappedBy = "camefrompagerequestid")
     private Collection<Pagerequest> pagerequestCollection;
     @JoinColumn(name = "camefrompagerequestid", referencedColumnName = "pagerequestid")
     @ManyToOne
     private Pagerequest camefrompagerequestid;
-    @JoinColumn(name = "pageid", referencedColumnName = "pageid", nullable = false)
+    @JoinColumn(name = "referredbypageid", referencedColumnName = "pageid")
+    @ManyToOne
+    private Page referredbypageid;
+    @JoinColumn(name = "requestedpageid", referencedColumnName = "pageid", nullable = false)
     @ManyToOne(optional = false)
-    private Page pageid;
-    @JoinColumn(name = "httpsessionid", referencedColumnName = "httpsessionid", nullable = false)
-    @ManyToOne(optional = false)
-    private Httpsession httpsessionid;
+    private Page requestedpageid;
     @OneToMany(mappedBy = "pagerequestid")
     private Collection<Exceptionevent> exceptioneventCollection;
 
@@ -101,13 +95,12 @@ public class Pagerequest implements Serializable {
         this.pagerequestid = pagerequestid;
     }
 
-    public Pagerequest(Integer pagerequestid, Date atime, String ip, int responsecode, int served, String method) {
+    public Pagerequest(Integer pagerequestid, Date atime, String method, int responsecode, int served) {
         this.pagerequestid = pagerequestid;
         this.atime = atime;
-        this.ip = ip;
+        this.method = method;
         this.responsecode = responsecode;
         this.served = served;
-        this.method = method;
     }
 
     public Integer getPagerequestid() {
@@ -126,12 +119,12 @@ public class Pagerequest implements Serializable {
         this.atime = atime;
     }
 
-    public String getIp() {
-        return ip;
+    public String getMethod() {
+        return method;
     }
 
-    public void setIp(String ip) {
-        this.ip = ip;
+    public void setMethod(String method) {
+        this.method = method;
     }
 
     public int getResponsecode() {
@@ -150,12 +143,12 @@ public class Pagerequest implements Serializable {
         this.served = served;
     }
 
-    public String getMethod() {
-        return method;
+    public String getParameters() {
+        return parameters;
     }
 
-    public void setMethod(String method) {
-        this.method = method;
+    public void setParameters(String parameters) {
+        this.parameters = parameters;
     }
 
     public Integer getRendered() {
@@ -166,16 +159,7 @@ public class Pagerequest implements Serializable {
         this.rendered = rendered;
     }
 
-    public String getParameters() {
-        return parameters;
-    }
-
-    public void setParameters(String parameters) {
-        this.parameters = parameters;
-    }
-
     @XmlTransient
-    @JsonIgnore
     public Collection<Pagerequest> getPagerequestCollection() {
         return pagerequestCollection;
     }
@@ -192,24 +176,23 @@ public class Pagerequest implements Serializable {
         this.camefrompagerequestid = camefrompagerequestid;
     }
 
-    public Page getPageid() {
-        return pageid;
+    public Page getReferredbypageid() {
+        return referredbypageid;
     }
 
-    public void setPageid(Page pageid) {
-        this.pageid = pageid;
+    public void setReferredbypageid(Page referredbypageid) {
+        this.referredbypageid = referredbypageid;
     }
 
-    public Httpsession getHttpsessionid() {
-        return httpsessionid;
+    public Page getRequestedpageid() {
+        return requestedpageid;
     }
 
-    public void setHttpsessionid(Httpsession httpsessionid) {
-        this.httpsessionid = httpsessionid;
+    public void setRequestedpageid(Page requestedpageid) {
+        this.requestedpageid = requestedpageid;
     }
 
     @XmlTransient
-    @JsonIgnore
     public Collection<Exceptionevent> getExceptioneventCollection() {
         return exceptioneventCollection;
     }

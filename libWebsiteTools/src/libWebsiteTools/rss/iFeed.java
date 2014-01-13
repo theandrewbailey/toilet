@@ -11,13 +11,12 @@ import org.w3c.dom.Document;
  *
  * add a context-param element in the web.xml, like so:
  *
- * name: RSS.feeds
- * value: my.rss.feed;my.rss.secondFeed
+ * name: RSS.feeds value: my.rss.feed;my.rss.secondFeed
  *
  * feeds are guaranteed to added and destroyed in the order declared
  *
- * AbstractRssFeed is a complete implementation (includes DOM), and recommend
- * usage of @Feed for your implementations
+ * AbstractRssFeed is a mostly complete implementation (includes DOM), and
+ * recommend usage of @Feed for your implementations
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  * @see libWebsiteTools.rss.entity.AbstractRssFeed
@@ -37,8 +36,9 @@ public interface iFeed extends Serializable {
     public void postAdd();
 
     /**
-     * preWrite will be called on every request for the feed
-     * must return the XML to be sent back to user
+     * preWrite will be called on every request for the feed must return the XML
+     * to be sent back to user
+     *
      * @param req useful for getting the session object
      * @return XML document to preWrite to output stream
      */
@@ -46,6 +46,7 @@ public interface iFeed extends Serializable {
 
     /**
      * postWrite will be called after writeToServlet
+     *
      * @param req useful for getting the session object
      */
     public void postWrite(HttpServletRequest req);

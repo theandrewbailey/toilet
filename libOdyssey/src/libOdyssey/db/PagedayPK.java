@@ -1,7 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
+
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -16,8 +18,7 @@ import javax.validation.constraints.Size;
 
 /**
  *
- * @author
- * alpha
+ * @author alphavm
  */
 @Embeddable
 public class PagedayPK implements Serializable {

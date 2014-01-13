@@ -1,4 +1,4 @@
-package libWebsiteTools;
+package libWebsiteTools.token;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -15,7 +15,7 @@ public class RequestTokenBucket implements Serializable {
 
     public static final String SESSION_ATTR_NAME = "$_REQUEST_TOKEN_BUCKET";
     private static final int MAXIMUM_TOKEN_COUNT = 300;
-    private LinkedHashMap<String, String> UUIDs = new LinkedHashMap<String, String>();
+    private final LinkedHashMap<String, String> UUIDs = new LinkedHashMap<String, String>();
     private int max = MAXIMUM_TOKEN_COUNT;
 
     public static RequestTokenBucket getRequestTokenBucket(HttpServletRequest req) {

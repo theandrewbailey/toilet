@@ -2,11 +2,18 @@
 <taglib version="2.1" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-jsptaglibrary_2_1.xsd">
     <tlib-version>1.0</tlib-version>
     <short-name>t</short-name>
-    <uri>/WEB-INF/toilet</uri>
+    <uri>uri:toilet</uri>
     <tag>
         <name>categorizer</name>
         <tag-class>toilet.tag.Categorizer</tag-class>
         <body-content>scriptless</body-content>
+        <attribute>
+            <description>a single category</description>
+            <name>category</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
     </tag>
     <tag>
         <name>articleUrl</name>
@@ -20,7 +27,7 @@
             <type>toilet.db.Article</type>
         </attribute>
         <attribute>
-            <description>anchor id value in link URL</description>
+            <description>anchor id in link URL</description>
             <name>anchor</name>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
@@ -36,6 +43,13 @@
         <attribute>
             <description>text displayed within tag</description>
             <name>text</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <description>class for the anchor element</description>
+            <name>cssClass</name>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>

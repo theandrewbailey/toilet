@@ -1,14 +1,16 @@
 package toilet.rss;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.List;
 import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
+import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
 import libWebsiteTools.rss.entity.RssChannel;
-import libWebsiteTools.rss.entity.RssItem;
 import org.w3c.dom.Document;
 import toilet.UtilStatic;
 import toilet.bean.EntryRepo;
@@ -47,8 +49,8 @@ public class ArticleRss extends AbstractRssFeed {
         List<Article> lEntry = entry.getArticleArchive(numEntries);
 
         for (Article e : lEntry) {
-            String text = e.getPostedtext();
-            RssItem i = new RssItem(text);
+            String text = e.getPostedhtml();
+            MarkdownRssItem i = new MarkdownRssItem(text);
             entries.addItem(i);
             i.setTitle(e.getArticletitle());
             if (!e.getSectionid().getName().equals(imead.getValue(EntryRepo.DEFAULT_CATEGORY))) {
@@ -60,8 +62,15 @@ public class ArticleRss extends AbstractRssFeed {
             }
             i.setAuthor(entries.getWebMaster());
             i.setLink(ArticleUrl.getUrl(imead.getValue(UtilBean.THISURL), e));
-            i.setGuid(e.getDescription());
+            try {
+                i.setGuid(URLEncoder.encode(e.getDescription(), "UTF-8"));
+                i.setGuidPermaLink(false);
+            } catch (UnsupportedEncodingException enc) {
+                throw new JVMNotSupportedError(enc);
+            }
             i.setPubDate(e.getPosted());
+            i.setMarkdownSource(e.getPostedmarkdown());
+            i.setDescription(e.getPostedhtml());
             if (e.getComments()) {
                 i.setComments(i.getLink() + "#comments");
             }

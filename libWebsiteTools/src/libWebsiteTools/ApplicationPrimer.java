@@ -28,7 +28,7 @@ import javax.servlet.annotation.WebListener;
  * captured and sent with subsequent requests, so these requests should appear
  * as a single session.
  */
-@WebListener("Automatically request the web app.")
+//@WebListener("Automatically request the web app.")
 public class ApplicationPrimer extends TimerTask implements ServletContextListener {
 
     private static final Logger log = Logger.getLogger(ApplicationPrimer.class.getName());

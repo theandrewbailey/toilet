@@ -10,6 +10,5 @@
 <br/><br/></div>
 </c:forEach>
 <input type="hidden" name="day" value="${day}"/><input type="hidden" name="month" value="${month}"/><input type="hidden" name="year" value="${year}"/>
-<h:requestToken/>
 </form>
 <%@ include file="/WEB-INF/manFoot.jspf" %>
