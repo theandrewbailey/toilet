@@ -1,6 +1,5 @@
 package libWebsiteTools.rss;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -72,10 +71,9 @@ public class FeedBucket implements iFeedBucket {
 
     @Override
     public void addFeed(iFeed feed) {
-        if (feed.getClass().getAnnotation(Feed.class) == null) {
-            addFeed(feed.getClass().getSimpleName(), feed);
-        }
-        addFeed(feed.getClass().getAnnotation(Feed.class).value(), feed);
+        addFeed(feed.getClass().getAnnotation(Feed.class) != null ? 
+                feed.getClass().getAnnotation(Feed.class).value() : 
+                feed.getClass().getSimpleName(), feed);
     }
 
     @Override

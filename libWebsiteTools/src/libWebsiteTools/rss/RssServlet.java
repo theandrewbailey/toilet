@@ -73,7 +73,9 @@ public class RssServlet extends HttpServlet {
                 log.log(Level.FINE, "RSS feed {0} requested, servicing", name);
                 DOMSource DOMsrc = new DOMSource(feed.preWrite(request));
                 StreamResult str = new StreamResult(response.getWriter());
-                response.setContentType(feed.getClass().getAnnotation(Feed.class).MIME());
+                response.setContentType(feed.getClass().getAnnotation(Feed.class) != null ? 
+                        feed.getClass().getAnnotation(Feed.class).MIME() : 
+                        Feed.MIME_RSS);
                 synchronized (xFormFact) {
                     trans = xFormFact.newTransformer();
                 }

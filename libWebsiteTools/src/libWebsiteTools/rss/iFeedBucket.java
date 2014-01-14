@@ -6,7 +6,7 @@ package libWebsiteTools.rss;
  * sorry
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
- * @see libRssServlet.FeedBucket
+ * @see libWebsiteTools.rss.FeedBucket
  */
 public interface iFeedBucket {
 

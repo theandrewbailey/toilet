@@ -9,7 +9,6 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=yes">
     <h:meta/>
     <imead:keyValVar key="page_title" /><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
-    <h:link/>
     <link rel="shortcut icon" href="<imead:keyVal key="page_favicon"/>"/>
     <link rel="stylesheet" href="<imead:keyVal key="thisURL"/><imead:keyVal key="page_css"/>"/>
     <link rel="alternate" href="<imead:keyVal key="thisURL"/>rss/Articles.rss" title="Articles" type="application/rss+xml"/>

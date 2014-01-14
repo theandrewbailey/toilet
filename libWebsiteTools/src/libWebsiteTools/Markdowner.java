@@ -23,16 +23,8 @@ public class Markdowner {
         if (processor == null) {
             try {
                 processor = new ScriptEngineManager().getEngineByName("JavaScript");
-                InputStreamReader markedjs = new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/marked.js"));
-                InputStreamReader remarkedjs = new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/reMarked.js"));
-//                if (processor instanceof Compilable){
-//                    Compilable cPro = (Compilable)processor;
-//                    marked = cPro.compile(markedjs);
-//                    remarked = cPro.compile(remarkedjs);
-//                } else {
-                    processor.eval(markedjs);
-                    processor.eval(remarkedjs);
-//                }
+                processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/marked.js")));
+                processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/to-markdown.js")));
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -56,7 +48,7 @@ public class Markdowner {
         try {
             processor=getProcessor();
             processor.put("input", html);
-            processor.eval("var output=new reMarked().render(input);");
+            processor.eval("var output=toMarkdown(input);");
             return processor.get("output").toString();
         } catch (ScriptException ex) {
             throw new RuntimeException(ex);
