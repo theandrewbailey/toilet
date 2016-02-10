@@ -11,6 +11,7 @@ class NounModel(NounUI.Ui_Form,abstractModel):
         QtCore.QObject.connect(self.tSingular, QtCore.SIGNAL("textChanged(QString)"), self.singular)
         QtCore.QObject.connect(self.tPlural, QtCore.SIGNAL("textChanged(QString)"), self.plural)
         QtCore.QObject.connect(self.cPlural, QtCore.SIGNAL("toggled(bool)"), self.noPlural)
+        QtCore.QObject.connect(self.bRelative, QtCore.SIGNAL("clicked()"), self.openRelative)
         self.defText=self.tSingular
         self.defSyl=self.singularSyl
         self.defClass=spruceData.Noun

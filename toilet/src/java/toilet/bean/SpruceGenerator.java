@@ -1,5 +1,6 @@
 package toilet.bean;
 
+import libWebsiteTools.file.FileRepo;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Date;
@@ -10,7 +11,9 @@ import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
@@ -69,7 +72,7 @@ public class SpruceGenerator extends AbstractRssFeed {
         i.setTitle("Spruce");
         i.setAuthor(entries.getWebMaster());
         i.setLink(entries.getLink());
-        entries.addItem(i);
+        entries.addItemToTop(i);
         changed = true;
     }
 
@@ -86,7 +89,7 @@ public class SpruceGenerator extends AbstractRssFeed {
             if (py == null) {
                 log.info("starting Spruce");
                 try {
-                    byte[] dictionaryxml = file.getFile(imead.getValue(DICTIONARY_XML)).getBinarydata();
+                    byte[] dictionaryxml = file.getFile(imead.getValue(DICTIONARY_XML)).getFiledata();
 //                    ScriptEngine pyse = new ScriptEngineManager().getEngineByName("python");
 //                    pyse.eval("from spruce import *");
 //                    pyse.put("dicxml", new String(dictionaryxml));
@@ -127,7 +130,7 @@ public class SpruceGenerator extends AbstractRssFeed {
         new Thread(new InitializeSpruce()).start();
 
         entries.clearFeed();
-        entries.setLink(imead.getValue(UtilBean.THISURL) + LINK);
+        entries.setLink(imead.getValue(GuardHolder.CANONICAL_URL) + LINK);
         entries.setWebMaster(imead.getValue(UtilBean.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
         entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
@@ -138,8 +141,12 @@ public class SpruceGenerator extends AbstractRssFeed {
         log.exiting(SpruceGenerator.class.getName(), "preAdd");
     }
 
+    public long lastModified(){
+        return lastEntry.getTime();
+    }
+
     @Override
-    public Document preWrite(HttpServletRequest req) {
+    public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
         if (new Date().getTime() - lastEntry.getTime() > 300000) {
             getAddSentence();
         }

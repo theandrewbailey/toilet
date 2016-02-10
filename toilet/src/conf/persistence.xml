@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <persistence version="2.0" xmlns="http://java.sun.com/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd">
   <persistence-unit name="toiletPU" transaction-type="RESOURCE_LOCAL">
-    <non-jta-data-source>toiletPS</non-jta-data-source>
+    <non-jta-data-source>java/toiletPS</non-jta-data-source>
     <class>libOdyssey.db.Exceptionevent</class>
     <class>libOdyssey.db.Honeypot</class>
     <class>libOdyssey.db.Page</class>
     <class>libOdyssey.db.Pageday</class>
     <class>libOdyssey.db.Pageonpageday</class>
     <class>libOdyssey.db.Pagerequest</class>
+    <class>libWebsiteTools.file.Fileupload</class>
     <class>libWebsiteTools.imead.Keyvalue</class>
     <class>libWebsiteTools.imead.Localization</class>
     <class>toilet.db.Article</class>
     <class>toilet.db.Comment</class>
-    <class>toilet.db.Fileupload</class>
     <class>toilet.db.Section</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>

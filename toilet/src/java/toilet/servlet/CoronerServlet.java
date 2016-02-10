@@ -9,6 +9,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.OdysseyFilter;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.imead.Local;
 
 @WebServlet(name = "CoronerServlet", description = "Error page stuff", urlPatterns = {"/coroner", "/coroner/*"})
 public class CoronerServlet extends HttpServlet {
@@ -16,7 +17,7 @@ public class CoronerServlet extends HttpServlet {
     @EJB
     private IMEADHolder imead;
     public static final String ERROR_JSP = "/WEB-INF/Error.jsp";
-    public static final String CORONER_PREFIX="coroner_";
+    public static final String CORONER_PREFIX = "coroner_";
     private final String[] vars = {"javax.servlet.error.status_code",
         "javax.servlet.error.exception_type", "javax.servlet.error.message",
         "javax.servlet.error.exception", "javax.servlet.error.request_uri"};
@@ -32,13 +33,13 @@ public class CoronerServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (request.getSession(false) == null || request.getSession().isNew()) { // trying to hack me? F U
+        if (null == request.getSession(false) || request.getSession().isNew()) { // trying to hack me? F U
             OdysseyFilter.kill(request, response);
             return;
         }
 
         String[] split = request.getRequestURI().split("coroner/");
-        if (split.length == 2) {
+        if (2 == split.length) {
             setJSPAttrs(request, response, split[1]);
             return;
         }
@@ -47,14 +48,12 @@ public class CoronerServlet extends HttpServlet {
         for (int x = 0; x < messages.length; x++) {
             messages[x] = request.getAttribute(vars[x]);
         }
-//        if ((Throwable)messages[3]!=null)
-//            error.logError(request, (Throwable)messages[3]);
 
-        if (messages[0] == null) {
+        if (null == messages[0]) {
             messages[0] = "501";
         }
 
-        if (messages[1] != null) {
+        if (null != messages[1]) {
             String ex = messages[1].toString();
             if (ex.contains("DatabaseException")) {
                 messages[0] = "13";
@@ -66,19 +65,12 @@ public class CoronerServlet extends HttpServlet {
     }
 
     private void setJSPAttrs(HttpServletRequest request, HttpServletResponse response, String ErrCodeStr) throws ServletException, IOException {
-        if (getError(ErrCodeStr) == null) {
-            ErrCodeStr = "404";
+        String errorMessage = imead.getLocal(CORONER_PREFIX + ErrCodeStr, Local.resolveLocales(request));
+        if (null == errorMessage) {
+            errorMessage = imead.getLocal(CORONER_PREFIX + "404", Local.resolveLocales(request));
         }
         request.setAttribute("title", "ERROR " + ErrCodeStr);
-        request.setAttribute("mess", getError(ErrCodeStr));
+        request.setAttribute("mess", errorMessage);
         getServletContext().getRequestDispatcher(ERROR_JSP).forward(request, response);
-    }
-
-    /**
-     * @param id predefined error number or other
-     * @return (user friendly) error message
-     */
-    public String getError(String id){
-        return imead.getValue(CORONER_PREFIX+id);
     }
 }

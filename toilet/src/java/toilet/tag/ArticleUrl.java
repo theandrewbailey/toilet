@@ -6,9 +6,9 @@ import java.net.URLEncoder;
 import javax.ejb.EJB;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
 
 public class ArticleUrl extends SimpleTagSupport {
@@ -24,8 +24,11 @@ public class ArticleUrl extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        StringBuilder b = new StringBuilder(link ? "<a href=\"" : "");
-        b.append(getUrl(imead.getValue(UtilBean.THISURL), article, anchor));
+        StringBuilder b = new StringBuilder(200);
+        if (link) {
+            b.append("<a href=\"");
+        };
+        b.append(getUrl(imead.getValue(GuardHolder.CANONICAL_URL), article, anchor));
         if (link && id != null) {
             b.append("\" id=\"").append(id);
         }

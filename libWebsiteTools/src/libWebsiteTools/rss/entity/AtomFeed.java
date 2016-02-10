@@ -3,6 +3,7 @@ package libWebsiteTools.rss.entity;
 import java.util.ArrayList;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -216,12 +217,13 @@ public class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
         this.updated = updated;
     }
 
-    /**
-     * @param req
-     * @return result of refreshFeed()
-     */
     @Override
-    public Document preWrite(HttpServletRequest req) {
+    public long getLastModified() {
+        return -1;
+    }
+
+    @Override
+    public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
         return refreshFeed();
     }
 

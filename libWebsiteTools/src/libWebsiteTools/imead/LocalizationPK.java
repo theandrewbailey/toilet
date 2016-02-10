@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package libWebsiteTools.imead;
 
 import java.io.Serializable;
@@ -80,7 +79,7 @@ public class LocalizationPK implements Serializable {
 
     @Override
     public String toString() {
-        return "libWebsiteTools.imead.db.LocalizationPK[ key=" + key + ", localecode=" + localecode + " ]";
+        return "libWebsiteTools.imead.LocalizationPK[ key=" + key + ", localecode=" + localecode + " ]";
     }
     
 }

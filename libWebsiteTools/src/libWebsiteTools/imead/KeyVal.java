@@ -19,20 +19,21 @@ public class KeyVal extends SimpleTagSupport {
     @EJB
     protected IMEADHolder imead;
     private String key;
-    private List<String> params = new ArrayList<String>();
+    private List<String> params = new ArrayList<>();
 
     @Override
     public void doTag() throws JspException, IOException {
         getJspContext().getOut().print(getValue());
     }
 
+    @SuppressWarnings("UseSpecificCatch")
     protected String getValue() {
         try {
             getJspBody().invoke(new NullWriter());
         } catch (Exception n) {
         }
         String str = imead.getValue(key);
-        str = MessageFormat.format(str, params.toArray());
+        str = null != str ? MessageFormat.format(str, params.toArray()) : "";
         return str;
     }
 

@@ -1,22 +1,22 @@
     <article><header><c:choose><c:when test="${singleArticle}"><h1 id="article${art.articleid}" data-href="<t:articleUrl article='${art}' link='false'/>">${art.articletitle}</h1></c:when>
     <c:otherwise><h1><t:articleUrl article="${art}" id="article${art.articleid}"/></h1></c:otherwise></c:choose></header>
 <c:out escapeXml="false" value="${art.postedhtml}"/>
-<footer><imead:keyVal key="page_articleFooter"><imead:param><h:time datetime="${art.posted}" pubdate="true"/></imead:param>
+<footer><imead:local key="page_articleFooter"><imead:param><h:time datetime="${art.posted}" pubdate="true"/></imead:param>
     <imead:param><t:categorizer category="${art.sectionid.name}"><c:choose><c:when test="${!singleArticle && _cate_group == articleCategory}">${_cate_group}</c:when>
-    <c:otherwise><a href="${_cate_url}">${_cate_group}</a></c:otherwise></c:choose></t:categorizer></imead:param></imead:keyVal>
+    <c:otherwise><a href="${_cate_url}">${_cate_group}</a></c:otherwise></c:choose></t:categorizer></imead:param></imead:local>
 <c:if test="${art.comments || fn:length(art.commentCollection) > 0}"><t:articleUrl article="${art}" anchor="comments" cssClass="noPrint" text="${fn:length(art.commentCollection)} ${fn:length(art.commentCollection) == 1 ? 'comment.' : 'comments.'}"/></c:if>
 </footer></article>
 <c:if test="${singleArticle}"><section id="comments"><c:forEach items="${art.commentCollection}" var="comm" varStatus="status"><c:if test="${status.last}"><span id="last"></span></c:if>
     <article class="comment" id="${comm.commentid}">
 <c:out escapeXml="false" value="${comm.postedhtml}"/>
-<footer><imead:keyVal key="page_commentFooter"><imead:param><h:time datetime="${comm.posted}" pubdate="true"/></imead:param><imead:param object="${fn:trim(comm.postedname)}"/></imead:keyVal></footer></article></c:forEach></section>
+<footer><imead:local key="page_commentFooter"><imead:param><h:time datetime="${comm.posted}" pubdate="true"/></imead:param><imead:param object="${fn:trim(comm.postedname)}"/></imead:local></footer></article></c:forEach></section>
 
-<c:choose><c:when test="${art.comments && spamSuspected}"><imead:keyVal key="page_formReplacement"/></c:when><c:when test="${art.comments && !spamSuspected}">
+<c:choose><c:when test="${art.comments && spamSuspected}"><imead:local key="page_formReplacement"/></c:when><c:when test="${art.comments && !spamSuspected}">
 <form action="<t:articleUrl article="${art}" anchor="last" link="false"/>" id="commentSubmission" class="entryform noPrint" method="post" accept-charset="UTF-8"><h:requestToken/><fieldset>
-    <legend><imead:keyVal key="page_message_legend" /></legend>
-    <imead:keyValVar key="page_message_name" var="page_message_name" /><h:textbox id="name" label="${page_message_name}" size="30" maxLength="30" /><br/>
-    <imead:keyValVar key="page_message_text" var="page_message_text" /><h:textarea id="text" label="${page_message_text}" styleClass="comment" length="60" height="12" /><br/>
+    <legend><imead:local key="page_message_legend" /></legend>
+    <imead:localVar key="page_message_name" var="page_message_name" /><h:textbox id="name" label="${page_message_name}" maxLength="30" value="${sessionScope.LastPostedName}" /><br/>
+    <imead:localVar key="page_message_text" var="page_message_text" /><h:textarea id="text" label="${page_message_text}" styleClass="comment" height="12" /><br/>
     <input type="submit" value="Leave Message"/>
     <h:hidden id="submit-type" value="comment" />
 </fieldset></form><br/></c:when>
-<c:when test="${!art.comments}"><imead:keyVal key="page_commentDisabled" /></c:when></c:choose></c:if>
+<c:when test="${!art.comments}"><imead:local key="page_commentDisabled" /></c:when></c:choose></c:if>

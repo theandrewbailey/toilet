@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -38,6 +37,7 @@ import javax.xml.bind.annotation.XmlTransient;
     @NamedQuery(name = "Pageday.findByPageid", query = "SELECT p FROM Pageday p WHERE p.pagedayPK.pageid = :pageid"),
     @NamedQuery(name = "Pageday.findByAverage", query = "SELECT p FROM Pageday p WHERE p.average = :average"),
     @NamedQuery(name = "Pageday.findByHitpercent", query = "SELECT p FROM Pageday p WHERE p.hitpercent = :hitpercent"),
+    @NamedQuery(name = "Pageday.findByMilliseconds", query = "SELECT p FROM Pageday p WHERE p.milliseconds = :milliseconds"),
     @NamedQuery(name = "Pageday.findByStandarddeviation", query = "SELECT p FROM Pageday p WHERE p.standarddeviation = :standarddeviation"),
     @NamedQuery(name = "Pageday.findByTimes", query = "SELECT p FROM Pageday p WHERE p.times = :times")})
 public class Pageday implements Serializable {
@@ -47,15 +47,19 @@ public class Pageday implements Serializable {
     @Basic(optional = false)
     @NotNull
     @Column(name = "average", nullable = false)
-    private float average;
+    private int average;
     @Basic(optional = false)
     @NotNull
     @Column(name = "hitpercent", nullable = false)
     private float hitpercent;
     @Basic(optional = false)
     @NotNull
+    @Column(name = "milliseconds", nullable = false)
+    private int milliseconds;
+    @Basic(optional = false)
+    @NotNull
     @Column(name = "standarddeviation", nullable = false)
-    private float standarddeviation;
+    private int standarddeviation;
     @Basic(optional = false)
     @NotNull
     @Column(name = "times", nullable = false)
@@ -73,10 +77,11 @@ public class Pageday implements Serializable {
         this.pagedayPK = pagedayPK;
     }
 
-    public Pageday(PagedayPK pagedayPK, float average, float hitpercent, float standarddeviation, long times) {
+    public Pageday(PagedayPK pagedayPK, int average, float hitpercent, int milliseconds, int standarddeviation, long times) {
         this.pagedayPK = pagedayPK;
         this.average = average;
         this.hitpercent = hitpercent;
+        this.milliseconds = milliseconds;
         this.standarddeviation = standarddeviation;
         this.times = times;
     }
@@ -93,11 +98,11 @@ public class Pageday implements Serializable {
         this.pagedayPK = pagedayPK;
     }
 
-    public float getAverage() {
+    public int getAverage() {
         return average;
     }
 
-    public void setAverage(float average) {
+    public void setAverage(int average) {
         this.average = average;
     }
 
@@ -109,11 +114,19 @@ public class Pageday implements Serializable {
         this.hitpercent = hitpercent;
     }
 
-    public float getStandarddeviation() {
+    public int getMilliseconds() {
+        return milliseconds;
+    }
+
+    public void setMilliseconds(int milliseconds) {
+        this.milliseconds = milliseconds;
+    }
+
+    public int getStandarddeviation() {
         return standarddeviation;
     }
 
-    public void setStandarddeviation(float standarddeviation) {
+    public void setStandarddeviation(int standarddeviation) {
         this.standarddeviation = standarddeviation;
     }
 

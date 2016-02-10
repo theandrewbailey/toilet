@@ -30,6 +30,11 @@
         </attribute>
     </tag>
     <tag>
+        <name>css</name>
+        <tag-class>libWebsiteTools.tag.HtmlCss</tag-class>
+        <body-content>empty</body-content>
+    </tag>
+    <tag>
         <name>link</name>
         <tag-class>libWebsiteTools.tag.HtmlLink</tag-class>
         <body-content>empty</body-content>
@@ -567,7 +572,7 @@
         <attribute>
             <name>length</name>
             <description>length of field (cols)</description>
-            <required>true</required>
+            <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Integer</type>
         </attribute>

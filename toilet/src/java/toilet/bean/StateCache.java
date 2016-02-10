@@ -1,29 +1,34 @@
 package toilet.bean;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.PostConstruct;
 import javax.ejb.EJB;
 import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
+import libOdyssey.bean.GuardHolder;
+import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.rss.iFeedBucket;
 import libWebsiteTools.sitemap.ChangeFreq;
 import libWebsiteTools.sitemap.SiteMaster;
 import libWebsiteTools.sitemap.UrlMap;
-import toilet.IndexFetcher;
 import toilet.db.Article;
-import toilet.db.Comment;
-import toilet.db.Section;
 import toilet.tag.ArticleUrl;
+import toilet.tag.Categorizer;
 
 /**
  *
@@ -35,12 +40,16 @@ import toilet.tag.ArticleUrl;
 public class StateCache implements Iterable<UrlMap> {
 
     public static final String LOCAL_NAME = "java:module/StateCache";
-    private static final String CATEGORY_QUERY = "SELECT a.sectionid.name FROM Article a GROUP BY a.sectionid.name ORDER BY COUNT(a) DESC";
-    private static final String ACCEPTABLE_CONTENT_DOMAINS = "site_acceptableContentDomains";
+    public static final String PPP = "index_ppp";
+    public static final String PAC = "index_pac";
+    public static final Pattern INDEX_PATTERN = Pattern.compile(".*?/index/(?:(\\D*)/)?([0-9]*)(?:\\?.*)?$");
+    public static final Pattern ARTICLE_PATTERN = Pattern.compile(".*?/article/([0-9]*)(?:/[\\w\\-\\.\\(\\)\\[\\]\\{\\}\\+,%_]*/?)?(?:\\?.*)?(?:#\\d*)?$");
+    private int pagesAroundCurrent = 3;
+    private int postsPerPage = 5;
+    private String canonicalUrl ;
     private volatile List<String> categories;
     private final AtomicReference<List<UrlMap>> urlMap = new AtomicReference<>();
-    private volatile List<Pattern> acceptableDomains;
-    @PersistenceUnit//(name = UtilBean.PERSISTENCE)
+    @PersistenceUnit
     private EntityManagerFactory toiletPU;
     @EJB
     private SiteMaster siteMaster;
@@ -48,49 +57,54 @@ public class StateCache implements Iterable<UrlMap> {
     private IMEADHolder imead;
     @EJB
     private EntryRepo entry;
-    @EJB
-    private iFeedBucket src;
 
     @PostConstruct
-    private void init(){
+    private void init() {
         siteMaster.addSource(this);
         reset();
     }
 
     public synchronized void reset() {
-        toiletPU.getCache().evict(Article.class);
-        toiletPU.getCache().evict(Comment.class);
-        toiletPU.getCache().evict(Section.class);
-        List<String> cateTemp = toiletPU.createEntityManager().createQuery(CATEGORY_QUERY, String.class).getResultList();
-        cateTemp.remove(imead.getValue(EntryRepo.DEFAULT_CATEGORY));
-        categories = Collections.unmodifiableList(cateTemp);
+        entry.evict();
+        categories = new ArrayList<>();
+        getArticleCategories();
         urlMap.set(null);
-
-        List<Pattern> tempdomains = new ArrayList<>();
-        String domains = imead.getValue(ACCEPTABLE_CONTENT_DOMAINS);
-        for (String ua : domains.split("\n")) {
-            tempdomains.add(Pattern.compile(ua));
+        // pagination params
+        if (imead.getValue(PPP) != null) {
+            postsPerPage = Integer.parseInt(imead.getValue(PPP));
         }
-        acceptableDomains = tempdomains;
+        if (imead.getValue(PAC) != null) {
+            pagesAroundCurrent = Integer.parseInt(imead.getValue(PAC));
+        }
+        canonicalUrl = imead.getValue(GuardHolder.CANONICAL_URL);
     }
 
     /**
      * @return list of all groups (categories)
      */
     public synchronized List<String> getArticleCategories() {
-        if (categories.isEmpty()) {
-            categories = toiletPU.createEntityManager().createQuery(CATEGORY_QUERY, String.class).getResultList();
-            categories.remove(imead.getValue(EntryRepo.DEFAULT_CATEGORY));
-            categories = Collections.unmodifiableList(categories);
+        if (null == categories || categories.isEmpty()) {
+            EntityManager em = toiletPU.createEntityManager();
+            try {
+                List<String> cateTemp = em.createQuery("SELECT a.sectionid.name FROM Article a GROUP BY a.sectionid.name ORDER BY COUNT(a.sectionid.name)", String.class).getResultList();
+                List<Long> cateCount = em.createQuery("SELECT count(a.sectionid.name) FROM Article a GROUP BY a.sectionid.name ORDER BY COUNT(a.sectionid.name)", Long.class).getResultList();
+                List<Date> cateDate = em.createQuery("SELECT min(a.posted) FROM Article a GROUP BY a.sectionid.name ORDER BY COUNT(a.sectionid.name)", Date.class).getResultList();
+                double now = new Date().getTime();
+                TreeMap<Double, String> popularity = new TreeMap<>();
+                for (int i = 0; i < cateTemp.size(); i++) {
+                    // score = average posts per year since category first started
+                    double score = cateCount.get(i).doubleValue() / ((now - cateDate.get(i).getTime()) / 31556736.0);
+                    popularity.put(score, cateTemp.get(i));
+                }
+                cateTemp = new ArrayList<>(popularity.values());
+                cateTemp.remove(imead.getValue(EntryRepo.DEFAULT_CATEGORY));
+                Collections.reverse(cateTemp);
+                categories = Collections.unmodifiableList(cateTemp);
+            } finally {
+                em.close();
+            }
         }
         return categories;
-    }
-
-    /**
-     * @return the acceptableDomains to send content to (like google and feedly)
-     */
-    public List<Pattern> getAcceptableDomains() {
-        return acceptableDomains;
     }
 
     @Override
@@ -100,7 +114,6 @@ public class StateCache implements Iterable<UrlMap> {
                 if (urlMap.get() != null && !urlMap.get().isEmpty()) {
                     return urlMap.get().iterator();
                 }
-                String baseUrl = imead.getValue(UtilBean.THISURL);
                 List<Article> entries = entry.getArticleArchive(null);
                 Collections.reverse(entries);
                 List<String> cates = new ArrayList<>(getArticleCategories());
@@ -109,9 +122,6 @@ public class StateCache implements Iterable<UrlMap> {
                 urlMap.set(tempUrlMap);
 
                 int maxArticleID = 1;
-                if (entries != null) {
-                    maxArticleID = entries.get(0).getArticleid();
-                }
                 for (Article e : entries) {
                     float difference = maxArticleID - e.getArticleid();
                     difference = 1f - (difference / 50f);
@@ -132,7 +142,7 @@ public class StateCache implements Iterable<UrlMap> {
                             freq = ChangeFreq.yearly;
                         }
                     }
-                    tempUrlMap.add(new UrlMap(ArticleUrl.getUrl(baseUrl, e), e.getModified(), freq, String.format("%.1f", difference)));
+                    tempUrlMap.add(new UrlMap(ArticleUrl.getUrl(canonicalUrl, e), e.getModified(), freq, String.format("%.1f", difference)));
                 }
                 for (String c : cates) {
                     IndexFetcher f = new IndexFetcher("/index/" + c);
@@ -148,11 +158,151 @@ public class StateCache implements Iterable<UrlMap> {
                         if (difference < 0.1f) {
                             difference = 0.1f;
                         }
-                        tempUrlMap.add(new UrlMap(baseUrl + "index/" + c + x, null, ChangeFreq.weekly, String.format("%.1f", difference)));
+                        tempUrlMap.add(new UrlMap(canonicalUrl + "index/" + c + x, null, ChangeFreq.weekly, String.format("%.1f", difference)));
                     }
                 }
             }
         }
         return urlMap.get().iterator();
     }
+
+    public IndexFetcher getIndexFetcher(String inURI){
+        return new IndexFetcher(inURI);
+    }
+
+    public class IndexFetcher {
+
+        private int page = 1;
+        private String group = null;
+        private int count = 0;
+        private int first = 1;
+
+        private IndexFetcher(String inURI) {
+            String URI = inURI;
+            try {
+                page = Integer.valueOf(getPageNumber(URI));
+                group = getCategoryFromURI(URI.replace("%20", " "));
+            } catch (Exception e) {
+                return;
+            }
+            try {
+                Integer.valueOf(group);
+                group = null;
+            } catch (Exception e) {
+            }
+            if (imead.getValue(EntryRepo.DEFAULT_CATEGORY).equals(group)) {
+                group = null;
+            }
+
+            // get total of all, to display number of pages limit
+            if (count == 0) {
+                double counted = entry.countArticlesInSection(group);
+                count = (int) Math.ceil(counted / postsPerPage);
+            }
+            // wierd algoritim to determine how many pagination links to other pages on this page
+            if (page + pagesAroundCurrent > count) {
+                first = count - pagesAroundCurrent * 2;
+            } else if (page - pagesAroundCurrent > 0) {
+                first = page - pagesAroundCurrent;
+            }
+            if (first < 1) {
+                first = 1;
+            }
+        }
+
+        /**
+         * @param URI
+         * @return
+         */
+        private String getCategoryFromURI(String URI) {
+            Matcher m = INDEX_PATTERN.matcher(URI);
+            if (m.matches()) {
+                if (null != m.group(1)) {
+                    try {
+                        return URLDecoder.decode(m.group(1), "UTF-8");
+                    } catch (UnsupportedEncodingException ex) {
+                        // not gonna happen
+                        throw new JVMNotSupportedError(ex);
+                    }
+                }
+            }
+            return imead.getValue(EntryRepo.DEFAULT_CATEGORY);
+        }
+
+        public List<Article> getArticles() {
+            return entry.getSection(group, page, postsPerPage);
+        }
+
+        public int getCount() {
+            return count;
+        }
+
+        public int getFirst() {
+            return first;
+        }
+
+        public int getLast() {
+            return Math.min(first + pagesAroundCurrent * 2, count);
+        }
+
+        public String getLink() {
+            return Categorizer.getUrl(canonicalUrl, group, null);
+        }
+
+        public String getDescription() {
+            StringBuilder d=new StringBuilder(70).append(imead.getValue(UtilBean.SITE_TITLE)).append(", ");
+            if (null==group){
+                d.append("all categories, page ");
+            }else{
+                d.append(group).append(" category, page ");
+            }
+            return d.append(page).toString();
+        }
+
+        public boolean isValid() {
+            return group != null && page != 0;
+        }
+
+        public String getGroup() {
+            return group;
+        }
+
+        public int getPage() {
+            return page;
+        }
+    }
+
+    /**
+     * detect page numbers from URI
+     *
+     * @param URI
+     * @return
+     */
+    public static String getPageNumber(String URI) {
+        Matcher m = INDEX_PATTERN.matcher(URI);
+        if (m.matches()) {
+            return m.group(2);
+        }
+        m = ARTICLE_PATTERN.matcher(URI);
+        if (m.matches()) {
+            return m.group(2);
+        }
+        return "1";
+    }
+
+    /**
+     * @param URI
+     * @return
+     * @throws RuntimeException
+     */
+    public static String getArticleIdFromURI(String URI) {
+        Matcher m = ARTICLE_PATTERN.matcher(URI);
+        if (m.matches()) {
+            if (null != m.group(1)) {
+                return m.group(1);
+            }
+        }
+        throw new RuntimeException();
+    }
+
 }

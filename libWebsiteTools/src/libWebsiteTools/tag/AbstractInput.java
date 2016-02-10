@@ -37,7 +37,7 @@ public abstract class AbstractInput extends SimpleTagSupport {
     private String cachedId;
 
     public static String getHash(HttpServletRequest req, String str) {
-        if (req.getServletContext().getAttribute(DISABLE_FIELDNAME_OBFUSCATION) != null){
+        if (null != req.getServletContext().getAttribute(DISABLE_FIELDNAME_OBFUSCATION)){
             return str;
         }
         Object token = req.getAttribute(RequestToken.ID_NAME);

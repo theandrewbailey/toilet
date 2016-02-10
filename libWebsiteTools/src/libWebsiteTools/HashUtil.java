@@ -1,17 +1,14 @@
 package libWebsiteTools;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 public class HashUtil {
-    
+
     /**
      * @return SHA 256 MessageDigest
      */
@@ -39,13 +36,18 @@ public class HashUtil {
         return getHashAsBase64(toHash.getBytes());
     }
 
+    public static String getBase64(byte[] stuff) {
+        return getBase64(stuff, "==");
+    }
+
     /**
      * from http://www.wikihow.com/Encode-a-String-to-Base64-With-Java
      *
      * @param stuff
+     * @param endpadding what to fill in at the end if need, usually "=="
      * @return stuff in Base64
      */
-    public static String getBase64(byte[] stuff) {
+    public static String getBase64(byte[] stuff, String endpadding) {
         String base64code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         StringBuilder encoded = new StringBuilder(stuff.length * 2);
         // determine how many padding bytes to add to the output
@@ -65,16 +67,7 @@ public class HashUtil {
                     .append(base64code.charAt(j & 0x3f));
         }
         // replace encoded padding nulls with "="
-        return encoded.substring(0, encoded.length() - paddingCount) + "==".substring(0, paddingCount);
+        return encoded.substring(0, encoded.length() - paddingCount) + endpadding.substring(0, paddingCount);
     }
 
-    private static byte[] getByteArray(InputStream in) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] buf = new byte[1000];
-        int read;
-        while ((read = in.read(buf)) != -1) {
-            baos.write(buf, 0, read);
-        }
-        return baos.toByteArray();
-    }
 }

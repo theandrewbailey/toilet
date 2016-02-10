@@ -72,9 +72,9 @@ public class RssChannel implements Serializable, iPublishable {
             Element n = parent.getOwnerDocument().createElement(name);
             parent.appendChild(n);
             if (cdata){
-            n.appendChild(parent.getOwnerDocument().createCDATASection(content.toString()));
+                n.appendChild(parent.getOwnerDocument().createCDATASection(content.toString()));
             }else{
-            n.setTextContent(content.toString());
+                n.setTextContent(content.toString());
             }
             return n;
         }
@@ -102,16 +102,33 @@ public class RssChannel implements Serializable, iPublishable {
 
     /**
      * Inserts an RssItem into the channel, making it the top (most recent) item in the feed.
+     * Will remove the last item if over the limit.
      * Also updates the lastBuildDate.
      * @param i the RssItem to be added to the top of the feed
      */
-    public void addItem(RssItem i) {
+    public void addItemToTop(RssItem i) {
         items.add(0, i);
         if (limit > 0 && items.size() > limit) {
             items.remove(limit);
         }
         lastBuildDate = new Date();
     }
+
+    /**
+     * Inserts an RssItem into the channel, making it the last item in the feed.
+     * This should be useful if you rebuild the feed from scratch each time.
+     * Will remove the first item if over the limit.
+     * Also updates the lastBuildDate.
+     * @param i the RssItem to be added
+     */
+    public void addItem(RssItem i) {
+        items.add(i);
+        if (limit > 0 && items.size() > limit) {
+            items.remove(items.get(0));
+        }
+        lastBuildDate = new Date();
+    }
+
     /**
      * Adds a category to the channel.
      * @param name

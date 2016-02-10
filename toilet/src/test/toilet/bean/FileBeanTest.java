@@ -4,14 +4,16 @@
  */
 package toilet.bean;
 
+import libWebsiteTools.file.FileRepo;
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.ejb.embeddable.EJBContainer;
+import libWebsiteTools.file.Fileupload;
 import org.junit.*;
 import static org.junit.Assert.*;
-import toilet.db.Fileupload;
 
 /**
  *
@@ -65,7 +67,7 @@ public class FileBeanTest {
         Fileupload upload = null;
         EJBContainer container = javax.ejb.embeddable.EJBContainer.createEJBContainer();
         FileRepo instance = (FileRepo)container.getContext().lookup("java:global/classes/FileBean");
-        instance.addFile(upload);
+        instance.addFiles(Arrays.asList(upload));
     }
 
     /**

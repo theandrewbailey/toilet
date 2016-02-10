@@ -51,6 +51,7 @@ class MassModel(MassUI.Ui_MassEntry):
         for word in entered:
             word=str(word).strip()
             if not word in tab.model and not word in enteredAlready:    # still might have dupes
+                print(word)
                 self.dic.addWord(word, abbrev)
                 enteredAlready.append(word)
         self.dic.sortItAllOut()

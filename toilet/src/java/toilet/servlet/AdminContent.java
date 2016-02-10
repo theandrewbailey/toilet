@@ -14,9 +14,8 @@ import javax.servlet.http.HttpServletResponse;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.RequestToken;
-import toilet.UtilStatic;
-import toilet.bean.FileRepo;
-import toilet.db.Fileupload;
+import libWebsiteTools.file.FileRepo;
+import libWebsiteTools.file.Fileupload;
 
 /**
  *
@@ -36,25 +35,23 @@ public class AdminContent extends HttpServlet {
         String login = request.getSession().getAttribute("login").toString();
         String answer = AbstractInput.getParameter(request, "answer");
         if (answer != null && SCryptUtil.check(answer, imead.getValue(AdminServlet.CONTENT))) {
-            showFileList(request, response);
+            showFileList(request, response, file.getUploadArchive());
         } else if (login.equals(AdminServlet.CONTENT) && del!=null) {      // delete upload
             file.deleteFile(new Integer(del));
-            showFileList(request, response);
+            showFileList(request, response, file.getUploadArchive());
         }
     }
 
-    public static void showFileList(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Fileupload> uploads) throws ServletException, IOException {
         request.getSession().setAttribute("login", AdminServlet.CONTENT);
-        FileRepo file = UtilStatic.getBean(FileRepo.LOCAL_NAME, FileRepo.class);
-        List<Fileupload> allUploads = file.getUploadArchive();
-        LinkedHashMap<String, List<Fileupload>> content = new LinkedHashMap<>(allUploads.size() * 2);
+        LinkedHashMap<String, List<Fileupload>> content = new LinkedHashMap<>(uploads.size() * 2);
         LinkedHashMap<String, String> directories = new LinkedHashMap<>();
 
         // root "directory" first
-        content.put("", new ArrayList<Fileupload>());
+        content.put("", new ArrayList<>());
         directories.put("", "");
 
-        for (Fileupload f : allUploads) {
+        for (Fileupload f : uploads) {
             String[] parts = f.getFilename().split("/", 2);
             String dir = parts.length == 2 ? parts[0] + "/" : "";
             String name = parts.length == 2 ? parts[1] : parts[0];

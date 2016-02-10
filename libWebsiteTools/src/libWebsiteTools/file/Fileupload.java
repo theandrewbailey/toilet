@@ -1,8 +1,9 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package toilet.db;
+package libWebsiteTools.file;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -19,7 +20,6 @@ import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -29,22 +29,17 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author alphavm
  */
 @Entity
-@Table(name = "fileupload", catalog = "toilet", schema = "toilet", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"filename"})})
+@Table(name = "fileupload", schema = "files")
 @XmlRootElement
 @NamedQueries({
     @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f"),
     @NamedQuery(name = "Fileupload.findByFileuploadid", query = "SELECT f FROM Fileupload f WHERE f.fileuploadid = :fileuploadid"),
+    @NamedQuery(name = "Fileupload.findByAtime", query = "SELECT f FROM Fileupload f WHERE f.atime = :atime"),
     @NamedQuery(name = "Fileupload.findByEtag", query = "SELECT f FROM Fileupload f WHERE f.etag = :etag"),
     @NamedQuery(name = "Fileupload.findByFilename", query = "SELECT f FROM Fileupload f WHERE f.filename = :filename"),
     @NamedQuery(name = "Fileupload.findByMimetype", query = "SELECT f FROM Fileupload f WHERE f.mimetype = :mimetype"),
-    @NamedQuery(name = "Fileupload.findByUploaded", query = "SELECT f FROM Fileupload f WHERE f.uploaded = :uploaded")})
+    @NamedQuery(name = "Fileupload.findByUrl", query = "SELECT f FROM Fileupload f WHERE f.url = :url")})
 public class Fileupload implements Serializable {
-    @Basic(optional = false, fetch = FetchType.LAZY)
-    @NotNull
-    @Lob
-    @Column(name = "binarydata", nullable = false)
-    private byte[] binarydata;
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -53,9 +48,19 @@ public class Fileupload implements Serializable {
     private Integer fileuploadid;
     @Basic(optional = false)
     @NotNull
+    @Column(name = "atime", nullable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date atime;
+    @Basic(optional = false)
+    @NotNull
     @Size(min = 1, max = 250)
     @Column(name = "etag", nullable = false, length = 250)
     private String etag;
+    @Basic(optional = false, fetch = FetchType.LAZY)
+    @NotNull
+    @Lob
+    @Column(name = "filedata", nullable = false)
+    private byte[] filedata;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 1000)
@@ -66,11 +71,9 @@ public class Fileupload implements Serializable {
     @Size(min = 1, max = 250)
     @Column(name = "mimetype", nullable = false, length = 250)
     private String mimetype;
-    @Basic(optional = false)
-    @NotNull
-    @Column(name = "uploaded", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date uploaded;
+    @Size(max = 65000)
+    @Column(name = "url", length = 65000)
+    private String url;
 
     public Fileupload() {
     }
@@ -79,13 +82,13 @@ public class Fileupload implements Serializable {
         this.fileuploadid = fileuploadid;
     }
 
-    public Fileupload(Integer fileuploadid, byte[] binarydata, String etag, String filename, String mimetype, Date uploaded) {
+    public Fileupload(Integer fileuploadid, Date atime, String etag, byte[] filedata, String filename, String mimetype) {
         this.fileuploadid = fileuploadid;
-        this.binarydata = binarydata;
+        this.atime = atime;
         this.etag = etag;
+        this.filedata = filedata;
         this.filename = filename;
         this.mimetype = mimetype;
-        this.uploaded = uploaded;
     }
 
     public Integer getFileuploadid() {
@@ -96,12 +99,28 @@ public class Fileupload implements Serializable {
         this.fileuploadid = fileuploadid;
     }
 
+    public Date getAtime() {
+        return atime;
+    }
+
+    public void setAtime(Date atime) {
+        this.atime = atime;
+    }
+
     public String getEtag() {
         return etag;
     }
 
     public void setEtag(String etag) {
         this.etag = etag;
+    }
+
+    public byte[] getFiledata() {
+        return filedata;
+    }
+
+    public void setFiledata(byte[] filedata) {
+        this.filedata = filedata;
     }
 
     public String getFilename() {
@@ -120,12 +139,12 @@ public class Fileupload implements Serializable {
         this.mimetype = mimetype;
     }
 
-    public Date getUploaded() {
-        return uploaded;
+    public String getUrl() {
+        return url;
     }
 
-    public void setUploaded(Date uploaded) {
-        this.uploaded = uploaded;
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     @Override
@@ -150,15 +169,7 @@ public class Fileupload implements Serializable {
 
     @Override
     public String toString() {
-        return "toilet.db.Fileupload[ fileuploadid=" + fileuploadid + " ]";
-    }
-
-    public byte[] getBinarydata() {
-        return binarydata;
-    }
-
-    public void setBinarydata(byte[] binarydata) {
-        this.binarydata = binarydata;
+        return "libWebsiteTools.file.Fileupload[ fileuploadid=" + fileuploadid + " ]";
     }
     
 }

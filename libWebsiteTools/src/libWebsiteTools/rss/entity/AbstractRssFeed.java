@@ -8,9 +8,12 @@ import javax.ejb.EJBException;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import libWebsiteTools.rss.iFeed;
 import libWebsiteTools.rss.iFeedBucket;
+import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -75,10 +78,15 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
             for (RssChannel chan : channels) {
                 chan.publish(root);
             }
-        } catch (Exception x) {
+        } catch (ParserConfigurationException | DOMException x) {
             throw new RuntimeException(x.getMessage(), x);
         }
         return XML;
+    }
+
+    @Override
+    public long getLastModified(){
+        return -1;
     }
 
     /**
@@ -86,7 +94,7 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
      * @return result of refreshFeed() (the no param override)
      */
     @Override
-    public Document preWrite(HttpServletRequest req) {
+    public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
         return refreshFeed();
     }
 

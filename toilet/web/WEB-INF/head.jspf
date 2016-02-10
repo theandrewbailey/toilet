@@ -6,16 +6,16 @@
 <%@ taglib prefix="imead" uri="uri:libwebsitetools:IMEAD" %><!DOCTYPE html>
 <html lang="en-US"><head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=yes">
+    <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,user-scalable=yes">
     <h:meta/>
-    <imead:keyValVar key="page_title" /><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
-    <link rel="shortcut icon" href="<imead:keyVal key="page_favicon"/>"/>
-    <link rel="stylesheet" href="<imead:keyVal key="thisURL"/><imead:keyVal key="page_css"/>"/>
-    <link rel="alternate" href="<imead:keyVal key="thisURL"/>rss/Articles.rss" title="Articles" type="application/rss+xml"/>
-    <link rel="alternate" href="<imead:keyVal key="thisURL"/>rss/Comments.rss" title="Comments" type="application/rss+xml"/>
-    <link rel="alternate" href="<imead:keyVal key="thisURL"/>rss/Spruce.rss" title="Spruce" type="application/rss+xml"/>
+    <imead:keyValVar key="site_title" /><h:title siteTitle="${site_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
+    <link rel="shortcut icon" href="<imead:keyVal key="site_favicon"/>"/>
+    <h:css/>
+    <link rel="alternate" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>rss/Articles.rss" title="Articles" type="application/rss+xml"/>
+    <link rel="alternate" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>rss/Comments.rss" title="Comments" type="application/rss+xml"/>
+    <link rel="alternate" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>rss/Spruce.rss" title="Spruce" type="application/rss+xml"/>
     <!--[if lt IE 9]><script>var e=("abbr article aside footer header legend menu nav section time").split(' ');for(var i=0;i<e.length;i++){document.createElement(e[i]);}</script><![endif]-->
 </head><body>
-<header><h1><a title="Home" href="<imead:keyVal key="thisURL"/>"><imead:keyVal key="page_title"/></a></h1><c:if test="${index != null and index}">
-    <h2 class="noPrint"><imead:keyVal key="page_tagline"/></h2></c:if>
+<header><h1><a title="Home" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>"><imead:keyVal key="site_title"/></a></h1><c:if test="${index != null and index}">
+    <h2 class="noPrint"><imead:keyVal key="site_tagline"/></h2></c:if>
 </header>

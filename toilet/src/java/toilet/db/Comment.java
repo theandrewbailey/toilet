@@ -1,5 +1,6 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
 package toilet.db;
@@ -28,10 +29,10 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author alphavm
  */
 @Entity
-@Table(name = "comment", catalog = "toilet", schema = "toilet")
+@Table(name = "comment", schema = "toilet")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Comment.findAll", query = "SELECT c FROM Comment c"),
+    @NamedQuery(name = "Comment.findAll", query = "SELECT c FROM Comment c ORDER BY c.posted ASC"),
     @NamedQuery(name = "Comment.findByCommentid", query = "SELECT c FROM Comment c WHERE c.commentid = :commentid"),
     @NamedQuery(name = "Comment.findByPosted", query = "SELECT c FROM Comment c WHERE c.posted = :posted"),
     @NamedQuery(name = "Comment.findByPostedhtml", query = "SELECT c FROM Comment c WHERE c.postedhtml = :postedhtml"),
@@ -40,9 +41,6 @@ import javax.xml.bind.annotation.XmlRootElement;
     @NamedQuery(name = "Comment.findByIsspam", query = "SELECT c FROM Comment c WHERE c.isspam = :isspam"),
     @NamedQuery(name = "Comment.findByPostedmarkdown", query = "SELECT c FROM Comment c WHERE c.postedmarkdown = :postedmarkdown")})
 public class Comment implements Serializable {
-    @JoinColumn(name = "articleid", referencedColumnName = "articleid", nullable = false)
-    @ManyToOne(optional = false)
-    private Article articleid;
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,8 +54,8 @@ public class Comment implements Serializable {
     private Date posted;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 10485760)
-    @Column(name = "postedhtml", nullable = false, length = 10485760)
+    @Size(min = 1, max = 2147483647)
+    @Column(name = "postedhtml", nullable = false, length = 2147483647)
     private String postedhtml;
     @Basic(optional = false)
     @NotNull
@@ -68,9 +66,12 @@ public class Comment implements Serializable {
     private Boolean isapproved;
     @Column(name = "isspam")
     private Boolean isspam;
-    @Size(max = 10485760)
-    @Column(name = "postedmarkdown", length = 10485760)
+    @Size(max = 2147483647)
+    @Column(name = "postedmarkdown", length = 2147483647)
     private String postedmarkdown;
+    @JoinColumn(name = "articleid", referencedColumnName = "articleid", nullable = false)
+    @ManyToOne(optional = false)
+    private Article articleid;
 
     public Comment() {
     }
@@ -142,6 +143,14 @@ public class Comment implements Serializable {
         this.postedmarkdown = postedmarkdown;
     }
 
+    public Article getArticleid() {
+        return articleid;
+    }
+
+    public void setArticleid(Article articleid) {
+        this.articleid = articleid;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -165,14 +174,6 @@ public class Comment implements Serializable {
     @Override
     public String toString() {
         return "toilet.db.Comment[ commentid=" + commentid + " ]";
-    }
-
-    public Article getArticleid() {
-        return articleid;
-    }
-
-    public void setArticleid(Article articleid) {
-        this.articleid = articleid;
     }
     
 }

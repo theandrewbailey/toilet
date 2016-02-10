@@ -20,7 +20,8 @@ from Editor.VerbModel import VerbModel
 from Editor.ConjModel import ConjModel
 
 modPath=str(Spruce).split("<module 'spruce' from '")[1][:-2].split(os.sep+"spruce.pyc")[0]
-Spruce.loadDic(os.path.join(modPath,"dictionary.xml"))
+dicFile=os.path.join(modPath,"dictionary.xml")
+Spruce.loadDic(dicFile)
 
 class AdjModel(AdjectiveUI.Ui_Form, abstractModel):
     def setupUi(self):

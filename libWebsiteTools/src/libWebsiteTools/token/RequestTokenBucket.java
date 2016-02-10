@@ -15,7 +15,7 @@ public class RequestTokenBucket implements Serializable {
 
     public static final String SESSION_ATTR_NAME = "$_REQUEST_TOKEN_BUCKET";
     private static final int MAXIMUM_TOKEN_COUNT = 300;
-    private final LinkedHashMap<String, String> UUIDs = new LinkedHashMap<String, String>();
+    private final LinkedHashMap<String, String> UUIDs = new LinkedHashMap<>();
     private int max = MAXIMUM_TOKEN_COUNT;
 
     public static RequestTokenBucket getRequestTokenBucket(HttpServletRequest req) {
@@ -62,10 +62,8 @@ public class RequestTokenBucket implements Serializable {
     public synchronized void addToken(String token, String referrer) {
         UUIDs.put(token, referrer);
         if (UUIDs.size() > max) {
-            System.out.println(UUIDs.size());
             Iterator<Entry<String, String>> iter = UUIDs.entrySet().iterator();
             UUIDs.remove(iter.next().getKey());
-            System.out.println(UUIDs.size());
         }
     }
 

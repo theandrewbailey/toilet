@@ -1,14 +1,15 @@
 package toilet;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import javax.ejb.EJB;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.annotation.WebListener;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.sitemap.AbstractPageSource;
 import libWebsiteTools.sitemap.ChangeFreq;
 import libWebsiteTools.sitemap.UrlMap;
-import toilet.bean.UtilBean;
 
 @WebListener("Gives out the site map.")
 public class SitemapProvider extends AbstractPageSource {
@@ -18,10 +19,11 @@ public class SitemapProvider extends AbstractPageSource {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        String baseUrl = imead.getValue(UtilBean.THISURL);
-        urlMap = new ArrayList<UrlMap>();
+        String baseUrl = imead.getValue(GuardHolder.CANONICAL_URL);
+        urlMap = new ArrayList<>();
         urlMap.add(new UrlMap(baseUrl, null, ChangeFreq.daily, "0.7"));
         urlMap.add(new UrlMap(baseUrl + "spruce", null, ChangeFreq.always, "0.1"));
+        urlMap = Collections.unmodifiableList(urlMap);
         super.contextInitialized(sce);
     }
 }

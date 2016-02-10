@@ -35,8 +35,8 @@ public class SiteMaster {
         int urlcount = 0;
         int size = 71;
         try {
-            ArrayList<UrlMap> urls=new ArrayList<UrlMap>(100);
-            for (Iterable<UrlMap> page : new ArrayList<Iterable<UrlMap>>(sources)) {
+            ArrayList<UrlMap> urls=new ArrayList<>(100);
+            for (Iterable<UrlMap> page : new ArrayList<>(sources)) {
                 for (UrlMap u : page) {
                     urls.add(u);
                 }
@@ -46,7 +46,6 @@ public class SiteMaster {
             root.setAttribute("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9");
             root.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:schemaLocation", "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd");
             xml.appendChild(root);
-            StringBuilder urlStr=new StringBuilder(100000);
 
             for (UrlMap u:urls){
                 Element newUrl = xml.createElement("url");

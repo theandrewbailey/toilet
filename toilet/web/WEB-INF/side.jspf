@@ -1,18 +1,19 @@
 <%@ taglib prefix="sp" uri="uri:spruce" %><%@ taglib prefix="t" uri="uri:toilet" %><aside class="noPrint">
-    <nav><h1><imead:keyVal key="page_topics" /></h1><ul><t:categorizer>
+    <div class="side_top"><imead:local key="page_side_top"/></div>
+    <nav><h1><imead:local key="page_topics" /></h1><ul><t:categorizer>
         <li><c:choose><c:when test="${_cate_group == curGroup}">${_cate_group}</c:when><c:otherwise><a href="${_cate_url}">${_cate_group}</a></c:otherwise></c:choose></li></t:categorizer>
     </ul></nav>
 
-    <sp:sentence><div id="spruceBox"><a href="<imead:keyVal key="thisURL"/>spruce"><span id="spruceQuote">${spruce_sentence}</span>
+    <sp:sentence><div id="spruceBox"><a href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>spruce"><span id="spruceQuote">${spruce_sentence}</span>
     <div id="spruceName"><imead:keyVal key="spruce_name" /></div>
-    <p><imead:keyVal key="spruce_link"/></p></a>
+    <p><imead:local key="page_spruce_link"/></p></a>
     </div></sp:sentence>
 
-    <c:if test="${articleCategory ne null}"><div id="recentCategoryEntries"><h1><imead:keyVal key="page_sideRecentCategory"><imead:param object="${articleCategory}"/></imead:keyVal></h1><ul><t:recentArticles number="10" category="${articleCategory}">
+    <c:if test="${articleCategory ne null}"><div id="recentCategoryEntries"><h1><imead:local key="page_sideRecentCategory"><imead:param object="${articleCategory}"/></imead:local></h1><ul><t:recentArticles number="10" category="${articleCategory}">
         <li><t:articleUrl article="${_recentEntry}"/></li></t:recentArticles>
     </ul></div></c:if>
-    <div id="recentEntries"><h1><imead:keyVal key="page_sideRecent"/></h1><ul><t:recentArticles number="10">
+    <div id="recentEntries"><h1><imead:local key="page_sideRecent"/></h1><ul><t:recentArticles number="10">
         <li><t:articleUrl article="${_recentEntry}"/></li></t:recentArticles>
     </ul></div>
-    <div class="side"><imead:keyVal key="page_side"/></div>
+    <div class="side_bottom"><imead:local key="page_side_bottom"/></div>
 </aside>

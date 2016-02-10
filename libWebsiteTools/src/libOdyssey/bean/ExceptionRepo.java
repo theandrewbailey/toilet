@@ -14,13 +14,15 @@ import javax.servlet.http.HttpServletRequest;
 import libOdyssey.db.Exceptionevent;
 
 /**
- * used for tracking errors and such and see what the chinese are trying to pick at
- * 
+ * used for tracking errors and such and see what the chinese are trying to pick
+ * at
+ *
  * @author alpha
  */
 @Singleton
 public class ExceptionRepo {
 
+    public static final String LOCAL_NAME = "java:module/ExceptionRepo";
     public static final String NEWLINE = "<br/>";
     private static final Logger log = Logger.getLogger(ExceptionRepo.class.getName());
     private static final String EXCEPTION_QUERY = "SELECT e FROM Exceptionevent e ORDER BY e.atime";
@@ -32,22 +34,22 @@ public class ExceptionRepo {
 
         if (title == null && req != null) {
             title = req.getRemoteAddr() + ' ' + req.getMethod() + ' ' + req.getRequestURI();
-        }
-        else if (title == null && t != null){
+        } else if (title == null && t != null) {
             title = t.getClass().getName();
         }
 
         StringBuilder additionalDesc = new StringBuilder();
-        String userAgent = req.getHeader("User-Agent");
-        if (userAgent != null) {
-            additionalDesc.append("User-Agent: ").append(req.getHeader("User-Agent")).append(NEWLINE);
-        }
-        if (req.getHeader("Referer") != null) {
-            additionalDesc.append("Referrer: ").append(req.getHeader("Referer")).append(NEWLINE);
-        }
-        String requestParams = getParameters(req, NEWLINE);
-        if (requestParams != null) {
-            additionalDesc.append(requestParams);
+        if (req != null) {
+            if (req.getHeader("User-Agent") != null) {
+                additionalDesc.append("User-Agent: ").append(req.getHeader("User-Agent")).append(NEWLINE);
+            }
+            if (req.getHeader("Referer") != null) {
+                additionalDesc.append("Referrer: ").append(req.getHeader("Referer")).append(NEWLINE);
+            }
+            String requestParams = getParameters(req, NEWLINE);
+            if (requestParams != null) {
+                additionalDesc.append(requestParams);
+            }
         }
 
         if (desc != null) {
@@ -66,9 +68,13 @@ public class ExceptionRepo {
 
         Exceptionevent e = new Exceptionevent(null, new Date(), desc, title);
         EntityManager em = PU.createEntityManager();
-        em.getTransaction().begin();
-        em.persist(e);
-        em.getTransaction().commit();
+        try {
+            em.getTransaction().begin();
+            em.persist(e);
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
     }
 
     public static String getParameters(HttpServletRequest req, String newline) {
@@ -83,6 +89,11 @@ public class ExceptionRepo {
 
     public List<Exceptionevent> getAll() {
         PU.getCache().evict(Exceptionevent.class);
-        return PU.createEntityManager().createQuery(ExceptionRepo.EXCEPTION_QUERY, Exceptionevent.class).getResultList();
+        EntityManager em = PU.createEntityManager();
+        try {
+            return em.createQuery(ExceptionRepo.EXCEPTION_QUERY, Exceptionevent.class).getResultList();
+        } finally {
+            em.close();
+        }
     }
 }

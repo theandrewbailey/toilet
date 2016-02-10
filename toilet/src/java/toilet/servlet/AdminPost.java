@@ -3,7 +3,6 @@ package toilet.servlet;
 import com.lambdaworks.crypto.SCryptUtil;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
@@ -18,7 +17,6 @@ import toilet.UtilStatic;
 import toilet.bean.StateCache;
 import toilet.bean.EntryRepo;
 import toilet.db.Article;
-import toilet.db.Comment;
 import toilet.rss.CommentRss;
 import static toilet.servlet.AdminServlet.POSTS;
 
@@ -41,15 +39,15 @@ public class AdminPost extends HttpServlet {
         String login = request.getSession().getAttribute("login").toString();
         String answer = request.getParameter("answer");
         if (answer != null && SCryptUtil.check(answer, imead.getValue(POSTS))) {
-            showList(request, response);
+            showList(request, response, entry.getArticleArchive(null));
         } else if (login.equals(AdminServlet.POSTS)) {
-            if (request.getParameter("deletecomment")!=null) {      // delete comment
+            if (request.getParameter("deletecomment") != null) {      // delete comment
                 entry.deleteComment(Integer.parseInt(request.getParameter("deletecomment")));
                 src.getFeed(CommentRss.NAME).preAdd();
-                showList(request, response);
+                showList(request, response, entry.getArticleArchive(null));
                 return;
-            } else if (request.getParameter("editarticle")!=null) {      // set up to edit Entry
-                Article art = entry.getEntry(Integer.parseInt(request.getParameter("editarticle")));
+            } else if (request.getParameter("editarticle") != null) {      // set up to edit Entry
+                Article art = entry.getArticle(Integer.parseInt(request.getParameter("editarticle")));
                 displayArticleEdit(request, response, art);
                 return;
             }
@@ -57,10 +55,8 @@ public class AdminPost extends HttpServlet {
         }
     }
 
-    public static void showList(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    public static void showList(HttpServletRequest request, HttpServletResponse response, List<Article> articles) throws ServletException, IOException {
         request.getSession().setAttribute("login", AdminServlet.POSTS);
-        List<Article> articles = UtilStatic.getBean(EntryRepo.LOCAL_NAME, EntryRepo.class).getArticleArchive(null);
-        Collections.reverse(articles);
         request.setAttribute("title", "Posts");
         request.setAttribute("articles", articles);
         request.setAttribute(RequestToken.ID_NAME, null);
@@ -69,8 +65,8 @@ public class AdminPost extends HttpServlet {
 
     public static void displayArticleEdit(HttpServletRequest request, HttpServletResponse response, Article art) throws ServletException, IOException {
         if (art.getCommentCollection() == null) {
-            art.setCommentCollection(new ArrayList<Comment>());
-        }System.out.println("displaying article");
+            art.setCommentCollection(new ArrayList<>());
+        }
         List<String> groups = new ArrayList<>(UtilStatic.getBean(StateCache.LOCAL_NAME, StateCache.class).getArticleCategories());
         groups.add(UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class).getValue(EntryRepo.DEFAULT_CATEGORY));
         request.setAttribute("groups", groups);

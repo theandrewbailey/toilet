@@ -1,5 +1,6 @@
 /*
- * To change this template, choose Tools | Templates
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
 package toilet.db;
@@ -33,10 +34,11 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author alphavm
  */
 @Entity
-@Table(name = "article", catalog = "toilet", schema = "toilet")
+@Table(name = "article", schema = "toilet")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a"),
+    @NamedQuery(name = "Article.findAllDesc", query = "SELECT a FROM Article a ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findAllAsc", query = "SELECT a FROM Article a ORDER BY a.posted ASC"),
     @NamedQuery(name = "Article.findByArticleid", query = "SELECT a FROM Article a WHERE a.articleid = :articleid"),
     @NamedQuery(name = "Article.findByArticletitle", query = "SELECT a FROM Article a WHERE a.articletitle = :articletitle"),
     @NamedQuery(name = "Article.findByEtag", query = "SELECT a FROM Article a WHERE a.etag = :etag"),
@@ -76,13 +78,13 @@ public class Article implements Serializable {
     private Date posted;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 10485760)
-    @Column(name = "postedhtml", nullable = false, length = 10485760)
+    @Size(min = 1, max = 2147483647)
+    @Column(name = "postedhtml", nullable = false, length = 2147483647)
     private String postedhtml;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 10485760)
-    @Column(name = "postedmarkdown", nullable = false, length = 10485760)
+    @Size(min = 1, max = 2147483647)
+    @Column(name = "postedmarkdown", nullable = false, length = 2147483647)
     private String postedmarkdown;
     @Basic(optional = false)
     @NotNull
@@ -98,7 +100,7 @@ public class Article implements Serializable {
     @ManyToOne(optional = false)
     private Section sectionid;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "articleid")
-    @OrderBy("posted")
+    @OrderBy("posted ASC")
     private Collection<Comment> commentCollection;
 
     public Article() {

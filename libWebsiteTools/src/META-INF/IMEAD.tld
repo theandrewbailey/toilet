@@ -3,7 +3,7 @@
   <tlib-version>1.0</tlib-version>
   <short-name>imead</short-name>
   <uri>uri:libwebsitetools:IMEAD</uri>
-  <description>Internationalization Made Easy And Dynamic. uses keyvalue and localization tables to fill in small pieces of localization specific and configuration text. see libIMEAD.IMEADBean.</description>
+  <description>Internationalization Made Easy And Dynamic. Uses IMEAD.keyvalue and IMEAD.localization tables to fill in small pieces of localization specific and configuration text. see libWebsiteTools.IMEADHolder.</description>
   <tag>
     <name>keyVal</name>
     <description>will print the value for given key from the KeyValue table. may contain &lt;param&gt; elements to fill {0} type parameters in the printed value, otherwise no text will be printed within this tag.</description>

@@ -9,8 +9,11 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
+import libOdyssey.bean.GuardHolder;
+import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.tag.AbstractInput;
+import toilet.bean.EntryRepo;
 import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.rss.ErrorRss;
@@ -39,7 +42,14 @@ public class AdminServlet extends HttpServlet {
     private ExceptionRepo error;
     @EJB
     private IMEADHolder imead;
+    @EJB
+    private EntryRepo entry;
+    @EJB
+    private FileRepo file;
 
+    /*@Override
+     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+     }*/
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String answer = AbstractInput.getParameter(request, "answer");
@@ -49,22 +59,22 @@ public class AdminServlet extends HttpServlet {
 
         } else if (SCryptUtil.check(answer, imead.getValue(LOG))) {
             request.getSession().setAttribute("login", LOG);
-            response.sendRedirect(imead.getValue(UtilBean.THISURL).toString() + "rss/" + ErrorRss.NAME);
+            response.sendRedirect(imead.getValue(GuardHolder.CANONICAL_URL) + "rss/" + ErrorRss.NAME);
 
         } else if (SCryptUtil.check(answer, imead.getValue(POSTS))) {
-            AdminPost.showList(request, response);
+            AdminPost.showList(request, response, entry.getArticleArchive(null));
 
         } else if (SCryptUtil.check(answer, imead.getValue(ADDENTRY))) {
             AdminPost.displayArticleEdit(request, response, new Article());
 
         } else if (SCryptUtil.check(answer, imead.getValue(CONTENT))) {
-            AdminContent.showFileList(request, response);
+            AdminContent.showFileList(request, response, file.getUploadArchive());
 
         } else if (SCryptUtil.check(answer, imead.getValue(RESET))) {
             util.resetEverything();
             request.getSession().invalidate();
             request.getSession(true);
-            response.sendRedirect(imead.getValue(UtilBean.THISURL).toString());
+            response.sendRedirect(imead.getValue(GuardHolder.CANONICAL_URL));
 
         } else if (SCryptUtil.check(answer, imead.getValue(SESSIONS))
                 || (SESSIONS.equals(request.getSession().getAttribute("login"))

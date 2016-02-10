@@ -11,10 +11,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.BackupDaemon;
-import toilet.bean.UtilBean;
 import static toilet.servlet.ArticleServlet.WORDS;
 
 @WebServlet(name = "ImportServlet", description = "Inserts articles, comments, and files via zip file upload", urlPatterns = {"/import"})
@@ -60,6 +60,6 @@ public class ImportServlet extends HttpServlet {
             error.add(request, "Restore from zip failed", null, ex);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
-        response.sendRedirect(imead.getValue(UtilBean.THISURL));
+        response.sendRedirect(imead.getValue(GuardHolder.CANONICAL_URL));
     }
 }

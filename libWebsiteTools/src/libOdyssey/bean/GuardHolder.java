@@ -1,6 +1,7 @@
 package libOdyssey.bean;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.PostConstruct;
@@ -15,35 +16,43 @@ import libWebsiteTools.imead.IMEADHolder;
 @Singleton
 public class GuardHolder {
 
+    // group 1 is the origin (with http), group 2 is domain and port specifically
+    public static final Pattern ORIGIN_PATTERN = Pattern.compile("^(https?://([^/]*))");
+    public static final String CANONICAL_URL = "libOdyssey_guard_canonicalURL";
     @EJB
     private IMEADHolder imead;
-    public static final String HOST = "libOdyssey_guard_host";
+    private static final String DOMAINS = "libOdyssey_guard_domains";
     private static final String GUARD_ENABLE = "libOdyssey_guard_enable";
     private static final String HANDLE_ERRORS = "libOdyssey_guard_errors";
     private static final String DENY_USER_AGENTS = "libOdyssey_guard_denyUserAgents";
     private static final String SESSIONS_PER_SECOND = "libOdyssey_guard_sessionsPerSecond";
     private static final String EMPTY_SESSIONS = "libOdyssey_guard_emptySessions";
     private static final String HONEYPOTS = "libOdyssey_guard_honeypots";
+    private static final String ACCEPTABLE_CONTENT_DOMAINS = "site_acceptableContentDomains";
     private int[] sps;
     private int[] es;
-    private String hostValue;
+    private List<Pattern> domains;
     private List<Pattern> denyUAs;
     private List<Pattern> honeyList;
+    private List<Pattern> acceptableDomains;
     private boolean enableGuard;
     private boolean handleErrors;
 
+    public static boolean matchesAny(CharSequence subject, List<Pattern> regexes) {
+        for (Pattern p : regexes) {
+            if (p.matcher(subject).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @PostConstruct
     public void refresh() {
-        List<Pattern> tempHoney = new ArrayList<>();
-        for (String h : imead.getValue(HONEYPOTS).split("\n")) {
-            tempHoney.add(Pattern.compile(h));
-        }
-        honeyList = tempHoney;
-        List<Pattern> tempUAs = new ArrayList<>();
-        for (String ua : imead.getValue(DENY_USER_AGENTS).split("\n")) {
-            tempUAs.add(Pattern.compile(ua));
-        }
-        denyUAs = tempUAs;
+        honeyList = getPatterns(HONEYPOTS);
+        denyUAs = getPatterns(DENY_USER_AGENTS);
+        domains = getPatterns(DOMAINS);
+        acceptableDomains = getPatterns(ACCEPTABLE_CONTENT_DOMAINS);
         String[] Strsps = imead.getValue(SESSIONS_PER_SECOND).split("x");
         int[] tempSps = new int[Strsps.length];
         for (int x = 0; x < Strsps.length; x++) {
@@ -56,9 +65,16 @@ public class GuardHolder {
             tempEs[x] = Integer.valueOf(Stres[x]);
         }
         es = tempEs;
-        hostValue = imead.getValue(HOST);
         enableGuard = Boolean.valueOf(imead.getValue(GUARD_ENABLE));
         handleErrors = Boolean.valueOf(imead.getValue(HANDLE_ERRORS));
+    }
+
+    private List<Pattern> getPatterns(String key) {
+        List<Pattern> temps = new ArrayList<>();
+        for (String line : imead.getValue(key).split("\n")) {
+            temps.add(Pattern.compile(line));
+        }
+        return Collections.unmodifiableList(temps);
     }
 
     public int[] getSps() {
@@ -69,8 +85,8 @@ public class GuardHolder {
         return es;
     }
 
-    public String getHostValue() {
-        return hostValue;
+    public List<Pattern> getDomains() {
+        return domains;
     }
 
     public List<Pattern> getDenyUAs() {
@@ -87,5 +103,12 @@ public class GuardHolder {
 
     public boolean isHandleErrors() {
         return handleErrors;
+    }
+
+    /**
+     * @return the acceptableDomains to send content to (like google and feedly)
+     */
+    public List<Pattern> getAcceptableDomains() {
+        return acceptableDomains;
     }
 }

@@ -6,6 +6,7 @@ import javax.annotation.PostConstruct;
 import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
 import libOdyssey.db.Exceptionevent;
 import libWebsiteTools.rss.Feed;
@@ -14,7 +15,6 @@ import libWebsiteTools.rss.entity.RssChannel;
 import libWebsiteTools.rss.entity.RssItem;
 import libWebsiteTools.rss.iFeedBucket;
 import org.w3c.dom.Document;
-import toilet.servlet.AdminServlet;
 
 /**
  *
@@ -38,7 +38,7 @@ public class ErrorRss extends AbstractRssFeed {
     }
 
     @Override
-    public Document preWrite(HttpServletRequest req) {
+    public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
 //        if (AdminServlet.LOG.equals(req.getSession().getAttribute("login"))) {
             log.fine("Exception RSS feed requested");
             RssChannel badRequests = new RssChannel("running log", req.getRequestURL().toString(), "404s, etc.");

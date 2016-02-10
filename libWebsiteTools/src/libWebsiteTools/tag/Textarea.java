@@ -12,8 +12,10 @@ public class Textarea extends AbstractInput {
 
         out.append("<textarea id=\"").append(getId());
         out.append("\" name=\"").append(getId());
-        out.append("\" cols=\"").append(getLength().toString());
         out.append("\" rows=\"").append(height.toString());
+        if (getLength() != null){
+            out.append("\" cols=\"").append(getLength().toString());
+        }
         if (getAccesskey() != null) {
             out.append("\" accesskey=\"").append(getAccesskey());
         }

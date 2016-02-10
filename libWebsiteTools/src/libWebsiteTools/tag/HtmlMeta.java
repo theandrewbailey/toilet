@@ -35,7 +35,7 @@ public class HtmlMeta extends SimpleTagSupport {
             return;
         }
         for (Map.Entry<String, String> tag : tags) {
-            getJspContext().getOut().print(String.format("<meta name=\"%s\" content=\"%s\">", tag.getKey(), tag.getValue()));
+            getJspContext().getOut().print(String.format("<meta name=\"%s\" content=\"%s\"/>", tag.getKey(), tag.getValue()));
         }
     }
 }

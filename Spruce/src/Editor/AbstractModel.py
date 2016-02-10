@@ -1,5 +1,7 @@
 import spruceData
 from PyQt4 import QtCore, QtGui
+from Editor.RelativeModel import RelativeModel
+
 
 class abstractModel(QtGui.QFrame):
     """Base class for the tabs, does most of the work"""
@@ -24,6 +26,9 @@ class abstractModel(QtGui.QFrame):
     def lremove(self):
         """Fired on the Remove Entry button"""
         item=self.lWords.currentItem()
+        if (item == None):
+            print("no item")
+            return
         self.items[item.text().__str__()]=None
         self.lWords.takeItem(self.lWords.currentRow())
         for key in self.dict[:]:
@@ -69,3 +74,6 @@ class abstractModel(QtGui.QFrame):
             self.lWords.setCurrentRow(-1)
         self.defSyl.setValue(spruceData.determineSyllables(str))
         return word
+    def openRelative(self):
+        self.relativeModel=RelativeModel()
+        self.relativeModel.setupUi()

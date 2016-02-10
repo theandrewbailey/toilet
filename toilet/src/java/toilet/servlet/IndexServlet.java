@@ -12,7 +12,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.tag.HtmlMeta;
-import toilet.IndexFetcher;
 import toilet.bean.StateCache;
 import toilet.db.Article;
 
@@ -32,7 +31,8 @@ public class IndexServlet extends HttpServlet {
     protected long getLastModified(HttpServletRequest request) {
         Date latest = EPOCH;
 
-        IndexFetcher f = new IndexFetcher(request.getRequestURI());
+        StateCache.IndexFetcher f = cache.getIndexFetcher(request.getRequestURI());
+        request.setAttribute(StateCache.IndexFetcher.class.getCanonicalName(), f);
 
         for (Article a : f.getArticles()) {
             if (a.getModified().after(latest)) {
@@ -45,14 +45,11 @@ public class IndexServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        IndexFetcher f = new IndexFetcher(request.getRequestURI());
-        if (!f.isValid()) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
-        }
+        StateCache.IndexFetcher f = (StateCache.IndexFetcher) request.getAttribute(StateCache.IndexFetcher.class.getCanonicalName());
+        f = null == f ? cache.getIndexFetcher(request.getRequestURI()) : f;
 
         List<Article> lEntry = f.getArticles();
-        if (lEntry.isEmpty() && !(f.getGroup() == null && f.getPage() == 1)) {
+        if (lEntry.isEmpty()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }

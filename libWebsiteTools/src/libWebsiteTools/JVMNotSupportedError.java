@@ -10,7 +10,7 @@ import java.security.NoSuchAlgorithmException;
 public class JVMNotSupportedError extends VirtualMachineError {
     public static final String SHA256_UNSUPPORTED = "This JVM does not support SHA-256. Get a better JVM.";
     public static final String UTF8_UNSUPPORTED = "This JVM does not support UTF-8. Get a better JVM.";
-    private Throwable cause;
+    private final Throwable cause;
 
     /**
      * for UTF8 not supported

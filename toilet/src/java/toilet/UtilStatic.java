@@ -1,14 +1,13 @@
 package toilet;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.ListIterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.tag.AbstractInput;
 
 public final class UtilStatic {
 
@@ -18,6 +17,7 @@ public final class UtilStatic {
         throw new UnsupportedOperationException("You cannot instantiate this class");
     }
 
+    // try to NOT use this
     @SuppressWarnings("unchecked")
     public static <T> T getBean(String name, Class<T> type) {
         try {
@@ -28,49 +28,15 @@ public final class UtilStatic {
         }
     }
 
-    /**
-     * detect page numbers from URI
-     *
-     * @param URI
-     * @return
-     */
-    public static String getPageNumber(String URI) {
-        if ("/".equals(URI)) {
-            return "1";
+    public static <K, V> LinkedHashMap<K, V> reverse(LinkedHashMap<K, V> input) {
+        ArrayList<K> keys = new ArrayList<>(input.keySet());
+        ListIterator<K> li = keys.listIterator(keys.size());
+        LinkedHashMap<K, V> output = new LinkedHashMap<>(input.size());
+        while (li.hasPrevious()) {
+            K key = li.previous();
+            output.put(key, input.get(key));
         }
-        int x = 1;
-        String[] parts = URI.split("/");
-        if ("toilet".equals(parts[x])) {
-            x++;
-        }
-        if (parts.length == x) {
-            return "1";
-        } else if ("index".equals(parts[x])) {
-            String out;
-            if (parts.length == x || parts.length == x + 1) {
-                out = "1";
-            } else {
-                if (parts.length == x + 2) {
-                    out = parts[x + 1];
-                } else {
-                    out = parts[x + 2];
-                }
-            }
-            try {
-                Integer.valueOf(out);
-            } catch (NumberFormatException n) {
-                out = "1";
-            }
-            return out;
-        } else if ("article".equals(parts[x])) {
-            if (parts.length == x || parts.length == x + 1 || parts.length == x + 2) {
-                return "1";
-            } else {
-                return parts[x + 2];
-            }
-        } else {
-            throw new RuntimeException();
-        }
+        return output;
     }
 
     /**
@@ -177,23 +143,8 @@ public final class UtilStatic {
     }
 
     /**
-     * @param req
-     * @return the url string, with parameters
-     */
-    public static String getURL(HttpServletRequest req) {
-        String urlstr = req.getRequestURI();
-        if (urlstr == null) {
-            urlstr = "/index";
-        }
-        String qstring = req.getQueryString();
-        if (qstring != null) {
-            return urlstr + "?" + qstring;
-        }
-        return urlstr;
-    }
-
-    /**
-     * tells the client to go to a new location. WHY is this not included in the standard servlet API????
+     * tells the client to go to a new location. WHY is this not included in the
+     * standard servlet API????
      *
      * @param res
      * @param newLocation
@@ -203,18 +154,4 @@ public final class UtilStatic {
         res.setHeader("Location", newLocation);
     }
 
-    /**
-     * retrieves a string from a multipart upload request
-     *
-     * @param req
-     * @param param
-     * @return value | null
-     */
-    public static String getParam(HttpServletRequest req, String param) {
-        try {
-            return new BufferedReader(new InputStreamReader(AbstractInput.getPart(req, param).getInputStream())).readLine();
-        } catch (Exception e) {
-            return null;
-        }
-    }
 }

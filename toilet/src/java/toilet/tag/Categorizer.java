@@ -6,10 +6,10 @@ import java.net.URLEncoder;
 import javax.ejb.EJB;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.bean.StateCache;
-import toilet.bean.UtilBean;
 
 /**
  *
@@ -35,20 +35,22 @@ public class Categorizer extends SimpleTagSupport {
     }
 
     private void execute(String o) throws JspException, IOException {
-        getJspContext().setAttribute("_cate_url", getUrl(imead.getValue(UtilBean.THISURL), o));
+        getJspContext().setAttribute("_cate_url", getUrl(imead.getValue(GuardHolder.CANONICAL_URL), o, 1));
         getJspContext().setAttribute("_cate_group", o);
         getJspBody().invoke(null);
     }
 
-    public static String getUrl(String thisURL, String category) {
-        StringBuilder out = new StringBuilder(thisURL).append("index/");
-        try {
-            String title = URLEncoder.encode(category, "UTF-8");
-            out.append(title);
-        } catch (UnsupportedEncodingException ex) {
-            throw new JVMNotSupportedError(ex);
+    public static String getUrl(String thisURL, String category, Integer page) {
+        StringBuilder out = new StringBuilder(70).append(thisURL).append("index/");
+        if (null != category) {
+            try {
+                String title = URLEncoder.encode(category, "UTF-8");
+                out.append(title);
+            } catch (UnsupportedEncodingException ex) {
+                throw new JVMNotSupportedError(ex);
+            }
         }
-        return out.append("/1").toString();
+        return null == page ? out.append("/").toString() : out.append("/1").toString();
     }
 
     /**

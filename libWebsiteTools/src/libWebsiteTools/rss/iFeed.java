@@ -1,7 +1,9 @@
 package libWebsiteTools.rss;
 
 import java.io.Serializable;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.w3c.dom.Document;
 
 /**
@@ -36,13 +38,22 @@ public interface iFeed extends Serializable {
     public void postAdd();
 
     /**
+     * lastModified will return when the feed was last changed
+     * @see HttpServlet
+     * 
+     * @return milliseconds since epoch
+     */
+    public long getLastModified();
+
+    /**
      * preWrite will be called on every request for the feed must return the XML
      * to be sent back to user
      *
      * @param req useful for getting the session object
+     * @param res useful for setting headers
      * @return XML document to preWrite to output stream
      */
-    public Document preWrite(HttpServletRequest req);
+    public Document preWrite(HttpServletRequest req, HttpServletResponse res);
 
     /**
      * postWrite will be called after writeToServlet

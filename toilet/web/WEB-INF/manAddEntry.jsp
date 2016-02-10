@@ -20,10 +20,5 @@
     <h:hidden id="submit-type" value="article" />
 </form>
 <br/><br/>
-<c:if test="${param.action == 'Preview'}"><article>
-    <header><h1>${art.articletitle}</h1></header>
-    ${art.postedhtml}
-    <footer><imead:keyVal key="page_articleFooter"><imead:param><h:time datetime="${art.posted}" pubdate="true"/></imead:param><imead:param object="${param.section}"/></imead:keyVal>
-    <c:if test="${param.comments}">${fn:length(art.commentCollection)}&nbsp;${fn:length(art.commentCollection) == 1 ? 'comment.' : 'comments.'}</c:if></footer>
-</article></c:if>
+<c:if test="${param.action == 'Preview'}"><%@ include file="/WEB-INF/article.jspf" %></c:if>
 <%@ include file="/WEB-INF/manFoot.jspf" %>

@@ -1,9 +1,12 @@
 package toilet.rss;
 
+import java.util.Date;
 import java.util.List;
 import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
@@ -27,6 +30,7 @@ public class CommentRss extends AbstractRssFeed {
     @EJB
     private IMEADHolder imead;
     private Document XML;
+    private Date lastUpdated = new Date(0);
 
     public CommentRss() {
     }
@@ -38,7 +42,8 @@ public class CommentRss extends AbstractRssFeed {
             imead = UtilStatic.getBean(UtilBean.IMEAD_LOCAL_NAME, IMEADHolder.class);
         }
 
-        RssChannel entries = new RssChannel(imead.getValue(UtilBean.SITE_TITLE) + " - Comments", imead.getValue(UtilBean.THISURL), imead.getValue(UtilBean.TAGLINE));
+        lastUpdated = new Date(0);
+        RssChannel entries = new RssChannel(imead.getValue(UtilBean.SITE_TITLE) + " - Comments", imead.getValue(GuardHolder.CANONICAL_URL), imead.getValue(UtilBean.TAGLINE));
         entries.setWebMaster(imead.getValue(UtilBean.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
         entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
@@ -47,16 +52,19 @@ public class CommentRss extends AbstractRssFeed {
 
         for (Comment c : lComments) {
             RssItem i = new RssItem(c.getPostedhtml());
-            i.addCategory(c.getArticleid().getSectionid().getName(), imead.getValue(UtilBean.THISURL) + "index/group=" + c.getArticleid().getSectionid().getName());
-            i.setLink(ArticleUrl.getUrl(imead.getValue(UtilBean.THISURL), c.getArticleid()) + "#" + c.getCommentid());
+            entries.addItem(i);
+            i.addCategory(c.getArticleid().getSectionid().getName(), imead.getValue(GuardHolder.CANONICAL_URL) + "index/group=" + c.getArticleid().getSectionid().getName());
+            i.setLink(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), c.getArticleid()) + "#" + c.getCommentid());
             i.setGuid(i.getLink());
             i.setPubDate(c.getPosted());
             i.setTitle("Re: " + c.getArticleid().getArticletitle());
             i.setAuthor(c.getPostedname());
             if (c.getArticleid().getComments()) {
-                i.setComments(ArticleUrl.getUrl(imead.getValue(UtilBean.THISURL), c.getArticleid()) + "#comments");
+                i.setComments(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), c.getArticleid()) + "#comments");
             }
-            entries.addItem(i);
+            if (i.getPubDate().after(lastUpdated)){
+                lastUpdated = i.getPubDate();
+            }
         }
         return refreshFeed(entries);
     }
@@ -67,7 +75,12 @@ public class CommentRss extends AbstractRssFeed {
     }
 
     @Override
-    public Document preWrite(HttpServletRequest req) {
+    public long getLastModified(){
+        return lastUpdated.getTime();
+    }
+
+    @Override
+    public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
         return XML;
     }
 }

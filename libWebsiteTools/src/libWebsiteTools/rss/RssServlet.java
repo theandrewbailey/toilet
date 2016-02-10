@@ -35,13 +35,28 @@ public class RssServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-        xFormFact.setAttribute("indent-number", new Integer(4));
+        xFormFact.setAttribute("indent-number", 4);
         String feeds = getServletContext().getInitParameter(FEEDS);
         if (feeds != null && !feeds.isEmpty()) {
             for (String f : feeds.split(";")) {
                 src.addFeed(f);
             }
         }
+    }
+
+    @Override
+    protected long getLastModified(HttpServletRequest request) {
+        String[] uri = request.getRequestURI().split("/rss/", 2);
+        if (uri.length != 2) {
+            return -1;
+        }
+        String name = uri[1];
+        iFeed feed = src.getFeed(name);
+        if (feed == null) {
+            log.log(Level.FINE, "RSS feed {0} not found", name);
+            return -1;
+        }
+        return feed.getLastModified();
     }
 
     /**
@@ -61,8 +76,8 @@ public class RssServlet extends HttpServlet {
             return;
         }
         String name = uri[1];
-        iFeed feed = src.getFeed(name);
         Transformer trans;
+        iFeed feed = src.getFeed(name);
         if (feed == null) {
             log.log(Level.FINE, "RSS feed {0} not found", name);
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -71,7 +86,7 @@ public class RssServlet extends HttpServlet {
         try {
             synchronized (feed) {
                 log.log(Level.FINE, "RSS feed {0} requested, servicing", name);
-                DOMSource DOMsrc = new DOMSource(feed.preWrite(request));
+                DOMSource DOMsrc = new DOMSource(feed.preWrite(request, response));
                 StreamResult str = new StreamResult(response.getWriter());
                 response.setContentType(feed.getClass().getAnnotation(Feed.class) != null ? 
                         feed.getClass().getAnnotation(Feed.class).MIME() : 

@@ -21,6 +21,6 @@ public class FaviconIcoServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        UtilStatic.permaMove(resp, imead.getValue("page_favicon"));
+        UtilStatic.permaMove(resp, imead.getValue("site_favicon"));
     }
 }

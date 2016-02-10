@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package libWebsiteTools.imead;
 
 import java.io.Serializable;
@@ -23,7 +22,7 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author alphavm
  */
 @Entity
-@Table(name = "localization", schema = "IMEAD")
+@Table(name = "localization", schema = "imead")
 @XmlRootElement
 @NamedQueries({
     @NamedQuery(name = "Localization.findAll", query = "SELECT l FROM Localization l"),
@@ -94,7 +93,7 @@ public class Localization implements Serializable {
 
     @Override
     public String toString() {
-        return "libWebsiteTools.imead.db.Localization[ localizationPK=" + localizationPK + " ]";
+        return "libWebsiteTools.imead.Localization[ localizationPK=" + localizationPK + " ]";
     }
     
 }

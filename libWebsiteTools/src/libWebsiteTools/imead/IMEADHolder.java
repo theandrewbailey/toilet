@@ -2,6 +2,7 @@ package libWebsiteTools.imead;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -16,9 +17,9 @@ import javax.persistence.PersistenceUnit;
 
 /**
  * Internationalization Made Easy And Dynamic
- * 
+ *
  * run DB scripts before using
- * 
+ *
  * @author alpha
  */
 @Singleton
@@ -27,13 +28,18 @@ public class IMEADHolder {
     public static final String LOCAL_NAME = "java:module/IMEADHolder";
     @PersistenceUnit
     private EntityManagerFactory PU;
-    private static final String DISTINCT_LOCALE_QUERY = "SELECT DISTINCT l.localizationPK.localecode FROM Localization l";
-    private static final String DISTINCT_KEY_QUERY = "SELECT DISTINCT l.localizationPK.key FROM Localization l";
-    private static final String LOCALE_LIKE_QUERY = "SELECT l FROM Localization l WHERE l.localizationPK.localecode LIKE :locale";
+    private static final String DISTINCT_LOCALE_QUERY = "SELECT DISTINCT l.localizationPK.localecode FROM Localization l ORDER BY l.localizationPK.localecode ASC";
+    private static final String VALUES_BY_LOCALE = "SELECT l FROM Localization l WHERE l.localizationPK.localecode = :locale";
     private static final String KEYVALUE_ALL_QUERY = "SELECT k FROM Keyvalue k";
     private static final Logger log = Logger.getLogger(IMEADHolder.class.getName());
-    private final Map<String, String> keyValues = new HashMap<String, String>();
-    private final Map<String, Map<String, String>> localizedCache = new HashMap<String, Map<String, String>>();
+    private Map<String, String> keyValues = new HashMap<>();
+    private Map<Locale, IMEADResource> localizedCache = new HashMap<>();
+
+    public static Locale getLanguageOnly(Locale in) {
+        Locale.Builder build = new Locale.Builder();
+        build.setLanguage(in.getLanguage());
+        return build.build();
+    }
 
     @PostConstruct
     public void populateCache() {
@@ -41,50 +47,25 @@ public class IMEADHolder {
         PU.getCache().evict(Keyvalue.class);
         PU.getCache().evict(Localization.class);
         EntityManager em = PU.createEntityManager();
-        List<Keyvalue> kvs = em.createQuery(KEYVALUE_ALL_QUERY, Keyvalue.class).getResultList();
-        Map<String, String> temp = new HashMap<String, String>(kvs.size());
-
-        for (Keyvalue kv : kvs) {
-            temp.put(kv.getKey(), kv.getValue());
-            log.log(Level.CONFIG, "{0}: {1}", new Object[]{kv.getKey(), kv.getValue()});
-        }
-
-        synchronized (keyValues) {
-            keyValues.clear();
-            keyValues.putAll(temp);
-        }
-        Map<String, Map<String, String>> localeTemp = new HashMap<String, Map<String, String>>();
-
-        List<String> supportedLocales = em.createQuery(DISTINCT_LOCALE_QUERY, String.class).getResultList();
-        List<String> allKeys = em.createQuery(DISTINCT_KEY_QUERY, String.class).getResultList();
-
-        for (String l : supportedLocales) {
-            temp = new HashMap<String, String>();
-            String[] parts = l.split("_");
-            if (parts.length == 0) {
-                throw new RuntimeException("Bad locale detected: " + l);
+        try {
+            List<Keyvalue> kvs = em.createQuery(KEYVALUE_ALL_QUERY, Keyvalue.class).getResultList();
+            Map<String, String> temp = new HashMap<>(kvs.size() * 2);
+            for (Keyvalue kv : kvs) {
+                temp.put(kv.getKey(), kv.getValue());
+                log.log(Level.CONFIG, "{0}: {1}", new Object[]{kv.getKey(), kv.getValue()});
             }
-            String lang = parts[0];
-            String first = parts.length == 1 ? parts[0] : parts[0] + parts[1];
-            String second = parts.length == 2 ? parts[0] : null;
-            List<Localization> values = em.createQuery(LOCALE_LIKE_QUERY, Localization.class).setParameter("locale", lang + "%").getResultList();
-            for (String k : allKeys) {
-                for (Localization locale : values) {
-                    if (locale.getLocalizationPK().getLocalecode().equals(first)) {
-                        temp.put(locale.getLocalizationPK().getKey(), locale.getValue());
-                        log.log(Level.CONFIG, "({0}){1}: {2}", new Object[]{locale.getLocalizationPK().getLocalecode(), locale.getLocalizationPK().getKey(), locale.getValue()});
-                        continue;
-                    } else if (locale.getLocalizationPK().getLocalecode().equals(second)) {
-                        temp.put(locale.getLocalizationPK().getKey(), locale.getValue());
-                        log.log(Level.CONFIG, "({0}){1}: {2}", new Object[]{locale.getLocalizationPK().getLocalecode(), locale.getLocalizationPK().getKey(), locale.getValue()});
-                    }
-                }
+            keyValues = Collections.unmodifiableMap(temp);
+
+            List<String> supportedLocales = em.createQuery(DISTINCT_LOCALE_QUERY, String.class).getResultList();
+            Map<Locale, IMEADResource> localeTemp = new HashMap<>(supportedLocales.size() * 2);
+            for (String supportedLocale : supportedLocales) {
+                Locale l = Locale.forLanguageTag(supportedLocale);
+                IMEADResource parent = localeTemp.get(getLanguageOnly(l));
+                localeTemp.put(l, new IMEADResource(l, parent, em.createQuery(VALUES_BY_LOCALE, Localization.class).setParameter("locale", supportedLocale).getResultList()));
             }
-            localeTemp.put(l, temp);
-        }
-        synchronized (localizedCache) {
-            localizedCache.clear();
-            localizedCache.putAll(localeTemp);
+            localizedCache = Collections.unmodifiableMap(localeTemp);
+        } finally {
+            em.close();
         }
         log.exiting(IMEADHolder.class.getName(), "populateCache");
     }
@@ -99,16 +80,19 @@ public class IMEADHolder {
 
     /**
      * try to get value for key, using order of given locales
+     *
      * @param key
-     * @param localePref
+     * @param locales
      * @return value
      * @throws RuntimeException if key cannot be found in locales
      */
     public String getLocal(String key, Collection<Locale> locales) {
         for (Locale l : locales) {
-            String retrun = getLocal(key, l);
-            if (retrun != null) {
-                return retrun;
+            if (localizedCache.containsKey(l)) {
+                String retrun = localizedCache.get(l).getString(key);
+                if (retrun != null) {
+                    return retrun;
+                }
             }
         }
         log.log(Level.FINE, "Key {0} not found in locales {1}", new Object[]{key, Arrays.toString(locales.toArray())});
@@ -117,27 +101,34 @@ public class IMEADHolder {
 
     /**
      * try to get value for key in specified locale (as locale).
+     *
      * @param key
      * @param locale
      * @return value || null
      */
     public String getLocal(String key, Locale locale) {
-        String[] parts = locale.toString().split("_");
         try {
-            return getLocal(key, parts.length == 1 ? parts[0] : parts[0] + "-" + parts[1]);
+            return localizedCache.get(locale).getString(key);
         } catch (NullPointerException n) {
             return null;
         }
     }
 
     /**
-     * try to get value for key in specified locale (as String). will return null if key not in locale, will throw NullPointerException if locale does not exist.
+     * try to get value for key in specified locale (as String). will return
+     * null if key not in locale, will throw NullPointerException if locale does
+     * not exist.
+     *
      * @param key
      * @param locale
      * @return value || null
      * @throws NullPointerException
      */
     public String getLocal(String key, String locale) {
-        return localizedCache.get(locale).get(key);
+        Locale l = Locale.forLanguageTag(locale);
+        if (null == l) {
+            throw new NullPointerException("Locale " + locale + " is not valid.");
+        }
+        return localizedCache.get(l).getString(key);
     }
 }

@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.logging.Logger;
+import java.util.HashMap;
 import java.util.regex.Pattern;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
@@ -13,18 +13,22 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.Markdowner;
 import libWebsiteTools.token.RequestTokenBucket;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.RequestToken;
 import toilet.UtilStatic;
 import toilet.bean.EntryRepo;
+import toilet.bean.StateCache;
 import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.db.Comment;
+import toilet.db.Section;
 import toilet.tag.ArticleUrl;
 
 @WebServlet(name = "ArticleServlet", description = "Gets a single article from the DB with comments", urlPatterns = {"/article/*"})
@@ -32,10 +36,7 @@ public class ArticleServlet extends HttpServlet {
 
     public static final String WORDS = "admin_magicwords";
     private static final String DEFAULT_NAME = "entry_defaultName";
-    private static final String HONEYPOTURL = "page_honeypot";
-    private static final String COMMENT_DELAY = "page_commentPostDelay";
     private static final String SPAM_WORDS = "site_spamwords";
-    private static final Logger log = Logger.getLogger(ArticleServlet.class.getName());
     @EJB
     private EntryRepo entry;
     @EJB
@@ -63,9 +64,9 @@ public class ArticleServlet extends HttpServlet {
             return;
         }
 
-        String properUrl = ArticleUrl.getUrl(imead.getValue(UtilBean.THISURL), e);
+        String properUrl = ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), e);
         String actual = request.getRequestURL().toString();
-        if (!actual.equals(properUrl)) {
+        if (!actual.endsWith(properUrl)) {
             UtilStatic.permaMove(response, properUrl);
             return;
         }
@@ -94,8 +95,8 @@ public class ArticleServlet extends HttpServlet {
 
     protected Article getEntry(String URI) {
         try {
-            Integer entryId = new Integer(util.getIdFromURI(URI));
-            return entry.getEntry(entryId);
+            Integer entryId = new Integer(StateCache.getArticleIdFromURI(URI));
+            return entry.getArticle(entryId);
         } catch (Exception x) {
             return null;
         }
@@ -103,7 +104,6 @@ public class ArticleServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Article e;
         switch (AbstractInput.getParameter(request, "submit-type")) {
             case "comment":     // submitted comment
                 if (AbstractInput.getParameter(request, "text") == null || AbstractInput.getParameter(request, "text").isEmpty()
@@ -122,7 +122,7 @@ public class ArticleServlet extends HttpServlet {
                 String totest = rawin.toLowerCase();
                 String[] spamwords = imead.getValue(SPAM_WORDS).split("\n");
                 for (String ua : spamwords) {
-                    if (Pattern.matches(ua, totest)){
+                    if (Pattern.matches(ua, totest)) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN);
                         return;
                     }
@@ -138,27 +138,34 @@ public class ArticleServlet extends HttpServlet {
                     return;
                 }
                 Integer id = getEntry(request.getRequestURI()).getArticleid();
-                entry.addComment(id, c);
+                HashMap<Comment, Integer> comments = new HashMap<>();
+                comments.put(c, id);
+                entry.addComments(comments);
                 util.resetCommentFeed();
+                request.getSession().setAttribute("LastPostedName", postName);
                 doGet(request, response);
                 break;
             case "article":     // created or edited article
                 Article art = updateArticleFromPage(request);
-                if (request.getParameter("action").equals("Preview")) {
-                    AdminPost.displayArticleEdit(request, response, art);
-                    return;
-                } else if (!SCryptUtil.check(AbstractInput.getParameter(request, "words"), imead.getValue(WORDS))) {
-                    request.setAttribute("mess", imead.getValue(CoronerServlet.CORONER_PREFIX+"500"));
-                    AdminPost.displayArticleEdit(request, response, art);
-                    return;
-                }
                 String sect = request.getParameter("section");
                 if (sect == null || sect.isEmpty()) {
                     sect = request.getParameter("newsection");
                 }
-                art = entry.addEntry(art, sect);
+                if (request.getParameter("action").equals("Preview")) {
+                    art.setSectionid(new Section(0, sect));
+                    AdminPost.displayArticleEdit(request, response, art);
+                    return;
+                } else if (!SCryptUtil.check(AbstractInput.getParameter(request, "words"), imead.getValue(WORDS))) {
+                    request.setAttribute("mess", imead.getLocal(CoronerServlet.CORONER_PREFIX + "500", Local.resolveLocales(request)));
+                    art.setSectionid(new Section(0, sect));
+                    AdminPost.displayArticleEdit(request, response, art);
+                    return;
+                }
+                HashMap<Article, String> articles = new HashMap<>();
+                articles.put(art, sect);
+                art = entry.addArticles(articles);
                 util.resetArticleFeed();
-                response.sendRedirect(ArticleUrl.getUrl(imead.getValue(UtilBean.THISURL), art));
+                response.sendRedirect(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), art));
                 break;
             default:
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
