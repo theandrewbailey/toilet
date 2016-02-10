@@ -45,12 +45,12 @@ public class Categorizer extends SimpleTagSupport {
         if (null != category) {
             try {
                 String title = URLEncoder.encode(category, "UTF-8");
-                out.append(title);
+                out.append(title).append('/');
             } catch (UnsupportedEncodingException ex) {
                 throw new JVMNotSupportedError(ex);
             }
         }
-        return null == page ? out.append("/").toString() : out.append("/1").toString();
+        return null == page ? out.toString() : out.append(page).toString();
     }
 
     /**

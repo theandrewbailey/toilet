@@ -21,8 +21,8 @@ import libWebsiteTools.imead.Local;
 
 public abstract class FileServlet extends HttpServlet {
 
-    // 1,073,741,824 ms (12 days, 10 hours, 15 minutes, and 41.824 seconds exactly)
-    public static final int MAX_AGE_MILLISECONDS = 1 << 30;
+    // 0b111111111111111111111100000000 == 0x3fffff00 == 1,073,741,568 ms == 12 days, 10 hours, 15 minutes, 41.57 seconds exactly
+    public static final long MAX_AGE_MILLISECONDS = 0b111111111111111111111100000000;
     private static final String MAX_AGE_SECONDS = Long.toString(MAX_AGE_MILLISECONDS / 1000);
     private static final String UNAUTHORIZED_CONTENT_REQUEST = "content_unauthorized";
     private static final String FILE_ATTRIBUTE = "$_LIBWEBSITETOOLS_FILEUPLOAD";

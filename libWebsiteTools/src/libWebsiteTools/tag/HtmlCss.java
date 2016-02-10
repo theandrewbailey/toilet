@@ -29,7 +29,7 @@ public class HtmlCss extends SimpleTagSupport {
             try {
                 Fileupload f = file.getFile(file.getFilename(css));
                 // will generate a unique URL based on the file's last update time, so browsers will get and cache a new resource
-                long time = (f.getAtime().getTime() % FileServlet.MAX_AGE_MILLISECONDS) >> 8;
+                long time = f.getAtime().getTime() & FileServlet.MAX_AGE_MILLISECONDS >> 8;
                 String queryparam = HashUtil.getBase64(BigInteger.valueOf(time).toByteArray(), "~~");
                 // TOTAL HACK: this assumes that the etag is a base64 sha-2 hash of the file contents ONLY, for subresource integrity
                 switch (f.getEtag().length()) { // different flavors of sha-2 will have different digest lengths
