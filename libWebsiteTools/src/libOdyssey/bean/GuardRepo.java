@@ -8,8 +8,6 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceUnit;
-import javax.persistence.Query;
-import javax.persistence.TypedQuery;
 import libOdyssey.db.Honeypot;
 import libWebsiteTools.imead.IMEADHolder;
 
@@ -31,8 +29,7 @@ public class GuardRepo {
         EntityManager em = PU.createEntityManager();
         try {
             em.getTransaction().begin();
-            Query q = em.createQuery("DELETE FROM Honeypot h WHERE h.expiresatatime < CURRENT_TIMESTAMP");
-            q.executeUpdate();
+            em.createNamedQuery("Honeypot.cleanHoneypot").executeUpdate();
             em.getTransaction().commit();
         } finally {
             em.close();
@@ -42,9 +39,7 @@ public class GuardRepo {
     public boolean inHoneypot(String ip) {
         EntityManager em = PU.createEntityManager();
         try {
-            TypedQuery<Honeypot> q = em.createQuery("SELECT h FROM Honeypot h WHERE h.ip = :ip AND h.expiresatatime > CURRENT_TIMESTAMP", Honeypot.class);
-            q.setParameter("ip", ip);
-            q.getSingleResult();
+            em.createNamedQuery("Honeypot.findByIpBeforeNow", Honeypot.class).setParameter("ip", ip).getSingleResult();
             return true;
         } catch (NoResultException n) {
             return false;
@@ -60,9 +55,7 @@ public class GuardRepo {
         try {
             em.getTransaction().begin();
             try {
-                TypedQuery<Honeypot> q = em.createNamedQuery("Honeypot.findByIp", Honeypot.class);
-                q.setParameter("ip", ip);
-                Honeypot h = q.getSingleResult();
+                Honeypot h = em.createNamedQuery("Honeypot.findByIp", Honeypot.class).setParameter("ip", ip).getSingleResult();
                 h.setStartedatatime(now);
                 long delta = h.getExpiresatatime().getTime() - now.getTime();
                 long time = now.getTime() + Math.max(delta * 2, defaultTime);

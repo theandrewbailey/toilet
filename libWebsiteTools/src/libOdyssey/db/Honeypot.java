@@ -20,22 +20,19 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "honeypot", schema = "odyssey")
-@XmlRootElement
+@Table(name = "honeypot", schema = "tools")
 @NamedQueries({
-    @NamedQuery(name = "Honeypot.findAll", query = "SELECT h FROM Honeypot h"),
-    @NamedQuery(name = "Honeypot.findByHoneypotid", query = "SELECT h FROM Honeypot h WHERE h.honeypotid = :honeypotid"),
-    @NamedQuery(name = "Honeypot.findByExpiresatatime", query = "SELECT h FROM Honeypot h WHERE h.expiresatatime = :expiresatatime"),
     @NamedQuery(name = "Honeypot.findByIp", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip"),
-    @NamedQuery(name = "Honeypot.findByStartedatatime", query = "SELECT h FROM Honeypot h WHERE h.startedatatime = :startedatatime")})
+    @NamedQuery(name = "Honeypot.findByIpBeforeNow", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip AND h.expiresatatime > CURRENT_TIMESTAMP"),
+    @NamedQuery(name = "Honeypot.cleanHoneypot", query = "DELETE FROM Honeypot h WHERE h.expiresatatime < CURRENT_TIMESTAMP")})
 public class Honeypot implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -118,10 +115,7 @@ public class Honeypot implements Serializable {
             return false;
         }
         Honeypot other = (Honeypot) object;
-        if ((this.honeypotid == null && other.honeypotid != null) || (this.honeypotid != null && !this.honeypotid.equals(other.honeypotid))) {
-            return false;
-        }
-        return true;
+        return !((this.honeypotid == null && other.honeypotid != null) || (this.honeypotid != null && !this.honeypotid.equals(other.honeypotid)));
     }
 
     @Override

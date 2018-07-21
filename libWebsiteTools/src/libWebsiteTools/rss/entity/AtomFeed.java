@@ -2,25 +2,29 @@ package libWebsiteTools.rss.entity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import libWebsiteTools.rss.iFeed;
 import libWebsiteTools.rss.iPublishable;
+import org.w3c.dom.DOMException;
 
 /**
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-public class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
+public abstract class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
 
-    private final List<AtomPerson> authors = new ArrayList<AtomPerson>();
-    private final List<AtomCategory> categorys = new ArrayList<AtomCategory>();
-    private final List<AtomPerson> contributors = new ArrayList<AtomPerson>();
-    private final List<AtomLink> links = new ArrayList<AtomLink>();
-    private final List<AtomEntry> entries = new ArrayList<AtomEntry>();
+    private final List<AtomPerson> authors = new ArrayList<>();
+    private final List<AtomCategory> categories = new ArrayList<>();
+    private final List<AtomPerson> contributors = new ArrayList<>();
+    private final List<AtomLink> links = new ArrayList<>();
+    private final List<AtomEntry> entries = new ArrayList<>();
     private AtomGenerator generator = new AtomGenerator();
     private AtomId id;
     private AtomId logo;
@@ -42,7 +46,7 @@ public class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
         for (AtomPerson p : getAuthors()) {
             p.publish(root, "author");
         }
-        for (AtomCategory c : getCategorys()) {
+        for (AtomCategory c : getCategories()) {
             c.publish(root);
         }
         for (AtomLink l : getLinks()) {
@@ -73,24 +77,6 @@ public class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
     }
 
     /**
-     * rebuild the DOM behind this feed
-     * @return feed XML
-     */
-    public Document refreshFeed() {
-        Document XML = null;
-        try {
-            XML = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-            Element root = XML.createElement("feed");
-            XML.createAttributeNS("http://www.w3.org/2005/Atom", "");
-
-            XML.appendChild(publish(root));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return XML;
-    }
-
-    /**
      * @return the authors
      */
     public List<AtomPerson> getAuthors() {
@@ -98,10 +84,10 @@ public class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
     }
 
     /**
-     * @return the categorys
+     * @return the categories
      */
-    public List<AtomCategory> getCategorys() {
-        return categorys;
+    public List<AtomCategory> getCategories() {
+        return categories;
     }
 
     /**
@@ -224,7 +210,17 @@ public class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
 
     @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        return refreshFeed();
+        Document XML = null;
+        try {
+            XML = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            Element root = XML.createElement("feed");
+            XML.createAttributeNS("http://www.w3.org/2005/Atom", "");
+            XML.appendChild(publish(root));
+        } catch (ParserConfigurationException | DOMException ex) {
+            Logger log = Logger.getLogger(AtomFeed.class.getName());
+            log.log(Level.SEVERE, "Error during AtomFeed refreshFeed()", ex);
+        }
+        return XML;
     }
 
     @Override
@@ -237,6 +233,10 @@ public class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
 
     @Override
     public void postAdd() {
+    }
+
+    @Override
+    public void doHead(HttpServletRequest req, HttpServletResponse res) {
     }
 
     @Override

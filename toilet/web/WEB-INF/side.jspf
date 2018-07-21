@@ -3,17 +3,22 @@
     <nav><h1><imead:local key="page_topics" /></h1><ul><t:categorizer>
         <li><c:choose><c:when test="${_cate_group == curGroup}">${_cate_group}</c:when><c:otherwise><a href="${_cate_url}">${_cate_group}</a></c:otherwise></c:choose></li></t:categorizer>
     </ul></nav>
+    <imead:localVar key="page_patternMismatch" var="patternMismatch" /><imead:localVar key="page_valueMissing" var="valueMissing" />
+    <form class="search" action="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>search" method="GET" accept-charset="UTF-8">
+        <input type="search" id="searchTerm" name="searchTerm" size="20" required="required" data-valuemissing="${valueMissing}" data-patternmismatch="${patternMismatch}" aria-label="Search"/>
+        <input type="submit" value="Search"/>
+    </form>
 
     <sp:sentence><div id="spruceBox"><a href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>spruce"><span id="spruceQuote">${spruce_sentence}</span>
     <div id="spruceName"><imead:keyVal key="spruce_name" /></div>
     <p><imead:local key="page_spruce_link"/></p></a>
     </div></sp:sentence>
 
-    <c:if test="${articleCategory ne null}"><div id="recentCategoryEntries"><h1><imead:local key="page_sideRecentCategory"><imead:param object="${articleCategory}"/></imead:local></h1><ul><t:recentArticles number="10" category="${articleCategory}">
+    <c:if test="${articleCategory ne null}"><nav id="recentCategoryEntries"><h1><imead:local key="page_sideRecentCategory"><imead:param object="${articleCategory}"/></imead:local></h1><ul><t:recentArticles number="10" category="${articleCategory}">
         <li><t:articleUrl article="${_recentEntry}"/></li></t:recentArticles>
-    </ul></div></c:if>
-    <div id="recentEntries"><h1><imead:local key="page_sideRecent"/></h1><ul><t:recentArticles number="10">
+    </ul></nav></c:if>
+    <nav id="recentEntries"><h1><imead:local key="page_sideRecent"/></h1><ul><t:recentArticles number="10">
         <li><t:articleUrl article="${_recentEntry}"/></li></t:recentArticles>
-    </ul></div>
+    </ul></nav>
     <div class="side_bottom"><imead:local key="page_side_bottom"/></div>
 </aside>

@@ -59,17 +59,17 @@ public class RequestTokenChecker implements Filter {
             }
             RequestTokenBucket bucket = RequestTokenBucket.getRequestTokenBucket(req);
             req.setAttribute(RequestToken.ID_NAME, req.getParameter(tokenHash));
-            if (req.getServletContext().getAttribute(DISABLE_REFERRER_CHECKING) == null && 
+            /*if (req.getServletContext().getAttribute(DISABLE_REFERRER_CHECKING) == null && 
                     req.getSession().getAttribute(DISABLE_REFERRER_CHECKING) == null) {
                 if (!bucket.claimToken(req.getParameter(tokenHash), req.getHeader("referer"))){
                     throw new RequestTokenInvalidException();
                 }
             }
-            else {
+            else {*/
                 if (!bucket.claimToken(req.getParameter(tokenHash))) {
                     throw new RequestTokenInvalidException();
                 }
-            }
+            //}
         }
         return true;
     }

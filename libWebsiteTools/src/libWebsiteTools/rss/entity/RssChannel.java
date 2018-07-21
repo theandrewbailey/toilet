@@ -53,8 +53,8 @@ public class RssChannel implements Serializable, iPublishable {
     private boolean[] skipDays=new boolean[7];
     private int limit=0;
 
-    private final ArrayList<RssItem> items=new ArrayList<>();
-    private final ArrayList<RssCategory> cats=new ArrayList<>();
+    protected final ArrayList<RssItem> items=new ArrayList<>();
+    protected final ArrayList<RssCategory> cats=new ArrayList<>();
 
     /**
      * conditionally attaches a new node to the given node with the content as

@@ -1,6 +1,5 @@
 package toilet.servlet;
 
-import com.lambdaworks.crypto.SCryptUtil;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,20 +29,25 @@ public class AdminContent extends HttpServlet {
     private IMEADHolder imead;
 
     @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    }
+
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String del = request.getParameter("delete");
         String login = request.getSession().getAttribute("login").toString();
         String answer = AbstractInput.getParameter(request, "answer");
-        if (answer != null && SCryptUtil.check(answer, imead.getValue(AdminServlet.CONTENT))) {
+        if (answer != null && imead.verifyArgon2(answer, AdminLoginServlet.CONTENT)) {
             showFileList(request, response, file.getUploadArchive());
-        } else if (login.equals(AdminServlet.CONTENT) && del!=null) {      // delete upload
+        } else if (login.equals(AdminLoginServlet.CONTENT) && del!=null) {      // delete upload
             file.deleteFile(new Integer(del));
             showFileList(request, response, file.getUploadArchive());
         }
     }
 
     public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Fileupload> uploads) throws ServletException, IOException {
-        request.getSession().setAttribute("login", AdminServlet.CONTENT);
+        request.getSession().setAttribute("login", AdminLoginServlet.CONTENT);
         LinkedHashMap<String, List<Fileupload>> content = new LinkedHashMap<>(uploads.size() * 2);
         LinkedHashMap<String, String> directories = new LinkedHashMap<>();
 
@@ -68,6 +72,6 @@ public class AdminContent extends HttpServlet {
         request.setAttribute("content", content);
         request.setAttribute("directories", directories);
         request.setAttribute(RequestToken.ID_NAME, null);
-        request.getRequestDispatcher(AdminServlet.MAN_CONTENT).forward(request, response);
+        request.getRequestDispatcher(AdminLoginServlet.MAN_CONTENT).forward(request, response);
     }
 }

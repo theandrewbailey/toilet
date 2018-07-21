@@ -41,6 +41,13 @@
             <type>java.lang.Boolean</type>
         </attribute>
         <attribute>
+            <description>target attribute</description>
+            <name>target</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
             <description>text displayed within tag</description>
             <name>text</name>
             <required>false</required>

@@ -14,42 +14,55 @@ import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import libOdyssey.bean.ExceptionRepo;
+import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.Markdowner;
 import libWebsiteTools.XmlNodeSearcher;
+import libWebsiteTools.file.Brotlier;
 import libWebsiteTools.file.Fileupload;
+import libWebsiteTools.file.Gzipper;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
+import toilet.ArticlePreProcessor;
 import toilet.UtilStatic;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Section;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
-import toilet.rss.MarkdownRssItem;
+import toilet.rss.ToiletRssItem;
 
 /**
  * so I can sleep at night, knowing my stuff is being backed up
@@ -63,7 +76,7 @@ public class BackupDaemon {
     public final static String MIMES_TXT = "mimes.txt";
     private final static String MASTER_DIR = "site_backup";
     private final static String CONTENT_DIR = "content";
-    private final static Logger log = Logger.getLogger(BackupDaemon.class.getName());
+    private final static Logger LOG = Logger.getLogger(BackupDaemon.class.getName());
     @EJB
     private EntryRepo entry;
     @EJB
@@ -71,11 +84,18 @@ public class BackupDaemon {
     @EJB
     private IMEADHolder imead;
     @EJB
-    private FileRepo file;
+    private FileRepo fileRepo;
     @EJB
     private UtilBean util;
-    @EJB
-    private Markdowner markdown;
+    @Resource
+    private ManagedExecutorService exec;
+
+    @PostConstruct
+    private void init() {
+        exec.submit(() -> {
+            return Markdowner.getHtml(BackupDaemon.class.getCanonicalName());
+        });
+    }
 
     /**
      * dumps articles, comments, and uploaded files to a directory (specified by
@@ -83,72 +103,151 @@ public class BackupDaemon {
      */
     @Schedule(hour = "1")
     public void backup() {
-        log.entering(BackupDaemon.class.getName(), "backup");
-        log.info("Backup procedure initiating");
+        LOG.entering(BackupDaemon.class.getName(), "backup");
+        LOG.info("Backup procedure initiating");
         imead.populateCache();
         entry.evict();
-        file.evict();
+        fileRepo.evict();
         String master = imead.getValue(MASTER_DIR);
         String content = master + CONTENT_DIR + File.separator;
         File contentDir = new File(content);
         if (!contentDir.exists()) {
             contentDir.mkdirs();
         }
-        List<Fileupload> dbfiles = file.getUploadArchive();
+        List<Fileupload> dbfiles = fileRepo.getUploadArchive();
         StringBuilder mimes = new StringBuilder(dbfiles.size() * 40);
 
         for (Fileupload f : dbfiles) {
             String fn = content + f.getFilename();
             try {   // file exists in db, different hash or file not backed up yet
-                log.log(Level.FINE, "Writing file {0}", f.getFilename());
+                LOG.log(Level.FINE, "Writing file {0}", f.getFilename());
                 writeFile(fn, f.getFiledata());
             } catch (IOException ex) {
-                log.log(Level.SEVERE, "Error writing " + f.getFilename(), ex);
+                LOG.log(Level.SEVERE, "Error writing " + f.getFilename(), ex);
                 error.add(null, "Backup failure", ex.getMessage() + ExceptionRepo.NEWLINE + "while backing up " + fn, null);
             }
             mimes.append(f.getFilename()).append(": ").append(f.getMimetype()).append('\n');
         }
 
         try {
-            log.log(Level.FINE, "Writing mimes.txt");
+            LOG.log(Level.FINE, "Writing mimes.txt");
             writeFile(master + MIMES_TXT, mimes.toString().getBytes("UTF-8"));
         } catch (IOException ex) {
-            log.log(Level.SEVERE, "Error writing mimes.txt", ex);
+            LOG.log(Level.SEVERE, "Error writing mimes.txt", ex);
         }
         try {
-            log.log(Level.FINE, "Writing Articles.rss");
+            LOG.log(Level.FINE, "Writing Articles.rss");
             writeFile(master + File.separator + ArticleRss.NAME, xmlToBytes(new ArticleRss().generateFeed(null)));
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Error writing Articles.rss to file", ex);
+        } catch (IOException ex) {
+            LOG.log(Level.SEVERE, "Error writing Articles.rss to file", ex);
         }
         try {
-            log.log(Level.FINE, "Writing Comments.rss");
+            LOG.log(Level.FINE, "Writing Comments.rss");
             writeFile(master + File.separator + CommentRss.NAME, xmlToBytes(new CommentRss().generateFeed(null)));
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Error writing Comments.rss to file", ex);
+        } catch (IOException ex) {
+            LOG.log(Level.SEVERE, "Error writing Comments.rss to file", ex);
         }
-        log.info("Backup procedure finished");
-        log.exiting(BackupDaemon.class.getName(), "backup");
+        LOG.info("Backup procedure finished");
+        LOG.exiting(BackupDaemon.class.getName(), "backup");
         backupToZip();
     }
 
     public void restoreFromZip(ZipInputStream zip) throws Exception {
-        InputStream articleStream = null;
-        InputStream commentStream = null;
-        HashMap<String, String> mimes = new HashMap<>(100);
-        ArrayList<Fileupload> files = new ArrayList<>(100);
-        //ScriptEngineManager manager = new ScriptEngineManager();
-        //ScriptEngine engine = null;
+        HashMap<String, String> mimes = new HashMap<>(1000);
+        final Map<Article, String> articles = Collections.synchronizedMap(new LinkedHashMap<>());
+        final Map<Comment, Integer> comments = Collections.synchronizedMap(new LinkedHashMap<>());
+        final Deque<Future> threadedTasks = new ConcurrentLinkedDeque<>();
         for (ZipEntry zipEntry = zip.getNextEntry(); zipEntry != null; zipEntry = zip.getNextEntry()) {
             if (zipEntry.isDirectory()) {
                 continue;
             }
+            LOG.log(Level.INFO, "Processing file: {0}", zipEntry.getName());
             switch (zipEntry.getName()) {
                 case ArticleRss.NAME:
-                    articleStream = new ByteArrayInputStream(getByteArray(zip));
+                    final InputStream articleStream = new ByteArrayInputStream(getByteArray(zip));
+                    threadedTasks.add(exec.submit(() -> {
+                        {
+                            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                            dbf.setIgnoringElementContentWhitespace(true);
+                            Element articleRoot = dbf.newDocumentBuilder().parse(articleStream).getDocumentElement();
+                            for (Node item : new XmlNodeSearcher(articleRoot.getFirstChild(), "item")) {
+                                Article article = new Article(articles.size() + 1);
+                                article.setComments(Boolean.FALSE);
+                                for (Node component : new XmlNodeSearcher(item, "title")) {
+                                    String[] parts = component.getTextContent().split(": ", 2);
+                                    article.setArticletitle(parts.length == 2 ? parts[1] : imead.getValue(EntryRepo.DEFAULT_CATEGORY));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "pubDate")) {
+                                    article.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent()));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "category")) {
+                                    article.setSectionid(new Section(null, component.getTextContent()));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "link")) {
+                                    article.setEtag(component.getTextContent());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "comments")) {
+                                    article.setComments(Boolean.TRUE);
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "author")) {
+                                    article.setPostedname(component.getTextContent());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, ToiletRssItem.TAB_METADESC_ELEMENT_NAME)) {
+                                    try {
+                                        article.setDescription(URLDecoder.decode(component.getTextContent(), "UTF-8"));
+                                    } catch (UnsupportedEncodingException enc) {
+                                        throw new JVMNotSupportedError(enc);
+                                    }
+                                }
+                                for (Node component : new XmlNodeSearcher(item, ToiletRssItem.MARKDOWN_ELEMENT_NAME)) {
+                                    article.setPostedmarkdown(component.getTextContent());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "description")) {
+                                    article.setPostedhtml(component.getTextContent());
+                                }
+                                article.setCommentCollection(null);
+                                String section = article.getSectionid() != null ? article.getSectionid().getName() : imead.getValue(EntryRepo.DEFAULT_CATEGORY);
+                                articles.put(article, section);
+                            }
+                            ArrayList<Article> processed = new ArrayList<>(articles.keySet());
+                            Collections.reverse(processed);
+                            int count = 0;
+                            for (Article a : processed) {
+                                a.setArticleid(++count);
+                            }
+                            return articles;
+                        }
+                    }));
                     break;
                 case CommentRss.NAME:
-                    commentStream = new ByteArrayInputStream(getByteArray(zip));
+                    final InputStream commentStream = new ByteArrayInputStream(getByteArray(zip));
+                    threadedTasks.add(exec.submit(() -> {
+                        {
+                            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                            dbf.setIgnoringElementContentWhitespace(true);
+                            Element commentRoot = dbf.newDocumentBuilder().parse(commentStream).getDocumentElement();
+                            for (Node item : new XmlNodeSearcher(commentRoot.getFirstChild(), "item")) {
+                                Comment comm = new Comment(comments.size() + 1);
+                                for (Node component : new XmlNodeSearcher(item, "description")) {
+                                    comm.setPostedhtml(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "pubDate")) {
+                                    comm.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent()));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "author")) {
+                                    comm.setPostedname(component.getTextContent());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "link")) {
+                                    comments.put(comm, Integer.decode(StateCache.getArticleIdFromURI(component.getTextContent())));
+                                    break;
+                                }
+                            }
+                            for (Comment c : comments.keySet()) {
+                                c.setCommentid(null);
+                            }
+                            return comments;
+                        }
+                    }));
                     break;
                 case BackupDaemon.MIMES_TXT:
                     String mimeString = new String(getByteArray(zip));
@@ -161,122 +260,83 @@ public class BackupDaemon {
                     }
                     break;
                 default:
-                    Fileupload fileUpload = new Fileupload();
-                    fileUpload.setAtime(new Date(zipEntry.getTime()));
-                    fileUpload.setFiledata(getByteArray(zip));
-                    fileUpload.setEtag(HashUtil.getHashAsBase64(fileUpload.getFiledata()));
-                    fileUpload.setFilename(zipEntry.getName().replace("content/", ""));
-                    fileUpload.setMimetype("application/octet-stream");
-                    files.add(fileUpload);
+                    Fileupload incomingFile = new Fileupload();
+                    incomingFile.setAtime(new Date(zipEntry.getTime()));
+                    incomingFile.setFilename(zipEntry.getName().replace("content/", ""));
+                    incomingFile.setFiledata(getByteArray(zip));
+                    threadedTasks.add(exec.submit(() -> {
+                        {
+                            incomingFile.setMimetype("application/octet-stream");
+                            incomingFile.setUrl(imead.getValue(GuardHolder.CANONICAL_URL) + "/content/" + incomingFile.getFilename());
+                            incomingFile.setEtag(HashUtil.getHashAsBase64(incomingFile.getFiledata()));
+                            if (mimes.containsKey(incomingFile.getFilename())) {
+                                incomingFile.setMimetype(mimes.get(incomingFile.getFilename()));
+                            }
+                            Fileupload existingFile = fileRepo.getFile(incomingFile.getFilename());
+                            if (null == existingFile) {
+                                fileRepo.addFiles(Arrays.asList(incomingFile));
+                            } else if (!incomingFile.getEtag().equals(existingFile.getEtag())) {
+                                fileRepo.deleteFile(existingFile.getFileuploadid());
+                                LOG.log(Level.INFO, "Existing file different, updating {0}", incomingFile.getFilename());
+                                fileRepo.addFiles(Arrays.asList(incomingFile));
+                            }
+                            return incomingFile;
+                        }
+                    }));
                     break;
             }
         }
         zip.close();
-        for (Fileupload fileupload : new ArrayList<>(files)) {
-            if (mimes.containsKey(fileupload.getFilename())) {
-                fileupload.setMimetype(mimes.get(fileupload.getFilename()));
-            }
-            Fileupload existing = file.getFile(fileupload.getFilename());
-            if (null != existing && !fileupload.getEtag().equals(existing.getEtag())
-                    && !fileupload.getMimetype().equals(existing.getMimetype())) {
-                file.deleteFile(existing.getFileuploadid());
-            } else {
-                // identical file exists: do nothing.
-                files.remove(fileupload);
-            }
-        }
-        file.addFiles(files);
-
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setIgnoringElementContentWhitespace(true);
-        Element articleRoot = dbf.newDocumentBuilder().parse(articleStream).getDocumentElement();
-        LinkedHashMap<Article, String> articles = new LinkedHashMap<>();
-        LinkedHashMap<Comment, Integer> comments = new LinkedHashMap<>();
-        for (Node item : new XmlNodeSearcher(articleRoot.getFirstChild(), "item")) {
-            Article article = new Article(articles.size() + 1);
-            article.setComments(Boolean.FALSE);
-            for (Node component : new XmlNodeSearcher(item, "title")) {
-                String[] parts = component.getTextContent().split(": ", 2);
-                article.setArticletitle(parts.length == 2 ? parts[1] : imead.getValue(EntryRepo.DEFAULT_CATEGORY));
-            }
-            for (Node component : new XmlNodeSearcher(item, "pubDate")) {
-                article.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent()));
-            }
-            for (Node component : new XmlNodeSearcher(item, "category")) {
-                article.setSectionid(new Section(null, component.getTextContent()));
-            }
-            for (Node component : new XmlNodeSearcher(item, "link")) {
-                article.setEtag(component.getTextContent());
-            }
-            for (Node component : new XmlNodeSearcher(item, "comments")) {
-                article.setComments(Boolean.TRUE);
-            }
-            for (Node component : new XmlNodeSearcher(item, "author")) {
-                article.setPostedname(component.getTextContent());
-            }
-            for (Node component : new XmlNodeSearcher(item, "guid")) {
-                try {
-                    article.setDescription(URLDecoder.decode(component.getTextContent(), "UTF-8"));
-                } catch (UnsupportedEncodingException enc) {
-                    throw new JVMNotSupportedError(enc);
+        UtilStatic.finish(threadedTasks).clear();
+        exec.submit(() -> {
+            {
+                for (String filename : mimes.keySet()) {
+                    Fileupload file = fileRepo.getFile(filename);
+                    if (null != file && null == file.getMimetype()) {
+                        file.setMimetype(mimes.get(filename));
+                        fileRepo.upsertFiles(Arrays.asList(file));
+                    }
                 }
+                return mimes;
             }
-            for (Node component : new XmlNodeSearcher(item, MarkdownRssItem.FULL_ELEMENT_NAME)) {
-                article.setPostedmarkdown(component.getTextContent());
-            }
-            for (Node component : new XmlNodeSearcher(item, "description")) {
-                article.setPostedhtml(component.getTextContent());
-            }
-
+        });
+        for (Article article : articles.keySet()) {
             // conversion
-            if (article.getPostedhtml() == null || article.getPostedmarkdown() == null) {
-                if (article.getPostedmarkdown() != null) {
-                    article.setPostedhtml(markdown.getHtml(article.getPostedmarkdown()));
-                    log.log(Level.INFO, "The HTML for article {0} had to be generated from markdown.", article.getArticletitle());
-                } else if (article.getPostedhtml() != null) {
-                    article.setPostedmarkdown(markdown.getMarkdown(article.getPostedhtml()));
-                    log.log(Level.INFO, "The markdown for article {0} had to be generated from HTML.", article.getArticletitle());
-                } else {
-                    log.log(Level.INFO, "The text for article {0} cannot be recovered.", article.getArticletitle());
-                }
-            }
-            article.setCommentCollection(null);
-            String section = article.getSectionid() != null ? article.getSectionid().getName() : imead.getValue(EntryRepo.DEFAULT_CATEGORY);
-            articles.put(article, section);
-        }
-
-        dbf.setIgnoringElementContentWhitespace(true);
-        Element commentRoot = dbf.newDocumentBuilder().parse(commentStream).getDocumentElement();
-        for (Node item : new XmlNodeSearcher(commentRoot.getFirstChild(), "item")) {
-            Comment comm = new Comment(comments.size() + 1);
-            for (Node component : new XmlNodeSearcher(item, "description")) {
-                comm.setPostedhtml(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
-            }
-            for (Node component : new XmlNodeSearcher(item, "pubDate")) {
-                comm.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent()));
-            }
-            for (Node component : new XmlNodeSearcher(item, "author")) {
-                comm.setPostedname(component.getTextContent());
-            }
-            for (Node component : new XmlNodeSearcher(item, "link")) {
-                comments.put(comm, Integer.decode(StateCache.getArticleIdFromURI(component.getTextContent())));
-                break;
+            if (null != article.getPostedmarkdown()) {
+                ArticlePreProcessor converter = new ArticlePreProcessor(article, imead, fileRepo);
+                threadedTasks.add(exec.submit(converter));
+            } else if (null != article.getPostedhtml()) {
+                threadedTasks.add(exec.submit(() -> {
+                    article.setPostedmarkdown(Markdowner.getMarkdown(article.getPostedhtml()));
+                    new ArticlePreProcessor(article, imead, fileRepo).call();
+                }));
+                LOG.log(Level.INFO, "The markdown for article {0} had to be generated from HTML.", article.getArticletitle());
+            } else {
+                LOG.log(Level.INFO, "The text for article {0} cannot be recovered.", article.getArticletitle());
             }
         }
-
-        articles = UtilStatic.reverse(articles);
-        for (Article a : articles.keySet()) {
-            a.setArticleid(null);
+        if (!articles.isEmpty()) {
+            entry.deleteEverything();
+            UtilStatic.finish(threadedTasks).clear();
+            for (Article article : articles.keySet()) {
+                article.setArticleid(null);
+            }
+            entry.addArticles(UtilStatic.reverse(articles));
+            if (!comments.isEmpty()) {
+                entry.addComments(comments);
+            }
         }
-        for (Comment c : comments.keySet()) {
-            c.setCommentid(null);
-        }
-
-        entry.deleteEverything();
-        entry.addArticles(articles);
-        entry.addComments(comments);
         util.resetArticleFeed();
         util.resetCommentFeed();
+        exec.submit(() -> {
+            {
+                for (String filename : mimes.keySet()) {
+                    Fileupload file = fileRepo.getFile(filename);
+                    exec.submit(new Brotlier(file));
+                    exec.submit(new Gzipper(file));
+                }
+            }
+        });
     }
 
     /**
@@ -287,19 +347,19 @@ public class BackupDaemon {
      * @see BackupDaemon.generateZip(OutputStream wrapped)
      */
     public void backupToZip() {
-        log.entering(BackupDaemon.class.getName(), "backupToZip");
-        log.info("Backup to zip procedure initiating");
+        LOG.entering(BackupDaemon.class.getName(), "backupToZip");
+        LOG.info("Backup to zip procedure initiating");
         String master = imead.getValue(MASTER_DIR);
         String zipName = getZipName();
         String fn = master + zipName;
         try (FileOutputStream out = new FileOutputStream(fn)) {
             generateZip(out);
-            log.info("Backup to zip procedure finished");
+            LOG.info("Backup to zip procedure finished");
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Error writing zip file: " + fn, ex);
+            LOG.log(Level.SEVERE, "Error writing zip file: " + fn, ex);
             error.add(null, "Backup failure", ex.getMessage() + ExceptionRepo.NEWLINE + "while backing up " + fn, null);
         }
-        log.exiting(BackupDaemon.class.getName(), "backupToZip");
+        LOG.exiting(BackupDaemon.class.getName(), "backupToZip");
     }
 
     /**
@@ -313,34 +373,55 @@ public class BackupDaemon {
      */
     public void generateZip(OutputStream wrapped) throws IOException {
         String contentDir = CONTENT_DIR + "/";
-        List<Fileupload> dbfiles = file.getUploadArchive();
         List<String> directories = new ArrayList<>();
-        ZipOutputStream zip = new ZipOutputStream(wrapped);
-        StringBuilder mimes = new StringBuilder(dbfiles.size() * 40);
-        long time = new Date().getTime();
 
-        addEntryToZip(zip, ArticleRss.NAME, "text/xml", time, xmlToBytes(new ArticleRss().generateFeed(null)));
-        addEntryToZip(zip, CommentRss.NAME, "text/xml", time, xmlToBytes(new CommentRss().generateFeed(null)));
-        for (Fileupload upload : dbfiles) {
-            String insideFilename = contentDir + upload.getFilename();
-            String[] dirs = insideFilename.split("/");
-            dirs = Arrays.copyOf(dirs, dirs.length - 1);
-            StringBuilder subdir = new StringBuilder();
-            for (String d : dirs) {
-                subdir.append(d).append("/");
-                if (!directories.contains(subdir.toString())) {
-                    zip.putNextEntry(new ZipEntry(subdir.toString()));
-                    zip.closeEntry();
-                    directories.add(subdir.toString());
-                }
+        Future<byte[]> articleRss = exec.submit(() -> {
+            {
+                return xmlToBytes(new ArticleRss().generateFeed(null));
             }
+        });
+        Future<byte[]> commentRss = exec.submit(() -> {
+            {
+                return xmlToBytes(new CommentRss().generateFeed(null));
+            }
+        });
+        StringBuilder mimes = new StringBuilder(1048576);
+        Future<List<Fileupload>> files = exec.submit(() -> {
+            {
+                List<Fileupload> dbfiles = fileRepo.getUploadArchive();
+                for (Fileupload f : dbfiles) {
+                    mimes.append(f.getFilename()).append(": ").append(f.getMimetype()).append('\n');
+                }
+                return dbfiles;
+            }
+        });
 
-            addEntryToZip(zip, insideFilename, upload.getMimetype(), upload.getAtime().getTime(), upload.getFiledata());
-            mimes.append(upload.getFilename()).append(": ").append(upload.getMimetype()).append('\n');
+        try (ZipOutputStream zip = new ZipOutputStream(wrapped)) {
+            long time = new Date().getTime();
+
+            addEntryToZip(zip, ArticleRss.NAME, "text/xml", time, articleRss.get());
+            addEntryToZip(zip, CommentRss.NAME, "text/xml", time, commentRss.get());
+            files.get();
+            addEntryToZip(zip, MIMES_TXT, "text/plain", time, mimes.toString().getBytes("UTF-8"));
+            for (Fileupload upload : files.get()) {
+                String insideFilename = contentDir + upload.getFilename();
+                String[] dirs = insideFilename.split("/");
+                dirs = Arrays.copyOf(dirs, dirs.length - 1);
+                StringBuilder subdir = new StringBuilder();
+                for (String d : dirs) {
+                    subdir.append(d).append("/");
+                    if (!directories.contains(subdir.toString())) {
+                        zip.putNextEntry(new ZipEntry(subdir.toString()));
+                        zip.closeEntry();
+                        directories.add(subdir.toString());
+                    }
+                }
+                addEntryToZip(zip, insideFilename, upload.getMimetype(), upload.getAtime().getTime(), upload.getFiledata());
+                mimes.append(upload.getFilename()).append(": ").append(upload.getMimetype()).append('\n');
+            }
+        } catch (InterruptedException | ExecutionException ex) {
+            LOG.log(Level.SEVERE, null, ex);
         }
-        addEntryToZip(zip, MIMES_TXT, "text/plain", time, mimes.toString().getBytes("UTF-8"));
-
-        zip.close();
     }
 
     /**
@@ -353,8 +434,7 @@ public class BackupDaemon {
     }
 
     /**
-     * adds a file to the given ZIP stream will compress file if mimetype starts
-     * with "text/"
+     * adds a file to the given ZIP stream
      *
      * @param zip zip stream
      * @param name of file
@@ -365,16 +445,6 @@ public class BackupDaemon {
      */
     private void addEntryToZip(ZipOutputStream zip, String name, String mime, long time, byte[] content) throws IOException {
         ZipEntry out = new ZipEntry(name);
-        // dynamic compression ( setMethod(ZipEntry.DEFLATED) means everything is compressed)
-//        boolean compressed = mime.startsWith("text/");
-//        out.setMethod(compressed ? ZipEntry.DEFLATED : ZipEntry.STORED);
-//        if (!compressed) {
-//            CRC32 checksum = new CRC32();
-//            checksum.update(content);
-//            out.setCrc(checksum.getValue());
-//            out.setCompressedSize(content.length);
-//            out.setSize(content.length);
-//        }
         out.setMethod(ZipEntry.DEFLATED);
         out.setTime(time);
         zip.putNextEntry(out);
@@ -426,14 +496,14 @@ public class BackupDaemon {
             }
             f.createNewFile();
         }
-        FileOutputStream tempStr = new FileOutputStream(f, false);
-        tempStr.write(content);
-        tempStr.close();
+        try (FileOutputStream tempStr = new FileOutputStream(f, false)) {
+            tempStr.write(content);
+        }
     }
 
     private byte[] getByteArray(InputStream in) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] buf = new byte[4096];
+        byte[] buf = new byte[65536];
         int read;
         while ((read = in.read(buf)) != -1) {
             baos.write(buf, 0, read);

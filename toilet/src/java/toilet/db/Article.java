@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package toilet.db;
 
 import java.io.Serializable;
@@ -26,30 +21,34 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "article", schema = "toilet")
-@XmlRootElement
+@Table(name = "article", catalog = "toilet", schema = "toilet")
 @NamedQueries({
-    @NamedQuery(name = "Article.findAllDesc", query = "SELECT a FROM Article a ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.findAllAsc", query = "SELECT a FROM Article a ORDER BY a.posted ASC"),
-    @NamedQuery(name = "Article.findByArticleid", query = "SELECT a FROM Article a WHERE a.articleid = :articleid"),
-    @NamedQuery(name = "Article.findByArticletitle", query = "SELECT a FROM Article a WHERE a.articletitle = :articletitle"),
-    @NamedQuery(name = "Article.findByEtag", query = "SELECT a FROM Article a WHERE a.etag = :etag"),
-    @NamedQuery(name = "Article.findByModified", query = "SELECT a FROM Article a WHERE a.modified = :modified"),
-    @NamedQuery(name = "Article.findByPosted", query = "SELECT a FROM Article a WHERE a.posted = :posted"),
-    @NamedQuery(name = "Article.findByPostedhtml", query = "SELECT a FROM Article a WHERE a.postedhtml = :postedhtml"),
-    @NamedQuery(name = "Article.findByPostedmarkdown", query = "SELECT a FROM Article a WHERE a.postedmarkdown = :postedmarkdown"),
-    @NamedQuery(name = "Article.findByPostedname", query = "SELECT a FROM Article a WHERE a.postedname = :postedname"),
-    @NamedQuery(name = "Article.findByComments", query = "SELECT a FROM Article a WHERE a.comments = :comments"),
-    @NamedQuery(name = "Article.findByDescription", query = "SELECT a FROM Article a WHERE a.description = :description")})
+    @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findBySection", query = "SELECT a FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.countArticles", query = "SELECT COUNT(a) FROM Article a"),
+    @NamedQuery(name = "Article.countArticlesBySection", query = "SELECT COUNT(a) FROM Article a WHERE a.sectionid.name=:section")})
 public class Article implements Serializable {
+
+    /**
+     * @return the searchabletext
+     */
+    public String getSearchabletext() {
+        return searchabletext;
+    }
+
+    /**
+     * @param searchabletext the searchabletext to set
+     */
+    public void setSearchabletext(String searchabletext) {
+        this.searchabletext = searchabletext;
+    }
+
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -86,6 +85,12 @@ public class Article implements Serializable {
     @Size(min = 1, max = 2147483647)
     @Column(name = "postedmarkdown", nullable = false, length = 2147483647)
     private String postedmarkdown;
+    @Size(min = 1, max = 2147483647)
+    @Column(name = "postedamp", nullable = false, length = 2147483647)
+    private String postedamp;
+    @Size(min = 1, max = 2147483647)
+    @Column(name = "searchabletext", nullable = false, length = 2147483647)
+    private String searchabletext;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 250)
@@ -96,12 +101,21 @@ public class Article implements Serializable {
     @Size(max = 1000)
     @Column(name = "description", length = 1000)
     private String description;
-    @JoinColumn(name = "sectionid", referencedColumnName = "sectionid", nullable = false)
-    @ManyToOne(optional = false)
-    private Section sectionid;
+    @Size(max = 1000)
+    @Column(name = "imageurl", length = 1000)
+    private String imageurl;
+    @Size(max = 65000)
+    @Column(name = "summary", length = 65000)
+    private String summary;
+    @Size(max = 1000)
+    @Column(name = "url", length = 1000)
+    private String url;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "articleid")
     @OrderBy("posted ASC")
     private Collection<Comment> commentCollection;
+    @JoinColumn(name = "sectionid", referencedColumnName = "sectionid", nullable = false)
+    @ManyToOne(optional = false)
+    private Section sectionid;
 
     public Article() {
     }
@@ -201,15 +215,30 @@ public class Article implements Serializable {
         this.description = description;
     }
 
-    public Section getSectionid() {
-        return sectionid;
+    public String getImageurl() {
+        return imageurl;
     }
 
-    public void setSectionid(Section sectionid) {
-        this.sectionid = sectionid;
+    public void setImageurl(String imageurl) {
+        this.imageurl = imageurl;
     }
 
-    @XmlTransient
+    public String getSummary() {
+        return summary;
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
     public Collection<Comment> getCommentCollection() {
         return commentCollection;
     }
@@ -218,10 +247,19 @@ public class Article implements Serializable {
         this.commentCollection = commentCollection;
     }
 
+    public Section getSectionid() {
+        return sectionid;
+    }
+
+    public void setSectionid(Section sectionid) {
+        this.sectionid = sectionid;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
         hash += (articleid != null ? articleid.hashCode() : 0);
+        hash += (etag != null ? etag.hashCode() : 0);
         return hash;
     }
 
@@ -232,15 +270,26 @@ public class Article implements Serializable {
             return false;
         }
         Article other = (Article) object;
-        if ((this.articleid == null && other.articleid != null) || (this.articleid != null && !this.articleid.equals(other.articleid))) {
-            return false;
-        }
-        return true;
+        return !((this.articleid == null && other.articleid != null) || (this.articleid != null && !this.articleid.equals(other.articleid)) || (this.etag != null && !this.etag.equals(other.etag)));
     }
 
     @Override
     public String toString() {
-        return "toilet.db.Article[ articleid=" + articleid + " ]";
+        return "toilet.db.Article, id:" + articleid + ", title: " + articletitle;
     }
-    
+
+    /**
+     * @return the postedamp
+     */
+    public String getPostedamp() {
+        return postedamp;
+    }
+
+    /**
+     * @param postedamp the postedamp to set
+     */
+    public void setPostedamp(String postedamp) {
+        this.postedamp = postedamp;
+    }
+
 }

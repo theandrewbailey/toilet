@@ -1,42 +1,64 @@
 package toilet;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.ListIterator;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.servlet.http.HttpServletResponse;
+import libOdyssey.bean.ExceptionRepo;
 
 public final class UtilStatic {
 
-    private static final Logger logger = Logger.getLogger(UtilStatic.class.getName());
+    private static final Logger LOG = Logger.getLogger(UtilStatic.class.getName());
+    public static final Date EPOCH = new Date(0);
+    public static final Pattern GENERAL_VALIDATION = Pattern.compile("^[\\x0A\\x0D\\x20-\\x7E\\u00A1-\\u052F]*$");
 
     public UtilStatic() {
         throw new UnsupportedOperationException("You cannot instantiate this class");
     }
 
-    // try to NOT use this
+    // try to NOT use this, it's not fast
     @SuppressWarnings("unchecked")
     public static <T> T getBean(String name, Class<T> type) {
         try {
             return (T) new InitialContext().lookup(name);
         } catch (NamingException n) {
-            logger.log(Level.SEVERE, "Attempted to look up invalid bean, name:" + name + " type:" + type.getName(), n);
+            LOG.log(Level.SEVERE, "Attempted to look up invalid bean, name:" + name + " type:" + type.getName(), n);
             throw new RuntimeException(n);
         }
     }
 
-    public static <K, V> LinkedHashMap<K, V> reverse(LinkedHashMap<K, V> input) {
-        ArrayList<K> keys = new ArrayList<>(input.keySet());
-        ListIterator<K> li = keys.listIterator(keys.size());
+    public static <K, V> LinkedHashMap<K, V> reverse(Map<K, V> input) {
+        ArrayList<Map.Entry<K, V>> keys = new ArrayList<>(input.entrySet());
+        ListIterator<Map.Entry<K, V>> li = keys.listIterator(keys.size());
         LinkedHashMap<K, V> output = new LinkedHashMap<>(input.size());
         while (li.hasPrevious()) {
-            K key = li.previous();
-            output.put(key, input.get(key));
+            Map.Entry<K, V> entry = li.previous();
+            output.put(entry.getKey(), entry.getValue());
         }
         return output;
+    }
+
+    public static Collection<Future> finish(Collection<Future> these) {
+        for (Future task : these) {
+            try {
+                task.get();
+            } catch (InterruptedException | ExecutionException ex) {
+                LOG.log(Level.SEVERE, "Tried to finish a bunch of jobs, but couldn't.", ex);
+                getBean(ExceptionRepo.LOCAL_NAME, ExceptionRepo.class).add(null, "Multithread Exception", "Tried to finish a bunch of jobs, but couldn't.", ex);
+                throw new RuntimeException(ex);
+            }
+        }
+        return these;
     }
 
     /**

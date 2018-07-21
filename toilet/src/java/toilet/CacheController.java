@@ -12,6 +12,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.HttpHeaders;
 import libOdyssey.bean.ExceptionRepo;
 
 /**
@@ -20,9 +21,13 @@ import libOdyssey.bean.ExceptionRepo;
  */
 @WebFilter(description = "Inserts Cache-Control header", filterName = "CacheControl", dispatcherTypes = {DispatcherType.REQUEST}, urlPatterns = {"/*"})
 public class CacheController implements Filter {
-    @EJB private ExceptionRepo error;
+
+    @EJB
+    private ExceptionRepo error;
+
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException { }
+    public void init(FilterConfig filterConfig) throws ServletException {
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
@@ -30,9 +35,9 @@ public class CacheController implements Filter {
         HttpServletResponse res = (HttpServletResponse) response;
         String URI = req.getRequestURI();
         if (URI.contains("/admin") || URI.endsWith("/riddle.jsp")) {
-            res.setHeader("Cache-Control", "private no-store");
+            res.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
         } else {
-            res.setHeader("Cache-Control", "private must-revalidate max-age=3600");
+            res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=200000");
         }
         try {
             chain.doFilter(request, response);
@@ -43,5 +48,6 @@ public class CacheController implements Filter {
     }
 
     @Override
-    public void destroy() { }
+    public void destroy() {
+    }
 }

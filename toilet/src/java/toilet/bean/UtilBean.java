@@ -1,12 +1,15 @@
 package toilet.bean;
 
+import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import javax.annotation.Resource;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
+import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import libOdyssey.bean.GuardHolder;
@@ -31,7 +34,7 @@ public class UtilBean {
     public static final String COPYRIGHT = "rss_copyright";
     public static final String LANGUAGE = "rss_language";
     public static final String MASTER = "rss_master";
-    private static final Logger log = Logger.getLogger(UtilBean.class.getName());
+    private static final Logger LOG = Logger.getLogger(UtilBean.class.getName());
     @PersistenceUnit
     private EntityManagerFactory toiletPU;
     @EJB
@@ -44,18 +47,15 @@ public class UtilBean {
     private GuardHolder guard;
     @EJB
     private StateCache cache;
+    @Resource
+    private ManagedExecutorService exec;
 
     @PostConstruct
     public void init() {
-        log.entering(UtilBean.class.getName(), "init");
-
-        try {
-            resetArticleFeed();
-            resetCommentFeed();
-        } catch (NullPointerException ex) {
-        }
-
-        log.exiting(UtilBean.class.getName(), "init");
+        LOG.entering(UtilBean.class.getName(), "init");
+        resetArticleFeed();
+        resetCommentFeed();
+        LOG.exiting(UtilBean.class.getName(), "init");
     }
 
     /**
@@ -63,31 +63,42 @@ public class UtilBean {
      * be run at start up.
      */
     public void resetEverything() {
-        log.entering(UtilBean.class.getName(), "resetEverything");
+        LOG.entering(UtilBean.class.getName(), "resetEverything");
         toiletPU.getCache().evictAll();
         imead.populateCache();
         cache.reset();
         init();
-        backup.backup();
         guard.refresh();
-        try {
-            // mbe not such a good idea...
-            src.getFeed("Spruce.rss").preAdd();
-        } catch (NullPointerException n) {
-        }
-        log.exiting(UtilBean.class.getName(), "resetEverything");
+        exec.submit(() -> {
+            {
+                backup.backup();
+                src.getFeed(SpruceGenerator.SPRUCE_FEED_NAME).preAdd();
+                return true;
+            }
+        });
+        LOG.exiting(UtilBean.class.getName(), "resetEverything");
     }
 
     public synchronized void resetArticleFeed() {
-        src.getFeed(ArticleRss.NAME).preAdd();
+        exec.submit(() -> {
+            {
+                src.getFeed(ArticleRss.NAME).preAdd();
+                return true;
+            }
+        });
     }
 
     public synchronized void resetCommentFeed() {
-        src.getFeed(CommentRss.NAME).preAdd();
+        exec.submit(() -> {
+            {
+                src.getFeed(CommentRss.NAME).preAdd();
+                return true;
+            }
+        });
     }
 
     @PreDestroy
-    private void destroy() {
-        log.info("UtilBean destroyed");
+    public void destroy() {
+        LOG.info("UtilBean destroyed");
     }
 }

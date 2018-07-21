@@ -7,7 +7,6 @@ import java.util.List;
 import javax.ejb.EJB;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.NullWriter;
 
 /**

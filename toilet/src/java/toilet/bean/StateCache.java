@@ -6,8 +6,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -21,6 +23,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import libOdyssey.bean.GuardHolder;
+import libWebsiteTools.HashCache;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.sitemap.ChangeFreq;
@@ -42,13 +45,14 @@ public class StateCache implements Iterable<UrlMap> {
     public static final String LOCAL_NAME = "java:module/StateCache";
     public static final String PPP = "index_ppp";
     public static final String PAC = "index_pac";
-    public static final Pattern INDEX_PATTERN = Pattern.compile(".*?/index/(?:(\\D*)/)?([0-9]*)(?:\\?.*)?$");
-    public static final Pattern ARTICLE_PATTERN = Pattern.compile(".*?/article/([0-9]*)(?:/[\\w\\-\\.\\(\\)\\[\\]\\{\\}\\+,%_]*/?)?(?:\\?.*)?(?:#\\d*)?$");
+    public static final Pattern INDEX_PATTERN = Pattern.compile(".*?/index(?:/(\\D*?))?(?:/([0-9]*)(?:\\?.*)?)?$");
+    public static final Pattern ARTICLE_PATTERN = Pattern.compile(".*?/(?:(?:article)|(?:comments)|(?:amp))/([0-9]*)(?:/[\\w\\-\\.\\(\\)\\[\\]\\{\\}\\+,%_]*/?)?(?:\\?.*)?(?:#.*)?$");
     private int pagesAroundCurrent = 3;
     private int postsPerPage = 5;
-    private String canonicalUrl ;
+    private String canonicalUrl;
     private volatile List<String> categories;
     private final AtomicReference<List<UrlMap>> urlMap = new AtomicReference<>();
+    private HashMap<String, String> etags;
     @PersistenceUnit
     private EntityManagerFactory toiletPU;
     @EJB
@@ -62,12 +66,12 @@ public class StateCache implements Iterable<UrlMap> {
     private void init() {
         siteMaster.addSource(this);
         reset();
+        clearEtags();
     }
 
+    @SuppressWarnings("unchecked")
     public synchronized void reset() {
         entry.evict();
-        categories = new ArrayList<>();
-        getArticleCategories();
         urlMap.set(null);
         // pagination params
         if (imead.getValue(PPP) != null) {
@@ -77,34 +81,55 @@ public class StateCache implements Iterable<UrlMap> {
             pagesAroundCurrent = Integer.parseInt(imead.getValue(PAC));
         }
         canonicalUrl = imead.getValue(GuardHolder.CANONICAL_URL);
+        EntityManager em = toiletPU.createEntityManager();
+        try {
+            List<Object[]> sectionsByArticlesPosted = em.createNamedQuery("Section.byArticlesPosted").getResultList();
+            double now = new Date().getTime();
+            TreeMap<Double, String> popularity = new TreeMap<>();
+            Long ameleration = (new Date().getTime() - ((Date) sectionsByArticlesPosted.get(0)[1]).getTime()) / 2;
+            for (Object[] data : sectionsByArticlesPosted) {
+                // score = average posts per year since category first started
+                double score = ((Long) data[2]).doubleValue() / Math.pow((now - ((Date) data[1]).getTime() + ameleration) / 31556736.0, 1.8);
+                popularity.put(score, data[0].toString());
+            }
+            ArrayList<String> cateTemp = new ArrayList<>(popularity.values());
+            cateTemp.remove(imead.getValue(EntryRepo.DEFAULT_CATEGORY));
+            Collections.reverse(cateTemp);
+            categories = Collections.unmodifiableList(cateTemp);
+        } catch (ArrayIndexOutOfBoundsException ex) {
+            categories = new ArrayList<>();
+        } finally {
+            em.close();
+        }
     }
 
     /**
      * @return list of all groups (categories)
      */
-    public synchronized List<String> getArticleCategories() {
-        if (null == categories || categories.isEmpty()) {
-            EntityManager em = toiletPU.createEntityManager();
-            try {
-                List<String> cateTemp = em.createQuery("SELECT a.sectionid.name FROM Article a GROUP BY a.sectionid.name ORDER BY COUNT(a.sectionid.name)", String.class).getResultList();
-                List<Long> cateCount = em.createQuery("SELECT count(a.sectionid.name) FROM Article a GROUP BY a.sectionid.name ORDER BY COUNT(a.sectionid.name)", Long.class).getResultList();
-                List<Date> cateDate = em.createQuery("SELECT min(a.posted) FROM Article a GROUP BY a.sectionid.name ORDER BY COUNT(a.sectionid.name)", Date.class).getResultList();
-                double now = new Date().getTime();
-                TreeMap<Double, String> popularity = new TreeMap<>();
-                for (int i = 0; i < cateTemp.size(); i++) {
-                    // score = average posts per year since category first started
-                    double score = cateCount.get(i).doubleValue() / ((now - cateDate.get(i).getTime()) / 31556736.0);
-                    popularity.put(score, cateTemp.get(i));
-                }
-                cateTemp = new ArrayList<>(popularity.values());
-                cateTemp.remove(imead.getValue(EntryRepo.DEFAULT_CATEGORY));
-                Collections.reverse(cateTemp);
-                categories = Collections.unmodifiableList(cateTemp);
-            } finally {
-                em.close();
-            }
-        }
+    public List<String> getArticleCategories() {
         return categories;
+    }
+
+    public synchronized void clearEtags() {
+        etags = new HashCache<>(10000);
+    }
+
+    public synchronized String getEtag(String uri) {
+        if (etags.containsKey(uri)) {
+            String etag = etags.get(uri);
+            etags.remove(uri);
+            etags.put(uri, etag);
+            return etag;
+        }
+        return null;
+    }
+
+    public synchronized void setEtag(String uri, String etag) {
+        etags.put(uri, etag);
+    }
+
+    public synchronized Map<String, String> getEtags() {
+        return new HashMap<>(etags);
     }
 
     @Override
@@ -166,7 +191,7 @@ public class StateCache implements Iterable<UrlMap> {
         return urlMap.get().iterator();
     }
 
-    public IndexFetcher getIndexFetcher(String inURI){
+    public IndexFetcher getIndexFetcher(String inURI) {
         return new IndexFetcher(inURI);
     }
 
@@ -180,15 +205,18 @@ public class StateCache implements Iterable<UrlMap> {
         private IndexFetcher(String inURI) {
             String URI = inURI;
             try {
-                page = Integer.valueOf(getPageNumber(URI));
+                String pagenum = getPageNumber(URI);
+                if (null != pagenum) {
+                    page = Integer.valueOf(pagenum);
+                }
                 group = getCategoryFromURI(URI.replace("%20", " "));
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
                 return;
             }
             try {
                 Integer.valueOf(group);
                 group = null;
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
             }
             if (imead.getValue(EntryRepo.DEFAULT_CATEGORY).equals(group)) {
                 group = null;
@@ -250,10 +278,10 @@ public class StateCache implements Iterable<UrlMap> {
         }
 
         public String getDescription() {
-            StringBuilder d=new StringBuilder(70).append(imead.getValue(UtilBean.SITE_TITLE)).append(", ");
-            if (null==group){
+            StringBuilder d = new StringBuilder(70).append(imead.getValue(UtilBean.SITE_TITLE)).append(", ");
+            if (null == group) {
                 d.append("all categories, page ");
-            }else{
+            } else {
                 d.append(group).append(" category, page ");
             }
             return d.append(page).toString();
@@ -303,6 +331,14 @@ public class StateCache implements Iterable<UrlMap> {
             }
         }
         throw new RuntimeException();
+    }
+
+    public Article getEntry(String URI) {
+        try {
+            return entry.getArticle(new Integer(StateCache.getArticleIdFromURI(URI)));
+        } catch (NumberFormatException x) {
+            return null;
+        }
     }
 
 }

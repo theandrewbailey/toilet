@@ -18,15 +18,13 @@ import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "pageonpageday", schema = "odyssey")
-@XmlRootElement
+@Table(name = "pageonpageday", schema = "tools")
 @NamedQueries({
     @NamedQuery(name = "Pageonpageday.findAll", query = "SELECT p FROM Pageonpageday p"),
     @NamedQuery(name = "Pageonpageday.findByDay", query = "SELECT p FROM Pageonpageday p WHERE p.pageonpagedayPK.day = :day"),
@@ -38,6 +36,7 @@ import javax.xml.bind.annotation.XmlRootElement;
     @NamedQuery(name = "Pageonpageday.findByLinkedtopercent", query = "SELECT p FROM Pageonpageday p WHERE p.linkedtopercent = :linkedtopercent"),
     @NamedQuery(name = "Pageonpageday.findByLinkedtotimes", query = "SELECT p FROM Pageonpageday p WHERE p.linkedtotimes = :linkedtotimes")})
 public class Pageonpageday implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected PageonpagedayPK pageonpagedayPK;
@@ -57,15 +56,15 @@ public class Pageonpageday implements Serializable {
     @NotNull
     @Column(name = "linkedtotimes", nullable = false)
     private long linkedtotimes;
+    @JoinColumn(name = "secondarypage", referencedColumnName = "pageid", nullable = false, insertable = false, updatable = false)
+    @ManyToOne(optional = false)
+    private Page page;
     @JoinColumns({
         @JoinColumn(name = "pageid", referencedColumnName = "pageid", nullable = false, insertable = false, updatable = false),
         @JoinColumn(name = "day", referencedColumnName = "day", nullable = false, insertable = false, updatable = false),
         @JoinColumn(name = "dayinterval", referencedColumnName = "dayinterval", nullable = false, insertable = false, updatable = false)})
     @ManyToOne(optional = false)
     private Pageday pageday;
-    @JoinColumn(name = "secondarypage", referencedColumnName = "pageid", nullable = false, insertable = false, updatable = false)
-    @ManyToOne(optional = false)
-    private Page page;
 
     public Pageonpageday() {
     }
@@ -126,20 +125,20 @@ public class Pageonpageday implements Serializable {
         this.linkedtotimes = linkedtotimes;
     }
 
-    public Pageday getPageday() {
-        return pageday;
-    }
-
-    public void setPageday(Pageday pageday) {
-        this.pageday = pageday;
-    }
-
     public Page getPage() {
         return page;
     }
 
     public void setPage(Page page) {
         this.page = page;
+    }
+
+    public Pageday getPageday() {
+        return pageday;
+    }
+
+    public void setPageday(Pageday pageday) {
+        this.pageday = pageday;
     }
 
     @Override

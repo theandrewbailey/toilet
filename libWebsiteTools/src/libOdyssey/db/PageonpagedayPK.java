@@ -17,10 +17,11 @@ import javax.validation.constraints.Size;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Embeddable
 public class PageonpagedayPK implements Serializable {
+
     @Basic(optional = false)
     @NotNull
     @Column(name = "day", nullable = false)

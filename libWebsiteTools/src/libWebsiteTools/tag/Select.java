@@ -14,24 +14,24 @@ public class Select extends AbstractInput {
 
     @Override
     public String generateTag() {
-        StringBuilder out = new StringBuilder(1000 + getParameters().size() * 50);
+        StringBuilder out = new StringBuilder(300 + getParameters().size() * 60);
 
         label(out);
 
         out.append("<select id=\"").append(getId()).append("\" name=\"").append(getId());
-        if (getAccesskey() != null) {
+        if (null != getAccesskey()) {
             out.append("\" accesskey=\"").append(getAccesskey());
         }
-        if (getStyleClass() != null) {
+        if (null != getStyleClass()) {
             out.append("\" class=\"").append(getStyleClass());
         }
-        if (getSize() != null) {
+        if (null != getSize()) {
             out.append("\" size=\"").append(getSize().toString());
         }
-        if (getTabindex() != null) {
+        if (null != getTabindex()) {
             out.append("\" tabindex=\"").append(getTabindex().toString());
         }
-        if (getTitle() != null) {
+        if (null != getTitle()) {
             out.append("\" title=\"").append(getTitle());
         }
         if (getAutofocus()) {
@@ -43,6 +43,9 @@ public class Select extends AbstractInput {
         if (getRequired()) {
             out.append("\" required=\"required");
         }
+        if (null != getValueMissing()) {
+            out.append("\" data-valuemissing=\"").append(getValueMissing());
+        }
         if (getMutliple()) {
             out.append("\" multiple=\"multiple");
         }
@@ -51,9 +54,11 @@ public class Select extends AbstractInput {
         for (Map.Entry<Object, Object> entry : getParameters().entrySet()) {
             if (entry.getValue() instanceof Map) {
                 Map suboptions = (Map) entry.getValue();
+                out.append("<optgroup label=\"").append(entry.getKey()).append("\">");
                 for (Object subentry : suboptions.entrySet()) {
-                    addOption(out, (Map.Entry)subentry);
+                    addOption(out, (Map.Entry) subentry);
                 }
+                out.append("</optgroup>");
             } else {
                 addOption(out, entry);
             }

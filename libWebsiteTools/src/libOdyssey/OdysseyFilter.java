@@ -39,7 +39,7 @@ public class OdysseyFilter implements Filter {
     public static final String HANDLED_ERROR = "$_LIBODYSSEY_HANDLED_ERROR";
     public static final String ORIGINAL_URL = "$_LIBODYSSEY_ORIGINAL_URL";
     public static final String ORIGINAL_DOMAIN = "$_LIBODYSSEY_ORIGINAL_DOMAIN";
-    private static final Logger log = Logger.getLogger(OdysseyFilter.class.getName());
+    private static final Logger LOG = Logger.getLogger(OdysseyFilter.class.getName());
     private static final String CERTIFICATE_NAME = "libOdyssey_certificate_name";
     @EJB
     private GuardHolder guardholder;
@@ -83,8 +83,7 @@ public class OdysseyFilter implements Filter {
             }
             if ("TRACE".equalsIgnoreCase(req.getMethod())
                     || "OPTIONS".equalsIgnoreCase(req.getMethod())
-                    || "CONNECT".equalsIgnoreCase(req.getMethod())
-                    || "HEAD".equalsIgnoreCase(req.getMethod())) {
+                    || "CONNECT".equalsIgnoreCase(req.getMethod())) {
                 killInHoney(request, response);
                 error.add((HttpServletRequest) request, null, "IP added to honeypot: Illegal method", null);
                 return;
@@ -114,8 +113,14 @@ public class OdysseyFilter implements Filter {
 //                }
 //            }
         }
+
+        // process request
+        //NoServerHeader res = new NoServerHeader((HttpServletResponse) response);
+        HttpServletResponse res = (HttpServletResponse) response;
         if (req.isSecure() && null != cert) {
-            HttpServletResponse res = (HttpServletResponse) response;
+            res.addHeader("X-Frame-Options", "SAMEORIGIN");
+            res.addHeader("X-Xss-Protection", "1; mode=block");
+            res.addHeader("X-Content-Type-Options", "nosniff");
             try {
                 cert.checkValidity();
                 Date now = RequestTime.getRequestTime(req);
@@ -130,9 +135,6 @@ public class OdysseyFilter implements Filter {
                 certDate = null;
             }
         }
-
-        // process request
-        NoServerHeader res = new NoServerHeader((HttpServletResponse) response);
         if (guardholder.isHandleErrors()) {
             try {
                 chain.doFilter(req, res);
@@ -140,6 +142,7 @@ public class OdysseyFilter implements Filter {
                     error.add(req, null, null, null);
                 }
             } catch (IOException | ServletException x) {
+                LOG.log(Level.SEVERE, "Exception caught in OdysseyFilter", x);
                 error.add(req, null, null, x);
             }
         } else {
@@ -167,7 +170,7 @@ public class OdysseyFilter implements Filter {
                 sbean = (SessionBean) context.lookup(SessionBean.LOCAL_NAME);
                 sess.setAttribute(SessionBean.SESSION_BEAN, sbean);
             } catch (NamingException ex) {
-                log.log(Level.SEVERE, "Session bean lookup name invalid: " + SessionBean.LOCAL_NAME, ex);
+                LOG.log(Level.SEVERE, "Session bean lookup name invalid: " + SessionBean.LOCAL_NAME, ex);
             }
         }
         return sbean;

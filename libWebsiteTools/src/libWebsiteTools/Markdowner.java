@@ -1,8 +1,9 @@
 package libWebsiteTools;
 
 import java.io.InputStreamReader;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
@@ -11,47 +12,72 @@ import javax.script.ScriptException;
  *
  * @author alpha
  */
-@Startup
-@Singleton
 public class Markdowner {
 
-    private ScriptEngine processor;
-//    private CompiledScript marked;
-//    private CompiledScript remarked;
+    public static final String LOCAL_NAME = "java:module/Markdowner";
+    private static final Logger LOG = Logger.getLogger(Markdowner.class.getName());
+    private static final LinkedBlockingQueue<ScriptEngine> SCRIPT_ENGINES = new LinkedBlockingQueue<>(Runtime.getRuntime().availableProcessors());
 
-    private ScriptEngine getProcessor() {
-        if (processor == null) {
-            try {
-                processor = new ScriptEngineManager().getEngineByName("JavaScript");
-                processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/marked.js")));
-                processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/to-markdown.js")));
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
+    static {
+        {
+            for (int x = 0; x < Runtime.getRuntime().availableProcessors(); x++) {
+                ScriptEngine processor = null;
+                while (true) {
+                    try {
+                        if (null == processor) {
+                            processor = new ScriptEngineManager().getEngineByName("JavaScript");
+                            processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/marked.js")));
+                            processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/markdown-it.js")));
+                        }
+                        SCRIPT_ENGINES.put(processor);
+                        break;
+                    } catch (InterruptedException | ScriptException ex) {
+                        LOG.log(Level.SEVERE, null, ex);
+                    }
+                }
             }
         }
-        return processor;
     }
 
-    public String getHtml(String markdown){
-        //return new MarkdownProcessor().markdown(markdown);
+    public static String getMarkdown(String html) {
+        ScriptEngine processor = null;
         try {
-            processor=getProcessor();
-            processor.put("input", markdown);
-            processor.eval("var output=marked(input);");
+            processor = SCRIPT_ENGINES.take();
+            processor.put("input", html);
+            processor.eval("var output=markdownit().render(input);");
+            LOG.info("converted HTML to markdown");
             return processor.get("output").toString();
-        } catch (ScriptException ex) {
+        } catch (InterruptedException | ScriptException ex) {
             throw new RuntimeException(ex);
+        } finally {
+            while (true) {
+                try {
+                    SCRIPT_ENGINES.put(processor);
+                    break;
+                } catch (InterruptedException ex) {
+                }
+            }
         }
     }
 
-    public String getMarkdown(String html){
+    public static String getHtml(String markdown) {
+        ScriptEngine processor = null;
         try {
-            processor=getProcessor();
-            processor.put("input", html);
-            processor.eval("var output=toMarkdown(input);");
+            processor = SCRIPT_ENGINES.take();
+            processor.put("input", markdown);
+            processor.eval("var output=marked(input);");
+            LOG.info("converted markdown to HTML");
             return processor.get("output").toString();
-        } catch (ScriptException ex) {
+        } catch (InterruptedException | ScriptException ex) {
             throw new RuntimeException(ex);
+        } finally {
+            while (true) {
+                try {
+                    SCRIPT_ENGINES.put(processor);
+                    break;
+                } catch (InterruptedException ex) {
+                }
+            }
         }
     }
 

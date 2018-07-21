@@ -3,6 +3,11 @@
     <tlib-version>1.0</tlib-version>
     <short-name>html</short-name>
     <uri>uri:libwebsitetools:htmlTools</uri>
+    <function>
+        <name>url</name>
+        <function-class>java.net.URLEncoder</function-class>
+        <function-signature>String encode(java.lang.String, java.lang.String)</function-signature>
+    </function>
     <tag>
         <name>title</name>
         <tag-class>libWebsiteTools.tag.Titler</tag-class>
@@ -30,18 +35,26 @@
         </attribute>
     </tag>
     <tag>
+        <description>will link all css files described in imead.localization page_css value</description>
         <name>css</name>
         <tag-class>libWebsiteTools.tag.HtmlCss</tag-class>
         <body-content>empty</body-content>
     </tag>
     <tag>
-        <name>link</name>
-        <tag-class>libWebsiteTools.tag.HtmlLink</tag-class>
+        <description>will link all javascript files described in imead.localization page_javascript value</description>
+        <name>javascript</name>
+        <tag-class>libWebsiteTools.tag.HtmlScript</tag-class>
         <body-content>empty</body-content>
     </tag>
     <tag>
         <name>meta</name>
         <tag-class>libWebsiteTools.tag.HtmlMeta</tag-class>
+        <body-content>empty</body-content>
+    </tag>
+    <tag>
+        <name>requestToken</name>
+        <description>places a UUID on the page and in the session, along with the current URI and query string. libHtmlTools.RequestTokenChecker will check all POST requests for these tokens, and this will allow POST requests to proceed.</description>
+        <tag-class>libWebsiteTools.tag.RequestToken</tag-class>
         <body-content>empty</body-content>
     </tag>
     <tag>
@@ -72,12 +85,32 @@
         </attribute>
     </tag>
     <tag>
+        <name>filesize</name>
+        <description>will pretty format a number into bytes (and units thereof)</description>
+        <tag-class>libWebsiteTools.tag.FileSize</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>length</name>
+            <description>number of bytes</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Long</type>
+        </attribute>
+    </tag>
+    <tag>
         <name>password</name>
         <tag-class>libWebsiteTools.tag.Password</tag-class>
         <body-content>empty</body-content>
         <attribute>
             <name>accesskey</name>
             <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autocomplete</name>
+            <description>browser content hint</description>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -152,6 +185,13 @@
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
+        <attribute>
+            <name>valueMissing</name>
+            <description>error message to display if the field is required and no value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
     </tag>
     <tag>
         <name>textbox</name>
@@ -160,6 +200,13 @@
         <attribute>
             <name>accesskey</name>
             <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autocomplete</name>
+            <description>browser content hint</description>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -184,6 +231,123 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>inputMode</name>
+            <description>browser input hint, see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input#attr-inputmode</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>label</name>
+            <description>label</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>labelNextLine</name>
+            <description>place a &lt;br/&gt; between label and control</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>length</name>
+            <description>length of field</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>maxLength</name>
+            <description>maxLength of field</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>pattern</name>
+            <description>regex to validate field</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>patternMismatch</name>
+            <description>error to display when regex fails</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>size</name>
+            <description>num of chars to display (approx)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>value</name>
+            <description>inital text value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>valueMissing</name>
+            <description>error message to display if the field is required and no value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>searchbox</name>
+        <tag-class>libWebsiteTools.tag.Searchbox</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autocomplete</name>
+            <description>browser input hint</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
         </attribute>
         <attribute>
             <name>id</name>
@@ -251,6 +415,13 @@
         <attribute>
             <name>value</name>
             <description>inital text value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>valueMissing</name>
+            <description>error message to display if the field is required and no value</description>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -433,6 +604,13 @@
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
+        <attribute>
+            <name>valueMissing</name>
+            <description>error message to display if the field is required and no value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
     </tag>
     <tag>
         <name>file</name>
@@ -488,6 +666,13 @@
             <type>java.lang.Boolean</type>
         </attribute>
         <attribute>
+            <name>multiple</name>
+            <description>should the user be able to upload multiple files?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
             <name>size</name>
             <description>num of chars to display (approx)</description>
             <required>false</required>
@@ -515,6 +700,13 @@
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
+        <attribute>
+            <name>valueMissing</name>
+            <description>error message to display if the field is required and no value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
     </tag>
     <tag>
         <name>textarea</name>
@@ -530,7 +722,7 @@
         <attribute>
             <name>height</name>
             <description>height of field (rows)</description>
-            <required>true</required>
+            <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Integer</type>
         </attribute>
@@ -577,6 +769,20 @@
             <type>java.lang.Integer</type>
         </attribute>
         <attribute>
+            <name>pattern</name>
+            <description>regex to validate field</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>patternMismatch</name>
+            <description>error to display when regex fails</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
             <name>styleClass</name>
             <description>CSS class(es)</description>
             <required>false</required>
@@ -600,6 +806,13 @@
         <attribute>
             <name>value</name>
             <description>inital text value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>valueMissing</name>
+            <description>error message to display if the field is required and no value</description>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -643,15 +856,4 @@
             <type>java.lang.String</type>
         </attribute>
     </tag>
-    <tag>
-        <name>requestToken</name>
-        <description>places a UUID on the page and in the session, along with the current URI and query string. libHtmlTools.RequestTokenChecker will check all POST requests for these tokens, and this will allow POST requests to proceed.</description>
-        <tag-class>libWebsiteTools.tag.RequestToken</tag-class>
-        <body-content>empty</body-content>
-    </tag>
-    <function>
-        <name>url</name>
-        <function-class>java.net.URLEncoder</function-class>
-        <function-signature>String encode(java.lang.String, java.lang.String)</function-signature>
-    </function>
 </taglib>

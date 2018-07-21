@@ -7,7 +7,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.w3c.dom.Document;
 
 /**
- * interface for a RSS Feed
+ * interface for a RSS Feed.
  *
  * to put feed into service, add to the RssFeedSource EJB, -OR-
  *
@@ -15,10 +15,10 @@ import org.w3c.dom.Document;
  *
  * name: RSS.feeds value: my.rss.feed;my.rss.secondFeed
  *
- * feeds are guaranteed to added and destroyed in the order declared
+ * feeds are guaranteed to added and destroyed in the order declared.
  *
  * AbstractRssFeed is a mostly complete implementation (includes DOM), and
- * recommend usage of @Feed for your implementations
+ * recommend usage of @Feed for your implementations.
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  * @see libWebsiteTools.rss.entity.AbstractRssFeed
@@ -28,17 +28,17 @@ import org.w3c.dom.Document;
 public interface iFeed extends Serializable {
 
     /**
-     * preAdd will be called before this feed is made available
+     * preAdd will be called before this feed is made available.
      */
     public void preAdd();
 
     /**
-     * postAdd will be called after this feed is made available
+     * postAdd will be called after this feed is made available.
      */
     public void postAdd();
 
     /**
-     * lastModified will return when the feed was last changed
+     * lastModified will return when the feed last changed.
      * @see HttpServlet
      * 
      * @return milliseconds since epoch
@@ -46,29 +46,45 @@ public interface iFeed extends Serializable {
     public long getLastModified();
 
     /**
-     * preWrite will be called on every request for the feed must return the XML
-     * to be sent back to user
-     *
+     * HttpServlet.doHead(HttpServletRequest, HttpServletResponse) calls this.
+     * Setting status to something other than 200 is respected.
+     * 
+     * @param req
+     * @param res
+     */
+    public void doHead(HttpServletRequest req, HttpServletResponse res);
+
+    /**
+     * preWrite will be called on every request for the feed. it must return the
+     * XML to send back to user, or set the HTTP response status to something
+     * other than 200.
+     * 
+     * there is no external syncronized block around this call and postWrite. if
+     * thread-safety is needed, you must provide it on your own.
+     * 
      * @param req useful for getting the session object
      * @param res useful for setting headers
-     * @return XML document to preWrite to output stream
+     * @return XML document to write to output stream
      */
     public Document preWrite(HttpServletRequest req, HttpServletResponse res);
 
     /**
-     * postWrite will be called after writeToServlet
-     *
+     * postWrite is called after preWrite.
+     * 
+     * there is no external syncronized block around this call and postWrite. if
+     * thread-safety is needed, you must provide it on your own.
+     * 
      * @param req useful for getting the session object
      */
     public void postWrite(HttpServletRequest req);
 
     /**
-     * preRemove will be called before the feed is removed from service
+     * preRemove will be called before the feed is removed from service.
      */
     public void preRemove();
 
     /**
-     * postRemove will be called after the feed is removed from service
+     * postRemove will be called after the feed is removed from service.
      */
     public void postRemove();
 }

@@ -28,10 +28,10 @@ public class Local extends KeyVal {
      * to override default locale selection, place a java.util.Locale object on
      * the SESSION with this name, and it will have first priority over user
      * agent and server locales. if a resource cannot be resolved for the
-     * overriden locale, default behavior will be used.
+     * overridden locale, default behavior will be used.
      */
     public static final String OVERRIDE_LOCALE_PARAM = "$_LIBIMEAD_OVERRIDE_LOCALE";
-    private static final Logger log = Logger.getLogger(Local.class.getName());
+    private static final Logger LOG = Logger.getLogger(Local.class.getName());
     private String locale;
 
     /**
@@ -62,7 +62,7 @@ public class Local extends KeyVal {
                 return out;
             }
         } catch (ClassCastException cce) {
-            log.severe("Some unexpected object is occupying attribute "+LOCALE_PARAM+" in the session or request.");
+            LOG.severe("Some unexpected object is occupying attribute "+LOCALE_PARAM+" in the session or request.");
             throw cce;
         }
         out = Collections.list(req.getLocales());

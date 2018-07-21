@@ -1,6 +1,5 @@
 package toilet.servlet;
 
-import com.lambdaworks.crypto.SCryptUtil;
 import java.io.IOException;
 import java.util.zip.ZipInputStream;
 import javax.ejb.EJB;
@@ -15,7 +14,6 @@ import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.BackupDaemon;
-import static toilet.servlet.ArticleServlet.WORDS;
 
 @WebServlet(name = "ImportServlet", description = "Inserts articles, comments, and files via zip file upload", urlPatterns = {"/import"})
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1000) // 1000 megabytes
@@ -29,13 +27,9 @@ public class ImportServlet extends HttpServlet {
     private IMEADHolder imead;
 
     @Override
-    public void init() {
-    }
-
-    @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Object seslog = request.getSession().getAttribute("login");
-        if (!AdminServlet.IMPORT.equals(seslog)) {
+        if (!AdminLoginServlet.IMPORT.equals(seslog)) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
@@ -47,8 +41,8 @@ public class ImportServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminServlet.IMPORT.equals(request.getSession().getAttribute("login"))
-                || !SCryptUtil.check(AbstractInput.getParameter(request, "words"), imead.getValue(WORDS))) {
+        if (!AdminLoginServlet.IMPORT.equals(request.getSession().getAttribute("login"))
+                || !imead.verifyArgon2(AbstractInput.getParameter(request, "words"), ArticleServlet.WORDS)) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }

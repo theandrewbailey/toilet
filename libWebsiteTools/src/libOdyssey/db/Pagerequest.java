@@ -24,16 +24,13 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "pagerequest", schema = "odyssey")
-@XmlRootElement
+@Table(name = "pagerequest", schema = "tools")
 @NamedQueries({
     @NamedQuery(name = "Pagerequest.findAll", query = "SELECT p FROM Pagerequest p"),
     @NamedQuery(name = "Pagerequest.findByPagerequestid", query = "SELECT p FROM Pagerequest p WHERE p.pagerequestid = :pagerequestid"),
@@ -44,6 +41,7 @@ import javax.xml.bind.annotation.XmlTransient;
     @NamedQuery(name = "Pagerequest.findByParameters", query = "SELECT p FROM Pagerequest p WHERE p.parameters = :parameters"),
     @NamedQuery(name = "Pagerequest.findByRendered", query = "SELECT p FROM Pagerequest p WHERE p.rendered = :rendered")})
 public class Pagerequest implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -73,17 +71,17 @@ public class Pagerequest implements Serializable {
     private String parameters;
     @Column(name = "rendered")
     private Integer rendered;
+    @JoinColumn(name = "requestedpageid", referencedColumnName = "pageid", nullable = false)
+    @ManyToOne(optional = false)
+    private Page requestedpageid;
+    @JoinColumn(name = "referredbypageid", referencedColumnName = "pageid")
+    @ManyToOne
+    private Page referredbypageid;
     @OneToMany(mappedBy = "camefrompagerequestid")
     private Collection<Pagerequest> pagerequestCollection;
     @JoinColumn(name = "camefrompagerequestid", referencedColumnName = "pagerequestid")
     @ManyToOne
     private Pagerequest camefrompagerequestid;
-    @JoinColumn(name = "referredbypageid", referencedColumnName = "pageid")
-    @ManyToOne
-    private Page referredbypageid;
-    @JoinColumn(name = "requestedpageid", referencedColumnName = "pageid", nullable = false)
-    @ManyToOne(optional = false)
-    private Page requestedpageid;
     @OneToMany(mappedBy = "pagerequestid")
     private Collection<Exceptionevent> exceptioneventCollection;
 
@@ -158,7 +156,22 @@ public class Pagerequest implements Serializable {
         this.rendered = rendered;
     }
 
-    @XmlTransient
+    public Page getRequestedpageid() {
+        return requestedpageid;
+    }
+
+    public void setRequestedpageid(Page requestedpageid) {
+        this.requestedpageid = requestedpageid;
+    }
+
+    public Page getReferredbypageid() {
+        return referredbypageid;
+    }
+
+    public void setReferredbypageid(Page referredbypageid) {
+        this.referredbypageid = referredbypageid;
+    }
+
     public Collection<Pagerequest> getPagerequestCollection() {
         return pagerequestCollection;
     }
@@ -175,23 +188,6 @@ public class Pagerequest implements Serializable {
         this.camefrompagerequestid = camefrompagerequestid;
     }
 
-    public Page getReferredbypageid() {
-        return referredbypageid;
-    }
-
-    public void setReferredbypageid(Page referredbypageid) {
-        this.referredbypageid = referredbypageid;
-    }
-
-    public Page getRequestedpageid() {
-        return requestedpageid;
-    }
-
-    public void setRequestedpageid(Page requestedpageid) {
-        this.requestedpageid = requestedpageid;
-    }
-
-    @XmlTransient
     public Collection<Exceptionevent> getExceptioneventCollection() {
         return exceptioneventCollection;
     }

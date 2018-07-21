@@ -111,6 +111,10 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
     }
 
     @Override
+    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+    }
+
+    @Override
     public void preRemove() {
     }
 

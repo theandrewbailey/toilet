@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package toilet.db;
 
 import java.io.Serializable;
@@ -22,25 +17,17 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "comment", schema = "toilet")
-@XmlRootElement
+@Table(name = "comment", catalog = "toilet", schema = "toilet")
 @NamedQueries({
-    @NamedQuery(name = "Comment.findAll", query = "SELECT c FROM Comment c ORDER BY c.posted ASC"),
-    @NamedQuery(name = "Comment.findByCommentid", query = "SELECT c FROM Comment c WHERE c.commentid = :commentid"),
-    @NamedQuery(name = "Comment.findByPosted", query = "SELECT c FROM Comment c WHERE c.posted = :posted"),
-    @NamedQuery(name = "Comment.findByPostedhtml", query = "SELECT c FROM Comment c WHERE c.postedhtml = :postedhtml"),
-    @NamedQuery(name = "Comment.findByPostedname", query = "SELECT c FROM Comment c WHERE c.postedname = :postedname"),
-    @NamedQuery(name = "Comment.findByIsapproved", query = "SELECT c FROM Comment c WHERE c.isapproved = :isapproved"),
-    @NamedQuery(name = "Comment.findByIsspam", query = "SELECT c FROM Comment c WHERE c.isspam = :isspam"),
-    @NamedQuery(name = "Comment.findByPostedmarkdown", query = "SELECT c FROM Comment c WHERE c.postedmarkdown = :postedmarkdown")})
+    @NamedQuery(name = "Comment.findAll", query = "SELECT c FROM Comment c ORDER BY c.posted DESC")})
 public class Comment implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -165,15 +152,12 @@ public class Comment implements Serializable {
             return false;
         }
         Comment other = (Comment) object;
-        if ((this.commentid == null && other.commentid != null) || (this.commentid != null && !this.commentid.equals(other.commentid))) {
-            return false;
-        }
-        return true;
+        return !((this.commentid == null && other.commentid != null) || (this.commentid != null && !this.commentid.equals(other.commentid)));
     }
 
     @Override
     public String toString() {
         return "toilet.db.Comment[ commentid=" + commentid + " ]";
     }
-    
+
 }

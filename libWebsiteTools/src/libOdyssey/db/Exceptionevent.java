@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package libOdyssey.db;
 
 import java.io.Serializable;
@@ -22,22 +17,18 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "exceptionevent", schema = "odyssey")
-@XmlRootElement
+@Table(name = "exceptionevent", schema = "tools")
 @NamedQueries({
-    @NamedQuery(name = "Exceptionevent.findAll", query = "SELECT e FROM Exceptionevent e"),
-    @NamedQuery(name = "Exceptionevent.findByExceptioneventid", query = "SELECT e FROM Exceptionevent e WHERE e.exceptioneventid = :exceptioneventid"),
-    @NamedQuery(name = "Exceptionevent.findByAtime", query = "SELECT e FROM Exceptionevent e WHERE e.atime = :atime"),
-    @NamedQuery(name = "Exceptionevent.findByDescription", query = "SELECT e FROM Exceptionevent e WHERE e.description = :description"),
-    @NamedQuery(name = "Exceptionevent.findByTitle", query = "SELECT e FROM Exceptionevent e WHERE e.title = :title")})
+    @NamedQuery(name = "Exceptionevent.findAll", query = "SELECT e FROM Exceptionevent e ORDER BY e.atime DESC"),
+    @NamedQuery(name = "Exceptionevent.findByExceptioneventid", query = "SELECT e FROM Exceptionevent e WHERE e.exceptioneventid = :exceptioneventid")})
 public class Exceptionevent implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -141,5 +132,5 @@ public class Exceptionevent implements Serializable {
     public String toString() {
         return "libOdyssey.db.Exceptionevent[ exceptioneventid=" + exceptioneventid + " ]";
     }
-    
+
 }

@@ -1,7 +1,7 @@
-<%@taglib prefix="ody" uri="/WEB-INF/Odyssey" %><br/><footer id="downContent">
-<p><ody:ResponseTag><imead:local key="page_footFormat">
+<br/><footer id="downContent">
+<p><ody:responseTag><imead:local key="page_footFormat">
     <imead:param><h:time datetime="${requestTime}"/></imead:param>
     <imead:param object="${renderMillis}"/>
-</imead:local></ody:ResponseTag></p>
+</imead:local></ody:responseTag></p>
 <p><a href="${libOdyssey_guard_canonicalURL}riddle.jsp">Return</a></p>
-</footer></body></html>
+</footer><h:javascript/></body></html>

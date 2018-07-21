@@ -1,5 +1,7 @@
 package libWebsiteTools.imead;
 
+import at.gadermaier.argon2.Argon2Factory;
+import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -14,6 +16,7 @@ import javax.ejb.Singleton;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
+import libWebsiteTools.JVMNotSupportedError;
 
 /**
  * Internationalization Made Easy And Dynamic
@@ -26,14 +29,13 @@ import javax.persistence.PersistenceUnit;
 public class IMEADHolder {
 
     public static final String LOCAL_NAME = "java:module/IMEADHolder";
-    @PersistenceUnit
-    private EntityManagerFactory PU;
-    private static final String DISTINCT_LOCALE_QUERY = "SELECT DISTINCT l.localizationPK.localecode FROM Localization l ORDER BY l.localizationPK.localecode ASC";
-    private static final String VALUES_BY_LOCALE = "SELECT l FROM Localization l WHERE l.localizationPK.localecode = :locale";
-    private static final String KEYVALUE_ALL_QUERY = "SELECT k FROM Keyvalue k";
-    private static final Logger log = Logger.getLogger(IMEADHolder.class.getName());
+    private static final Logger LOG = Logger.getLogger(IMEADHolder.class.getName());
+    private static final String ARGON2_SALT_KEY = "argon2_salt";
     private Map<String, String> keyValues = new HashMap<>();
     private Map<Locale, IMEADResource> localizedCache = new HashMap<>();
+
+    @PersistenceUnit
+    private EntityManagerFactory PU;
 
     public static Locale getLanguageOnly(Locale in) {
         Locale.Builder build = new Locale.Builder();
@@ -43,31 +45,48 @@ public class IMEADHolder {
 
     @PostConstruct
     public void populateCache() {
-        log.entering(IMEADHolder.class.getName(), "populateCache");
+        LOG.entering(IMEADHolder.class.getName(), "populateCache");
         PU.getCache().evict(Keyvalue.class);
         PU.getCache().evict(Localization.class);
         EntityManager em = PU.createEntityManager();
         try {
-            List<Keyvalue> kvs = em.createQuery(KEYVALUE_ALL_QUERY, Keyvalue.class).getResultList();
+            List<Keyvalue> kvs = em.createNamedQuery("Keyvalue.findAll", Keyvalue.class).getResultList();
             Map<String, String> temp = new HashMap<>(kvs.size() * 2);
             for (Keyvalue kv : kvs) {
                 temp.put(kv.getKey(), kv.getValue());
-                log.log(Level.CONFIG, "{0}: {1}", new Object[]{kv.getKey(), kv.getValue()});
+                LOG.log(Level.CONFIG, "{0}: {1}", new Object[]{kv.getKey(), kv.getValue()});
             }
             keyValues = Collections.unmodifiableMap(temp);
 
-            List<String> supportedLocales = em.createQuery(DISTINCT_LOCALE_QUERY, String.class).getResultList();
+            List<String> supportedLocales = em.createNamedQuery("Localization.getDistinctLocales", String.class).getResultList();
             Map<Locale, IMEADResource> localeTemp = new HashMap<>(supportedLocales.size() * 2);
             for (String supportedLocale : supportedLocales) {
                 Locale l = Locale.forLanguageTag(supportedLocale);
                 IMEADResource parent = localeTemp.get(getLanguageOnly(l));
-                localeTemp.put(l, new IMEADResource(l, parent, em.createQuery(VALUES_BY_LOCALE, Localization.class).setParameter("locale", supportedLocale).getResultList()));
+                localeTemp.put(l, new IMEADResource(l, parent, em.createNamedQuery("Localization.findByLocalecode", Localization.class).setParameter("localecode", supportedLocale).getResultList()));
             }
             localizedCache = Collections.unmodifiableMap(localeTemp);
         } finally {
             em.close();
         }
-        log.exiting(IMEADHolder.class.getName(), "populateCache");
+        LOG.exiting(IMEADHolder.class.getName(), "populateCache");
+    }
+
+    /**
+     * run Argon2 on toVerify and compare result to value stored at key
+     *
+     * @param toVerify
+     * @param key
+     * @return does it match?
+     */
+    public boolean verifyArgon2(String toVerify, String key) {
+        try {
+            return Argon2Factory.create().setIterations(5).setMemoryInKiB(65536).setParallelism(1)
+                    .hash(toVerify.getBytes("UTF-8"), getValue(ARGON2_SALT_KEY).getBytes("UTF-8"))
+                    .equals(getValue(key));
+        } catch (UnsupportedEncodingException ex) {
+            throw new JVMNotSupportedError(ex);
+        }
     }
 
     /**
@@ -95,7 +114,7 @@ public class IMEADHolder {
                 }
             }
         }
-        log.log(Level.FINE, "Key {0} not found in locales {1}", new Object[]{key, Arrays.toString(locales.toArray())});
+        LOG.log(Level.FINE, "Key {0} not found in locales {1}", new Object[]{key, Arrays.toString(locales.toArray())});
         throw new LocalizedStringNotFoundException(key, Arrays.toString(locales.toArray()));
     }
 

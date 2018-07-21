@@ -10,7 +10,6 @@ import java.util.Date;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -20,26 +19,23 @@ import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
+import javax.persistence.UniqueConstraint;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "fileupload", schema = "files")
-@XmlRootElement
+@Table(name = "fileupload", schema = "tools", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"filename"})})
 @NamedQueries({
-    @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f"),
-    @NamedQuery(name = "Fileupload.findByFileuploadid", query = "SELECT f FROM Fileupload f WHERE f.fileuploadid = :fileuploadid"),
-    @NamedQuery(name = "Fileupload.findByAtime", query = "SELECT f FROM Fileupload f WHERE f.atime = :atime"),
-    @NamedQuery(name = "Fileupload.findByEtag", query = "SELECT f FROM Fileupload f WHERE f.etag = :etag"),
+    @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f ORDER BY f.filename"),
     @NamedQuery(name = "Fileupload.findByFilename", query = "SELECT f FROM Fileupload f WHERE f.filename = :filename"),
-    @NamedQuery(name = "Fileupload.findByMimetype", query = "SELECT f FROM Fileupload f WHERE f.mimetype = :mimetype"),
-    @NamedQuery(name = "Fileupload.findByUrl", query = "SELECT f FROM Fileupload f WHERE f.url = :url")})
+    @NamedQuery(name = "Fileupload.getMetadata", query = "SELECT f.fileuploadid, f.atime, f.etag, f.mimetype, f.url FROM Fileupload f WHERE f.filename = :filename")})
 public class Fileupload implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,7 +52,7 @@ public class Fileupload implements Serializable {
     @Size(min = 1, max = 250)
     @Column(name = "etag", nullable = false, length = 250)
     private String etag;
-    @Basic(optional = false, fetch = FetchType.LAZY)
+    @Basic(optional = false)
     @NotNull
     @Lob
     @Column(name = "filedata", nullable = false)
@@ -68,12 +64,20 @@ public class Fileupload implements Serializable {
     private String filename;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 250)
-    @Column(name = "mimetype", nullable = false, length = 250)
+    @Size(min = 1, max = 100)
+    @Column(name = "mimetype", nullable = false, length = 100)
     private String mimetype;
     @Size(max = 65000)
     @Column(name = "url", length = 65000)
     private String url;
+    @Basic(optional = false)
+    @Lob
+    @Column(name = "gzipdata")
+    private byte[] gzipdata;
+    @Basic(optional = false)
+    @Lob
+    @Column(name = "brdata")
+    private byte[] brdata;
 
     public Fileupload() {
     }
@@ -150,7 +154,7 @@ public class Fileupload implements Serializable {
     @Override
     public int hashCode() {
         int hash = 0;
-        hash += (fileuploadid != null ? fileuploadid.hashCode() : 0);
+        hash += (fileuploadid != null ? fileuploadid.hashCode() : filename != null ? filename.hashCode() : 0);
         return hash;
     }
 
@@ -164,12 +168,40 @@ public class Fileupload implements Serializable {
         if ((this.fileuploadid == null && other.fileuploadid != null) || (this.fileuploadid != null && !this.fileuploadid.equals(other.fileuploadid))) {
             return false;
         }
-        return true;
+        return !((this.filename == null && other.filename != null) || (this.filename != null && !this.filename.equals(other.filename)));
     }
 
     @Override
     public String toString() {
-        return "libWebsiteTools.file.Fileupload[ fileuploadid=" + fileuploadid + " ]";
+        return "libOdyssey.db.Fileupload[ fileuploadid=" + fileuploadid + " ]";
     }
-    
+
+    /**
+     * @return the gzipdata
+     */
+    public byte[] getGzipdata() {
+        return gzipdata;
+    }
+
+    /**
+     * @param gzipdata the gzipdata to set
+     */
+    public void setGzipdata(byte[] gzipdata) {
+        this.gzipdata = gzipdata;
+    }
+
+    /**
+     * @return the brdata
+     */
+    public byte[] getBrdata() {
+        return brdata;
+    }
+
+    /**
+     * @param brdata the brdata to set
+     */
+    public void setBrdata(byte[] brdata) {
+        this.brdata = brdata;
+    }
+
 }

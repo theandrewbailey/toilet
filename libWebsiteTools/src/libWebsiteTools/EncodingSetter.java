@@ -2,8 +2,6 @@ package libWebsiteTools;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -18,7 +16,7 @@ import javax.servlet.annotation.WebListener;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @WebListener("Sets the request encoding to UTF-8.")
 @WebFilter(description = "Sets the response encoding to UTF-8.", filterName = "Encoding Setter", dispatcherTypes = {DispatcherType.REQUEST}, urlPatterns = {"/*"})

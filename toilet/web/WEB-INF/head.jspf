@@ -3,10 +3,13 @@
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="h" uri="uri:libwebsitetools:htmlTools" %>
 <%@ taglib prefix="t" uri="uri:toilet" %>
-<%@ taglib prefix="imead" uri="uri:libwebsitetools:IMEAD" %><!DOCTYPE html>
+<%@ taglib prefix="imead" uri="uri:libwebsitetools:IMEAD" %>
+<%@ taglib prefix="ody" uri="uri:libwebsitetools:Odyssey" %><!DOCTYPE html>
 <html lang="en-US"><head>
     <meta charset="UTF-8"/>
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,user-scalable=yes">
+    <base href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>"/>
     <h:meta/>
     <imead:keyValVar key="site_title" /><h:title siteTitle="${site_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
     <link rel="shortcut icon" href="<imead:keyVal key="site_favicon"/>"/>
@@ -14,7 +17,6 @@
     <link rel="alternate" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>rss/Articles.rss" title="Articles" type="application/rss+xml"/>
     <link rel="alternate" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>rss/Comments.rss" title="Comments" type="application/rss+xml"/>
     <link rel="alternate" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>rss/Spruce.rss" title="Spruce" type="application/rss+xml"/>
-    <!--[if lt IE 9]><script>var e=("abbr article aside footer header legend menu nav section time").split(' ');for(var i=0;i<e.length;i++){document.createElement(e[i]);}</script><![endif]-->
 </head><body>
 <header><h1><a title="Home" href="<imead:keyVal key="libOdyssey_guard_canonicalURL"/>"><imead:keyVal key="site_title"/></a></h1><c:if test="${index != null and index}">
     <h2 class="noPrint"><imead:keyVal key="site_tagline"/></h2></c:if>

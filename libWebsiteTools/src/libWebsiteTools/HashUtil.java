@@ -1,5 +1,6 @@
 package libWebsiteTools;
 
+import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -33,7 +34,11 @@ public class HashUtil {
      * @return base64 SHA 256 hash
      */
     public static String getHash(String toHash) {
-        return getHashAsBase64(toHash.getBytes());
+        try {
+            return getHashAsBase64(toHash.getBytes("UTF-8"));
+        } catch (UnsupportedEncodingException enc) {
+            throw new JVMNotSupportedError(enc);
+        }
     }
 
     public static String getBase64(byte[] stuff) {

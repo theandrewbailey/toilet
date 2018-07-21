@@ -1,12 +1,21 @@
 package toilet.rss;
 
+import java.io.StringWriter;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import libOdyssey.bean.GuardHolder;
+import libWebsiteTools.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
@@ -31,6 +40,7 @@ public class CommentRss extends AbstractRssFeed {
     private IMEADHolder imead;
     private Document XML;
     private Date lastUpdated = new Date(0);
+    private String etag = "";
 
     public CommentRss() {
     }
@@ -54,7 +64,7 @@ public class CommentRss extends AbstractRssFeed {
             RssItem i = new RssItem(c.getPostedhtml());
             entries.addItem(i);
             i.addCategory(c.getArticleid().getSectionid().getName(), imead.getValue(GuardHolder.CANONICAL_URL) + "index/group=" + c.getArticleid().getSectionid().getName());
-            i.setLink(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), c.getArticleid()) + "#" + c.getCommentid());
+            i.setLink(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), c.getArticleid()) + "#comments");
             i.setGuid(i.getLink());
             i.setPubDate(c.getPosted());
             i.setTitle("Re: " + c.getArticleid().getArticletitle());
@@ -62,7 +72,7 @@ public class CommentRss extends AbstractRssFeed {
             if (c.getArticleid().getComments()) {
                 i.setComments(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), c.getArticleid()) + "#comments");
             }
-            if (i.getPubDate().after(lastUpdated)){
+            if (i.getPubDate().after(lastUpdated)) {
                 lastUpdated = i.getPubDate();
             }
         }
@@ -70,17 +80,39 @@ public class CommentRss extends AbstractRssFeed {
     }
 
     @Override
-    public synchronized void preAdd() {
+    public void preAdd() {
         XML = generateFeed(Integer.valueOf(imead.getValue(COMMENT_COUNT)));
+        try {
+            DOMSource DOMsrc = new DOMSource(XML);
+            StringWriter holder = new StringWriter(10000);
+            StreamResult str = new StreamResult(holder);
+            Transformer trans = TransformerFactory.newInstance().newTransformer();
+            trans.transform(DOMsrc, str);
+            etag = "\"" + HashUtil.getHash(holder.toString()) + "\"";
+        } catch (TransformerException ex) {
+            Logger.getLogger(CommentRss.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override
-    public long getLastModified(){
+    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+        res.setHeader("Cache-Control", "public, max-age=" + 10000);
+        res.setDateHeader("Last-Modified", lastUpdated.getTime());
+        res.setDateHeader("Expires", new Date().getTime() + 10000000);
+        res.setHeader("ETag", etag);
+        if (etag.equals(req.getHeader("If-None-Match"))) {
+            res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+        }
+    }
+
+    @Override
+    public long getLastModified() {
         return lastUpdated.getTime();
     }
 
     @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        return XML;
+        doHead(req, res);
+        return HttpServletResponse.SC_OK == res.getStatus() ? XML : null;
     }
 }

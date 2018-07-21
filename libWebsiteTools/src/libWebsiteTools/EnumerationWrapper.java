@@ -5,7 +5,7 @@ import java.util.Iterator;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  * @param <T>
  */
 public class EnumerationWrapper<T> implements Enumeration<T> {

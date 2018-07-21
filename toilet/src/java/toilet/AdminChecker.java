@@ -18,7 +18,7 @@ import libWebsiteTools.tag.AbstractInput;
  * @author alpha
  */
 @WebFilter(filterName="AdminChecker", description="makes sure that you are logged in to do admin duties", 
-        dispatcherTypes={DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.INCLUDE}, urlPatterns={"/admin", "/adminContent", "/adminPost", "/adminSession", "/import"})
+        dispatcherTypes={DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.INCLUDE}, urlPatterns={"/adminLogin", "/adminContent", "/adminPost", "/adminSession", "/import"})
 public class AdminChecker implements Filter {
 
     @Override

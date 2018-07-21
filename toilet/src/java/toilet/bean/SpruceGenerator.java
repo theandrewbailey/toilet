@@ -4,16 +4,20 @@ import libWebsiteTools.file.FileRepo;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Date;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
 import libOdyssey.bean.GuardHolder;
+import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
@@ -33,11 +37,13 @@ public class SpruceGenerator extends AbstractRssFeed {
     public static final String ERROR = "Spruce cannot start properly!";
     private static final String LINK = "spruce";
     private static final String SPRUCE_COUNT = "rss_spruceCount";
-    private static final Logger log = Logger.getLogger(SpruceGenerator.class.getName());
+    private static final Logger LOG = Logger.getLogger(SpruceGenerator.class.getName());
     @EJB
     private FileRepo file;
     @EJB
     private IMEADHolder imead;
+    @Resource
+    private ManagedExecutorService exec;
     private Document XML;
     private final RssChannel entries = new RssChannel("Spruce", LINK, "Some wisdom from Spruce");
     private Date lastEntry = new Date();
@@ -82,52 +88,55 @@ public class SpruceGenerator extends AbstractRssFeed {
         return out;
     }
 
-    private class InitializeSpruce implements Runnable {
+    private class InitializeSpruce implements Callable<PythonInterpreter> {
 
         @Override
-        public synchronized void run() {
+        public PythonInterpreter call() throws Exception {
             if (py == null) {
-                log.info("starting Spruce");
-                try {
-                    byte[] dictionaryxml = file.getFile(imead.getValue(DICTIONARY_XML)).getFiledata();
+                LOG.info("starting Spruce");
+                Fileupload dictionary = file.getFile(imead.getValue(DICTIONARY_XML));
+                if (null != dictionary) {
+                    try {
+                        byte[] dictionaryxml = dictionary.getFiledata();
 //                    ScriptEngine pyse = new ScriptEngineManager().getEngineByName("python");
 //                    pyse.eval("from spruce import *");
 //                    pyse.put("dicxml", new String(dictionaryxml));
 //                    pyse.eval("loadDicStr(dicxml)");
 //                    pyse.eval("dicxml=None");
 //                    py = pyse;
-                    PythonInterpreter pi = new PythonInterpreter();
-                    pi.exec("from spruce import *");
-                    pi.set("dicxml", new String(dictionaryxml));
-                    pi.exec("loadDicStr(dicxml)");
-                    pi.exec("dicxml=None");
-                    py = pi;
-                    getAddSentence();
-                    log.info("Spruce has been reset");
-                } catch (Exception ex) {
-                    log.log(Level.SEVERE, ERROR, ex);
-                    postRemove();
-                    StringWriter w = new StringWriter();
-                    PrintWriter p = new PrintWriter(w, false);
-                    ex.printStackTrace(p);
-                    p.flush();
-                    RssItem i = new RssItem(w.toString().replace("\n\tat ", ExceptionRepo.NEWLINE + " at "));
-                    i.setTitle(ERROR);
-                    i.setLink(entries.getLink());
-                    i.setPubDate(lastEntry);
-                    entries.addItem(i);
+                        PythonInterpreter pi = new PythonInterpreter();
+                        pi.exec("from spruce import *");
+                        pi.set("dicxml", new String(dictionaryxml));
+                        pi.exec("loadDicStr(dicxml)");
+                        pi.exec("dicxml=None");
+                        py = pi;
+                        getAddSentence();
+                        LOG.info("Spruce has been reset");
+                    } catch (Exception ex) {
+                        LOG.log(Level.SEVERE, ERROR, ex);
+                        postRemove();
+                        StringWriter w = new StringWriter();
+                        PrintWriter p = new PrintWriter(w, false);
+                        ex.printStackTrace(p);
+                        p.flush();
+                        RssItem i = new RssItem(w.toString().replace("\n\tat ", ExceptionRepo.NEWLINE + " at "));
+                        i.setTitle(ERROR);
+                        i.setLink(entries.getLink());
+                        i.setPubDate(lastEntry);
+                        entries.addItem(i);
+                    }
                 }
             }
+            return py;
         }
     }
 
     @Override
     public synchronized void preAdd() {
-        log.entering(SpruceGenerator.class.getName(), "preAdd");
+        LOG.entering(SpruceGenerator.class.getName(), "preAdd");
         postRemove();
 
-        // because ManagedThreadFactory and/or ManagedExecutorService suck
-        new Thread(new InitializeSpruce()).start();
+        exec.submit(new InitializeSpruce());
 
         entries.clearFeed();
         entries.setLink(imead.getValue(GuardHolder.CANONICAL_URL) + LINK);
@@ -138,15 +147,23 @@ public class SpruceGenerator extends AbstractRssFeed {
         entries.setLimit(Integer.valueOf(imead.getValue(SPRUCE_COUNT)));
         entries.setTtl(60);
 
-        log.exiting(SpruceGenerator.class.getName(), "preAdd");
+        LOG.exiting(SpruceGenerator.class.getName(), "preAdd");
     }
 
-    public long lastModified(){
+    public long lastModified() {
         return lastEntry.getTime();
     }
 
     @Override
+    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+        res.setHeader("Cache-Control", "public, max-age=" + 300);
+        res.setDateHeader("Last-Modified", lastEntry.getTime());
+        res.setDateHeader("Expires", new Date().getTime() + 300000);
+    }
+
+    @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
+        doHead(req, res);
         if (new Date().getTime() - lastEntry.getTime() > 300000) {
             getAddSentence();
         }

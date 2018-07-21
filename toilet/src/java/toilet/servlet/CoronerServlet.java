@@ -23,10 +23,6 @@ public class CoronerServlet extends HttpServlet {
         "javax.servlet.error.exception", "javax.servlet.error.request_uri"};
 
     @Override
-    public void init() throws ServletException {
-    }
-
-    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         doGet(request, response);
     }

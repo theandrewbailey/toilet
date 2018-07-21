@@ -3,6 +3,7 @@ package libOdyssey.bean;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.PostConstruct;
 import javax.ejb.EJB;
@@ -17,7 +18,7 @@ import libWebsiteTools.imead.IMEADHolder;
 public class GuardHolder {
 
     // group 1 is the origin (with http), group 2 is domain and port specifically
-    public static final Pattern ORIGIN_PATTERN = Pattern.compile("^(https?://([^/]*))");
+    public static final Pattern ORIGIN_PATTERN = Pattern.compile("^((https?://)([^/]+?))/.*?$");
     public static final String CANONICAL_URL = "libOdyssey_guard_canonicalURL";
     @EJB
     private IMEADHolder imead;
@@ -37,6 +38,8 @@ public class GuardHolder {
     private List<Pattern> acceptableDomains;
     private boolean enableGuard;
     private boolean handleErrors;
+    private String canonicalOrigin;
+    private String canonicalDomain;
 
     public static boolean matchesAny(CharSequence subject, List<Pattern> regexes) {
         for (Pattern p : regexes) {
@@ -67,6 +70,10 @@ public class GuardHolder {
         es = tempEs;
         enableGuard = Boolean.valueOf(imead.getValue(GUARD_ENABLE));
         handleErrors = Boolean.valueOf(imead.getValue(HANDLE_ERRORS));
+        Matcher canonicalMatcher = GuardHolder.ORIGIN_PATTERN.matcher(imead.getValue(CANONICAL_URL));
+        canonicalMatcher.matches();
+        canonicalOrigin = canonicalMatcher.group(1);
+        canonicalDomain = canonicalMatcher.group(3);
     }
 
     private List<Pattern> getPatterns(String key) {
@@ -75,6 +82,24 @@ public class GuardHolder {
             temps.add(Pattern.compile(line));
         }
         return Collections.unmodifiableList(temps);
+    }
+
+    /**
+     *
+     * @return
+     * GuardHolder.ORIGIN_PATTERN.matcher(imead.getValue(CANONICAL_URL)).group(1)
+     */
+    public String getCanonicalOrigin() {
+        return canonicalOrigin;
+    }
+
+    /**
+     *
+     * @return
+     * GuardHolder.ORIGIN_PATTERN.matcher(imead.getValue(CANONICAL_URL)).group(3)
+     */
+    public String getCanonicalDomain() {
+        return canonicalDomain;
     }
 
     public int[] getSps() {

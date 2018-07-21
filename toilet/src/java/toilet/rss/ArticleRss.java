@@ -1,15 +1,21 @@
 package toilet.rss;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
+import java.io.StringWriter;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import libOdyssey.bean.GuardHolder;
-import libWebsiteTools.JVMNotSupportedError;
+import libWebsiteTools.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
@@ -33,6 +39,7 @@ public class ArticleRss extends AbstractRssFeed {
     private IMEADHolder imead;
     private Document XML;
     private Date lastUpdated = new Date(0);
+    private String etag = "";
 
     public ArticleRss() {
     }
@@ -55,7 +62,7 @@ public class ArticleRss extends AbstractRssFeed {
 
         for (Article e : lEntry) {
             String text = e.getPostedhtml();
-            MarkdownRssItem i = new MarkdownRssItem(text);
+            ToiletRssItem i = new ToiletRssItem(text);
             entries.addItem(i);
             i.setTitle(e.getArticletitle());
             if (!e.getSectionid().getName().equals(imead.getValue(EntryRepo.DEFAULT_CATEGORY))) {
@@ -67,19 +74,16 @@ public class ArticleRss extends AbstractRssFeed {
             }
             i.setAuthor(entries.getWebMaster());
             i.setLink(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), e));
-            try {
-                i.setGuid(URLEncoder.encode(e.getDescription(), "UTF-8"));
-                i.setGuidPermaLink(false);
-            } catch (UnsupportedEncodingException enc) {
-                throw new JVMNotSupportedError(enc);
-            }
+            i.setGuid(i.getLink());
+            i.setGuidPermaLink(true);
             i.setPubDate(e.getPosted());
             i.setMarkdownSource(e.getPostedmarkdown());
             i.setDescription(e.getPostedhtml());
+            i.setMetadescription(e.getDescription());
             if (e.getComments()) {
                 i.setComments(i.getLink() + "#comments");
             }
-            if (i.getPubDate().after(lastUpdated)){
+            if (i.getPubDate().after(lastUpdated)) {
                 lastUpdated = i.getPubDate();
             }
         }
@@ -87,20 +91,39 @@ public class ArticleRss extends AbstractRssFeed {
     }
 
     @Override
-    public synchronized void preAdd() {
+    public void preAdd() {
         XML = generateFeed(Integer.valueOf(imead.getValue(ARTICLE_COUNT)));
+        try {
+            DOMSource DOMsrc = new DOMSource(XML);
+            StringWriter holder = new StringWriter(20000);
+            StreamResult str = new StreamResult(holder);
+            Transformer trans = TransformerFactory.newInstance().newTransformer();
+            trans.transform(DOMsrc, str);
+            etag = "\"" + HashUtil.getHash(holder.toString()) + "\"";
+        } catch (TransformerException ex) {
+            Logger.getLogger(ArticleRss.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     @Override
-    public long getLastModified(){
+    public long getLastModified() {
         return lastUpdated.getTime();
     }
 
     @Override
-    public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        res.setHeader("Cache-Control", "public, max-age="+10000);
+    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+        res.setHeader("Cache-Control", "public, max-age=" + 10000);
         res.setDateHeader("Last-Modified", lastUpdated.getTime());
-        res.setDateHeader("Expires", new Date().getTime()+10000000);
-        return XML;
+        res.setDateHeader("Expires", new Date().getTime() + 10000000);
+        res.setHeader("ETag", etag);
+        if (etag.equals(req.getHeader("If-None-Match"))) {
+            res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+        }
+    }
+
+    @Override
+    public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
+        doHead(req, res);
+        return HttpServletResponse.SC_OK == res.getStatus() ? XML : null;
     }
 }

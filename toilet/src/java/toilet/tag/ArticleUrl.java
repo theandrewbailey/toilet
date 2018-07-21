@@ -19,6 +19,7 @@ public class ArticleUrl extends SimpleTagSupport {
     private boolean link = true;
     private String anchor;
     private String cssClass;
+    private String target;
     private String text;
     private String id;
 
@@ -27,13 +28,16 @@ public class ArticleUrl extends SimpleTagSupport {
         StringBuilder b = new StringBuilder(200);
         if (link) {
             b.append("<a href=\"");
-        };
+        }
         b.append(getUrl(imead.getValue(GuardHolder.CANONICAL_URL), article, anchor));
         if (link && id != null) {
             b.append("\" id=\"").append(id);
         }
         if (link && cssClass != null) {
             b.append("\" class=\"").append(cssClass);
+        }
+        if (link && target != null) {
+            b.append("\" target=\"").append(target);
         }
         if (link) {
             b.append("\">").append(text == null ? article.getArticletitle() : text).append("</a>");
@@ -47,15 +51,21 @@ public class ArticleUrl extends SimpleTagSupport {
     }
 
     public static String getUrl(String thisURL, Article article) {
-        StringBuilder out = new StringBuilder(thisURL).append("article/").append(article.getArticleid()).append('/');
+        return new StringBuilder(thisURL).append("article/").append(article.getArticleid()).append('/').append(getUrlArticleTitle(article)).toString();
+    }
+
+    public static String getAmpUrl(String thisURL, Article article) {
+        return new StringBuilder(thisURL).append("amp/").append(article.getArticleid()).append('/').append(getUrlArticleTitle(article)).toString();
+    }
+
+    private static String getUrlArticleTitle(Article article) {
         try {
             String title = URLEncoder.encode(article.getArticletitle(), "UTF-8");
-            title = title.replaceAll("%[0-9A-F]{2}", "").replace(":", "").replace("+", "-");
-            out.append(title);
+            title = title.replaceAll("%[0-9A-F]{2}", "").replace(":", "").replace("+", "-").replace("--", "-");
+            return title;
         } catch (UnsupportedEncodingException ex) {
             throw new JVMNotSupportedError(ex);
         }
-        return out.toString();
     }
 
     public void setArticle(Article article) {
@@ -64,6 +74,10 @@ public class ArticleUrl extends SimpleTagSupport {
 
     public void setAnchor(String anchor) {
         this.anchor = anchor;
+    }
+
+    public void setTarget(String target) {
+        this.target = target;
     }
 
     public void setText(String text) {

@@ -20,22 +20,20 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 /**
  *
- * @author alphavm
+ * @author alpha
  */
 @Entity
-@Table(name = "page", schema = "odyssey")
-@XmlRootElement
+@Table(name = "page", schema = "tools")
 @NamedQueries({
     @NamedQuery(name = "Page.findAll", query = "SELECT p FROM Page p"),
     @NamedQuery(name = "Page.findByPageid", query = "SELECT p FROM Page p WHERE p.pageid = :pageid"),
     @NamedQuery(name = "Page.findByUrl", query = "SELECT p FROM Page p WHERE p.url = :url"),
     @NamedQuery(name = "Page.findByParameters", query = "SELECT p FROM Page p WHERE p.parameters = :parameters")})
 public class Page implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,14 +48,14 @@ public class Page implements Serializable {
     @Size(max = 2147483647)
     @Column(name = "parameters", length = 2147483647)
     private String parameters;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "page")
-    private Collection<Pageonpageday> pageonpagedayCollection;
-    @OneToMany(mappedBy = "referredbypageid")
-    private Collection<Pagerequest> pagerequestCollection;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "requestedpageid")
+    private Collection<Pagerequest> pagerequestCollection;
+    @OneToMany(mappedBy = "referredbypageid")
     private Collection<Pagerequest> pagerequestCollection1;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "page")
     private Collection<Pageday> pagedayCollection;
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "page")
+    private Collection<Pageonpageday> pageonpagedayCollection;
 
     public Page() {
     }
@@ -95,16 +93,6 @@ public class Page implements Serializable {
         this.parameters = parameters;
     }
 
-    @XmlTransient
-    public Collection<Pageonpageday> getPageonpagedayCollection() {
-        return pageonpagedayCollection;
-    }
-
-    public void setPageonpagedayCollection(Collection<Pageonpageday> pageonpagedayCollection) {
-        this.pageonpagedayCollection = pageonpagedayCollection;
-    }
-
-    @XmlTransient
     public Collection<Pagerequest> getPagerequestCollection() {
         return pagerequestCollection;
     }
@@ -113,7 +101,6 @@ public class Page implements Serializable {
         this.pagerequestCollection = pagerequestCollection;
     }
 
-    @XmlTransient
     public Collection<Pagerequest> getPagerequestCollection1() {
         return pagerequestCollection1;
     }
@@ -122,13 +109,20 @@ public class Page implements Serializable {
         this.pagerequestCollection1 = pagerequestCollection1;
     }
 
-    @XmlTransient
     public Collection<Pageday> getPagedayCollection() {
         return pagedayCollection;
     }
 
     public void setPagedayCollection(Collection<Pageday> pagedayCollection) {
         this.pagedayCollection = pagedayCollection;
+    }
+
+    public Collection<Pageonpageday> getPageonpagedayCollection() {
+        return pageonpagedayCollection;
+    }
+
+    public void setPageonpagedayCollection(Collection<Pageonpageday> pageonpagedayCollection) {
+        this.pageonpagedayCollection = pageonpagedayCollection;
     }
 
     @Override

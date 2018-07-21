@@ -12,21 +12,29 @@ public class Textarea extends AbstractInput {
 
         out.append("<textarea id=\"").append(getId());
         out.append("\" name=\"").append(getId());
-        out.append("\" rows=\"").append(height.toString());
-        if (getLength() != null){
+        if (null != height) {
+            out.append("\" rows=\"").append(height.toString());
+        }
+        if (null != getLength()) {
             out.append("\" cols=\"").append(getLength().toString());
         }
-        if (getAccesskey() != null) {
+        if (null != getAccesskey()) {
             out.append("\" accesskey=\"").append(getAccesskey());
         }
-        if (getStyleClass() != null) {
+        if (null != getStyleClass()) {
             out.append("\" class=\"").append(getStyleClass());
         }
-        if (getTabindex() != null) {
+        if (null != getTabindex()) {
             out.append("\" tabindex=\"").append(getTabindex().toString());
         }
-        if (getTitle() != null) {
+        if (null != getTitle()) {
             out.append("\" title=\"").append(getTitle());
+        }
+        if (null != getPattern()) {
+            out.append("\" data-pattern=\"").append(getPattern());
+        }
+        if (null != getPatternMismatch()) {
+            out.append("\" data-patternmismatch=\"").append(getPatternMismatch());
         }
         if (getAutofocus()) {
             out.append("\" autofocus=\"autofocus");
@@ -37,6 +45,9 @@ public class Textarea extends AbstractInput {
         if (getRequired()) {
             out.append("\" required=\"required");
         }
+        if (null != getValueMissing()) {
+            out.append("\" data-valuemissing=\"").append(getValueMissing());
+        }
         out.append("\">");
         if (getValue() != null) {
             out.append(getValue());
@@ -46,9 +57,6 @@ public class Textarea extends AbstractInput {
         return out.toString();
     }
 
-    /**
-     * @param height the height to set
-     */
     public void setHeight(Integer height) {
         this.height = height;
     }

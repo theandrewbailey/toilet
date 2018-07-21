@@ -13,7 +13,7 @@ import libWebsiteTools.rss.entity.AbstractRssFeed;
 import libWebsiteTools.rss.entity.RssChannel;
 import libWebsiteTools.rss.entity.RssItem;
 import org.w3c.dom.Document;
-import toilet.servlet.AdminServlet;
+import toilet.servlet.AdminLoginServlet;
 
 /**
  *
@@ -26,12 +26,12 @@ public class ErrorRss extends AbstractRssFeed {
     @EJB
     private ExceptionRepo exr;
     public static final String NAME = "logger.rss";
-    private static final Logger log = Logger.getLogger(ExceptionRepo.class.getName());
+    private static final Logger LOG = Logger.getLogger(ExceptionRepo.class.getName());
 
     @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        if (AdminServlet.LOG.equals(req.getSession().getAttribute("login"))) {
-            log.fine("Exception RSS feed requested");
+        if (AdminLoginServlet.LOG.equals(req.getSession().getAttribute("login"))) {
+            LOG.fine("Exception RSS feed requested");
             RssChannel badRequests = new RssChannel("running log", req.getRequestURL().toString(), "404s, etc.");
             badRequests.setLimit(1000);
             List<Exceptionevent> exceptions = exr.getAll();
@@ -43,7 +43,7 @@ public class ErrorRss extends AbstractRssFeed {
             }
             return super.refreshFeed(badRequests);
         }
-        log.fine("Error RSS feed invalid authentication");
+        LOG.fine("Error RSS feed invalid authentication");
         throw new RuntimeException();
     }
 }
