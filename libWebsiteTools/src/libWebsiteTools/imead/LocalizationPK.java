@@ -4,8 +4,6 @@ import java.io.Serializable;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 /**
  *
@@ -14,15 +12,11 @@ import javax.validation.constraints.Size;
 @Embeddable
 public class LocalizationPK implements Serializable {
 
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 1000)
+    @Basic
     @Column(name = "key", nullable = false, length = 1000)
     private String key;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 10)
-    @Column(name = "localecode", nullable = false, length = 10)
+    @Basic
+    @Column(name = "localecode")
     private String localecode;
 
     public LocalizationPK() {

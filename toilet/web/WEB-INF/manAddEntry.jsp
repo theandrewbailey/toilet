@@ -1,7 +1,7 @@
 <%@ include file="/WEB-INF/head.jspf" %>
 <c:if test="${mess != null}"><p class="error">${mess}</p></c:if>
-<form action="article" method="post" class="adminform"><h:requestToken/>
-    <imead:localVar key="page_patternMismatch" var="patternMismatch" /><imead:localVar key="page_valueMissing" var="valueMissing" />
+<form action="article" method="post" class="adminform">
+    <h:localVar key="page_patternMismatch" var="patternMismatch" /><h:localVar key="page_valueMissing" var="valueMissing" />
     <h:select id="section" label="Category: " labelNextLine="false" parameters="${groups}" selected="${art.sectionid.name}"/>
     <h:textbox id="newsection" label="" labelNextLine="false" patternMismatch="${patternMismatch}" /><br/>
 

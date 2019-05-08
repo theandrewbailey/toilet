@@ -1,0 +1,13 @@
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="h" uri="uri:libwebsitetools:htmlTools" %>
+<form method="POST">
+    <table>
+        <thead>
+            <th>key</th>
+            <c:forEach items="${properties.keySet()}" var="locale" >
+                <th>${locale.toLanguageKey()}</th>
+            </c:forEach>
+            <th><h:select id="" parameters="${groups}" ></th>
+        </thead>
+    </table>
+</form>

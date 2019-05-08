@@ -29,18 +29,23 @@ public interface iFeed extends Serializable {
 
     /**
      * preAdd will be called before this feed is made available.
+     *
+     * @return this
      */
-    public void preAdd();
+    public iFeed preAdd();
 
     /**
      * postAdd will be called after this feed is made available.
+     *
+     * @return this
      */
-    public void postAdd();
+    public iFeed postAdd();
 
     /**
      * lastModified will return when the feed last changed.
+     *
      * @see HttpServlet
-     * 
+     *
      * @return milliseconds since epoch
      */
     public long getLastModified();
@@ -48,20 +53,21 @@ public interface iFeed extends Serializable {
     /**
      * HttpServlet.doHead(HttpServletRequest, HttpServletResponse) calls this.
      * Setting status to something other than 200 is respected.
-     * 
+     *
      * @param req
      * @param res
+     * @return this
      */
-    public void doHead(HttpServletRequest req, HttpServletResponse res);
+    public iFeed doHead(HttpServletRequest req, HttpServletResponse res);
 
     /**
      * preWrite will be called on every request for the feed. it must return the
      * XML to send back to user, or set the HTTP response status to something
      * other than 200.
-     * 
+     *
      * there is no external syncronized block around this call and postWrite. if
      * thread-safety is needed, you must provide it on your own.
-     * 
+     *
      * @param req useful for getting the session object
      * @param res useful for setting headers
      * @return XML document to write to output stream
@@ -70,21 +76,26 @@ public interface iFeed extends Serializable {
 
     /**
      * postWrite is called after preWrite.
-     * 
+     *
      * there is no external syncronized block around this call and postWrite. if
      * thread-safety is needed, you must provide it on your own.
-     * 
+     *
      * @param req useful for getting the session object
+     * @return this
      */
-    public void postWrite(HttpServletRequest req);
+    public iFeed postWrite(HttpServletRequest req);
 
     /**
      * preRemove will be called before the feed is removed from service.
+     *
+     * @return this
      */
-    public void preRemove();
+    public iFeed preRemove();
 
     /**
      * postRemove will be called after the feed is removed from service.
+     *
+     * @return this
      */
-    public void postRemove();
+    public iFeed postRemove();
 }

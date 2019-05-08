@@ -1,8 +1,12 @@
 package libWebsiteTools;
 
 import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  *
@@ -11,7 +15,23 @@ import java.security.NoSuchAlgorithmException;
 public class HashUtil {
 
     /**
-     * @return SHA 256 MessageDigest
+     *
+     * @param bytes to convert to hexadecimal
+     * @return string of hexadecimal
+     */
+    public static String getHex(byte[] bytes) {
+        char[] hexArray = "0123456789ABCDEF".toCharArray();
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
+    /**
+     * @return SHA-256 MessageDigest
      */
     public static MessageDigest getSHA256() {
         try {
@@ -22,57 +42,55 @@ public class HashUtil {
     }
 
     /**
-     * @param toHash
-     * @return base64 SHA 256 hash
+     *
+     * @param toHash to hash with SHA-256
+     * @return SHA-256 hash
      */
-    public static String getHashAsBase64(byte[] toHash) {
-        return getBase64(getSHA256().digest(toHash));
+    public static byte[] getSHA256(byte[] toHash) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(toHash);
+        } catch (NoSuchAlgorithmException x) {
+            throw new JVMNotSupportedError(x);
+        }
     }
 
     /**
-     * @param toHash
-     * @return base64 SHA 256 hash
+     * @param toHash to hash with SHA-256
+     * @return base64 SHA-256 hash
      */
-    public static String getHash(String toHash) {
+    public static String getSHA256HashAsBase64(byte[] toHash) {
+        return Base64.getEncoder().encodeToString(getSHA256(toHash));
+    }
+
+    /**
+     * @param toHash to hash with SHA-256
+     * @return base64 SHA-256 hash
+     */
+    public static String getSHA256Hash(String toHash) {
         try {
-            return getHashAsBase64(toHash.getBytes("UTF-8"));
+            return getSHA256HashAsBase64(toHash.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException enc) {
             throw new JVMNotSupportedError(enc);
         }
     }
 
-    public static String getBase64(byte[] stuff) {
-        return getBase64(stuff, "==");
-    }
-
     /**
-     * from http://www.wikihow.com/Encode-a-String-to-Base64-With-Java
      *
-     * @param stuff
-     * @param endpadding what to fill in at the end if need, usually "=="
-     * @return stuff in Base64
+     * @param key key for HMAC-SHA-256
+     * @param data data to HMAC-SHA-256
+     * @return string of base64 HMAC-SHA-256
      */
-    public static String getBase64(byte[] stuff, String endpadding) {
-        String base64code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        StringBuilder encoded = new StringBuilder(stuff.length * 2);
-        // determine how many padding bytes to add to the output
-        int paddingCount = (3 - (stuff.length % 3)) % 3;
-        // add any necessary padding to the input
-        byte[] padded = new byte[stuff.length + paddingCount]; // initialized to zero by JVM
-        System.arraycopy(stuff, 0, padded, 0, stuff.length);
-        stuff = padded;
-        // process 3 bytes at a time, churning out 4 output bytes
-        for (int i = 0; i < stuff.length; i += 3) {
-            int j = ((stuff[i] & 0xff) << 16)
-                    + ((stuff[i + 1] & 0xff) << 8)
-                    + (stuff[i + 2] & 0xff);
-            encoded.append(base64code.charAt((j >> 18) & 0x3f))
-                    .append(base64code.charAt((j >> 12) & 0x3f))
-                    .append(base64code.charAt((j >> 6) & 0x3f))
-                    .append(base64code.charAt(j & 0x3f));
+    public static String getHmacSHA256(String key, String data) {
+        try {
+            Mac hmac = Mac.getInstance("HmacSHA256");
+            hmac.init(new SecretKeySpec(key.getBytes("UTF-8"), "HmacSHA256"));
+            return Base64.getEncoder().encodeToString(hmac.doFinal(data.getBytes("UTF-8")));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new JVMNotSupportedError(ex);
+        } catch (UnsupportedEncodingException ex) {
+            throw new JVMNotSupportedError(ex);
+        } catch (InvalidKeyException ex) {
+            throw new RuntimeException(ex);
         }
-        // replace encoded padding nulls with "="
-        return encoded.substring(0, encoded.length() - paddingCount) + endpadding.substring(0, paddingCount);
     }
-
 }

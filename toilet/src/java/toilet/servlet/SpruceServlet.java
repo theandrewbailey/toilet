@@ -5,13 +5,12 @@ import java.io.PrintWriter;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import toilet.bean.SpruceGenerator;
 
 @WebServlet(name = "SpruceServlet", urlPatterns = {"/spruce", "/spruce/*"})
-public class SpruceServlet extends HttpServlet {
+public class SpruceServlet extends ToiletServlet {
 
     private static final String SPRUCE_JSP = "/WEB-INF/spruce.jsp";
     @EJB
@@ -21,6 +20,7 @@ public class SpruceServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String[] parts = request.getRequestURI().split("/spruce/", 2);
         if (parts.length == 1 || parts[1] == null || parts[1].isEmpty()) {
+            asyncFiles(request);
             request.getServletContext().getRequestDispatcher(SPRUCE_JSP).forward(request, response);
         } else {
             try {
@@ -31,7 +31,7 @@ public class SpruceServlet extends HttpServlet {
                     pw.println(spruce.getAddSentence());
                 }
                 pw.flush();
-            } catch (Exception x) {
+            } catch (IOException | NumberFormatException x) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
         }

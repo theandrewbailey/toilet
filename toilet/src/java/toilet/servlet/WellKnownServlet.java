@@ -1,14 +1,10 @@
 package toilet.servlet;
 
 import java.io.IOException;
-import java.io.PrintWriter;
-import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.imead.IMEADHolder;
 import toilet.UtilStatic;
 
 /**
@@ -16,10 +12,7 @@ import toilet.UtilStatic;
  * @author alpha
  */
 @WebServlet(name = "WellKnownServlet", description = "Servlet for well known files", urlPatterns = {"/robots.txt", "/favicon.ico"})
-public class WellKnownServlet extends HttpServlet {
-
-    @EJB
-    private IMEADHolder imead;
+public class WellKnownServlet extends ToiletServlet {
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

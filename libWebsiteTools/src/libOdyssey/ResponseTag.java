@@ -16,7 +16,7 @@ public class ResponseTag extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        Date start = (Date) getJspContext().getAttribute(RequestTime.TIME_PARAM, PageContext.REQUEST_SCOPE);
+        Date start = (Date) getJspContext().getAttribute(OdysseyFilter.TIME_PARAM, PageContext.REQUEST_SCOPE);
         getJspContext().setAttribute("requestTime", start);
         Long time = new Date().getTime() - start.getTime();
         getJspContext().setAttribute("renderMillis", time);

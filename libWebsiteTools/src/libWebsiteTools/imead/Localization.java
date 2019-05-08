@@ -2,6 +2,7 @@ package libWebsiteTools.imead;
 
 import java.io.Serializable;
 import javax.persistence.Basic;
+import javax.persistence.Cacheable;
 import javax.persistence.Column;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
@@ -16,6 +17,7 @@ import javax.validation.constraints.Size;
  * @author alpha
  */
 @Entity
+@Cacheable(true)
 @Table(name = "localization", schema = "tools")
 @NamedQueries({
     @NamedQuery(name = "Localization.findAll", query = "SELECT l FROM Localization l"),
@@ -26,10 +28,8 @@ public class Localization implements Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
     protected LocalizationPK localizationPK;
-    @Basic(optional = false)
-    @NotNull
-    @Size(min = 1, max = 65000)
-    @Column(name = "value", nullable = false, length = 65000)
+    @Basic
+    @Column(name = "value", length = 65000)
     private String value;
 
     public Localization() {

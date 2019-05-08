@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import javax.annotation.PreDestroy;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.persistence.EntityManager;
@@ -30,15 +32,16 @@ import libOdyssey.db.Pagerequest;
  * @author alpha
  */
 @Singleton
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class Analyzer {
 
     public static final String LOCAL_NAME = "java:module/Analyzer";
+    public static final String GET_TIMES_QUERY = "SELECT DISTINCT CAST(EXTRACT(DAY FROM atime) AS INT) AS \"day\",CAST(EXTRACT(MONTH FROM atime) AS INT) AS \"month\",CAST(EXTRACT(YEAR FROM atime) AS INT) AS \"year\" FROM odyssey.httpsession ORDER BY \"year\" DESC,\"month\" DESC,\"day\" DESC;";
+    private static final Logger LOG = Logger.getLogger(Analyzer.class.getName());
     @EJB
     private ExceptionRepo error;
     @PersistenceUnit
     private EntityManagerFactory PU;
-    public static final String getTimesQuery = "SELECT DISTINCT CAST(EXTRACT(DAY FROM atime) AS INT) AS \"day\",CAST(EXTRACT(MONTH FROM atime) AS INT) AS \"month\",CAST(EXTRACT(YEAR FROM atime) AS INT) AS \"year\" FROM odyssey.httpsession ORDER BY \"year\" DESC,\"month\" DESC,\"day\" DESC;";
-    private static final Logger log = Logger.getLogger(Analyzer.class.getName());
 
     public void logRequest(HttpServletRequest req, HttpServletResponse res) {
         EntityManager em = PU.createEntityManager();
@@ -130,13 +133,13 @@ public class Analyzer {
 
 //    @Schedule(hour = "5")
     public void analyze() {
-        log.entering(Analyzer.class.getName(), "analyze");
-        log.info("Analyzing requests");
+        LOG.entering(Analyzer.class.getName(), "analyze");
+        LOG.info("Analyzing requests");
         SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd");
         EntityManager em=PU.createEntityManager();
         try {
             for (DateRange range:new RangeGenerator(this)){
-                log.info(String.format("Analyzing {0}, interval {1}", f.format(range.getStart()), range.getDayInterval()));
+                LOG.info(String.format("Analyzing {0}, interval {1}", f.format(range.getStart()), range.getDayInterval()));
                 long totalCount=0L;
             // get pages in range
             // count hits
@@ -180,8 +183,8 @@ public class Analyzer {
         } finally {
             em.close();
         }
-        log.info("Analyzing requests finished");
-        log.exiting(Analyzer.class.getName(), "analyze");
+        LOG.info("Analyzing requests finished");
+        LOG.exiting(Analyzer.class.getName(), "analyze");
     }
 
     private void process() {

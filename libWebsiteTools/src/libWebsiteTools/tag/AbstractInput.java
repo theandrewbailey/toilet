@@ -20,6 +20,9 @@ import libWebsiteTools.HashUtil;
 public abstract class AbstractInput extends SimpleTagSupport {
 
     public static final String DISABLE_FIELDNAME_OBFUSCATION = "$_LIBWEBSITETOOLS_DISABLE_FIELDNAME_OBFUSCATION";
+    public static final String DISABLE_REFERRER_CHECKING = "$_LIBWEBSITETOOLS_DISABLE_REQUEST_TOKEN_REFERRER_CHECKING";
+    //public static final String ORIGINAL_URL = "$_LIBODYSSEY_ORIGINAL_URL";
+    public static final String ORIGINAL_REQUEST_URL = "$_LIBWEBSITETOOLS_ORIGINAL_REQUEST_URL";
     public static final String DEFAULT_PATTERN = "^[\\u{000A}\\u{000D}\\u{0020}-\\u{007E}\\u{00A1}-\\u{052F}]*$";
 
     public static final String[] INPUT_MODES = new String[]{"verbatim", "latin", "latin-name", "latin-prose",
@@ -65,29 +68,16 @@ public abstract class AbstractInput extends SimpleTagSupport {
     protected HttpServletRequest req;
     private String cachedId;
 
-    public static String getHash(HttpServletRequest req, String str) {
-        if (null != req.getServletContext().getAttribute(DISABLE_FIELDNAME_OBFUSCATION)) {
-            return str;
-        }
-        Object token = req.getAttribute(RequestToken.ID_NAME);
-        if (null == token) {
-            token = req.getParameter(RequestToken.getHash(req));
-        }
-        return HashUtil.getHash(req.getSession().getId() + token.toString() + str);
-    }
-
     public static String getParameter(HttpServletRequest req, String parameter) {
-        String lookfor = getHash(req, parameter);
-        return req.getParameter(lookfor);
+        return req.getParameter(getIncomingHash(req, parameter));
     }
 
     public static Part getPart(HttpServletRequest req, String name) throws IOException, ServletException {
-        String lookfor = getHash(req, name);
-        return req.getPart(lookfor);
+        return req.getPart(getIncomingHash(req, name));
     }
 
     public static List<Part> getParts(HttpServletRequest req, String name) throws IOException, ServletException {
-        String lookfor = getHash(req, name);
+        String lookfor = getIncomingHash(req, name);
         List<Part> parts = new ArrayList<>();
         for (Part p : req.getParts()) {
             if (lookfor.equals(p.getName())) {
@@ -95,6 +85,47 @@ public abstract class AbstractInput extends SimpleTagSupport {
             }
         }
         return parts;
+    }
+
+    public static String getIncomingHash(HttpServletRequest req, String str) {
+        if (null != req.getServletContext().getAttribute(DISABLE_FIELDNAME_OBFUSCATION)
+                || (null != req.getSession(false)
+                && null != req.getSession().getAttribute(DISABLE_FIELDNAME_OBFUSCATION))) {
+            return str;
+        }
+        if (null != req.getServletContext().getAttribute(DISABLE_REFERRER_CHECKING)
+                || (null != req.getSession(false)
+                && null != req.getSession().getAttribute(DISABLE_REFERRER_CHECKING))) {
+            return HashUtil.getHmacSHA256(req.getSession().getId(), str);
+        }
+        return HashUtil.getHmacSHA256(req.getSession().getId(), req.getHeader("referer") + str);
+    }
+
+    public static String getTokenURL(HttpServletRequest req) {
+        if (null != req.getAttribute(ORIGINAL_REQUEST_URL)) {
+            return req.getAttribute(ORIGINAL_REQUEST_URL).toString();
+        }
+        String url = req.getRequestURL().toString();
+        if (req.getQueryString() != null) {
+            url += "?" + req.getQueryString();
+        }
+        req.setAttribute(ORIGINAL_REQUEST_URL, url);
+        return url;
+    }
+
+    public static String getOutgoingHash(HttpServletRequest req, String str) {
+        if (null != req.getServletContext().getAttribute(DISABLE_FIELDNAME_OBFUSCATION)
+                || (null != req.getSession(false)
+                && null != req.getSession().getAttribute(DISABLE_FIELDNAME_OBFUSCATION))) {
+            return str;
+        }
+        if (null != req.getServletContext().getAttribute(DISABLE_REFERRER_CHECKING)
+                || (null != req.getSession(false)
+                && null != req.getSession().getAttribute(DISABLE_REFERRER_CHECKING))) {
+
+            return HashUtil.getHmacSHA256(req.getSession().getId(), str);
+        }
+        return HashUtil.getHmacSHA256(req.getSession().getId(), getTokenURL(req) + str);
     }
 
     public abstract String getType();
@@ -207,7 +238,7 @@ public abstract class AbstractInput extends SimpleTagSupport {
 
     public String getId() {
         if (cachedId == null && req != null) {
-            cachedId = getHash(req, id);
+            cachedId = getOutgoingHash(req, id);
         }
         return cachedId != null ? cachedId : id;
     }

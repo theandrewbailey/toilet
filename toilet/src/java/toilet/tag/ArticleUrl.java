@@ -6,7 +6,7 @@ import java.net.URLEncoder;
 import javax.ejb.EJB;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libOdyssey.bean.GuardHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.db.Article;
@@ -29,7 +29,7 @@ public class ArticleUrl extends SimpleTagSupport {
         if (link) {
             b.append("<a href=\"");
         }
-        b.append(getUrl(imead.getValue(GuardHolder.CANONICAL_URL), article, anchor));
+        b.append(getUrl(imead.getValue(GuardRepo.CANONICAL_URL), article, anchor));
         if (link && id != null) {
             b.append("\" id=\"").append(id);
         }

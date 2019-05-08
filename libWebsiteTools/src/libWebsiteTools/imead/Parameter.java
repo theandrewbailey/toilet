@@ -15,7 +15,7 @@ public class Parameter extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        KeyVal daddy = (KeyVal) getParent();
+        Local daddy = (Local) getParent();
         if (object == null) {
             StringWriter fakeout = new StringWriter(500);
             getJspBody().invoke(fakeout);

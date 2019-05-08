@@ -1,6 +1,5 @@
 package toilet.bean;
 
-import java.util.concurrent.Callable;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -12,9 +11,9 @@ import javax.ejb.Stateless;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-import libOdyssey.bean.GuardHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.rss.iFeedBucket;
+import libWebsiteTools.rss.FeedBucket;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
 
@@ -38,13 +37,13 @@ public class UtilBean {
     @PersistenceUnit
     private EntityManagerFactory toiletPU;
     @EJB
-    private iFeedBucket src;
+    private FeedBucket src;
     @EJB
     private IMEADHolder imead;
     @EJB
     private BackupDaemon backup;
     @EJB
-    private GuardHolder guard;
+    private GuardRepo guard;
     @EJB
     private StateCache cache;
     @Resource

@@ -1,0 +1,5 @@
+<c:if test="${null!=asyncCats}"><c:forEach items="${asyncCats.get()}" var="cats"><nav>
+    <c:choose><c:when test='${cats.key ne ""}'><h1 class="recentCategoryEntries"><h:local key="page_sideRecentCategory"><h:param object="${cats.key}"/></h:local></h1></c:when>
+    <c:otherwise><h1 class="recentEntries"><h:local key="page_sideRecent"/></h1></c:otherwise></c:choose>
+    <ul><c:forEach items="${cats.value}" var="_recentEntry"><li><t:articleUrl article="${_recentEntry}"/></li></c:forEach></ul>
+</nav></c:forEach></c:if>

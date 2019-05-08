@@ -3,6 +3,7 @@ package toilet.db;
 import java.io.Serializable;
 import java.util.Date;
 import javax.persistence.Basic;
+import javax.persistence.Cacheable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -23,9 +24,11 @@ import javax.validation.constraints.Size;
  * @author alpha
  */
 @Entity
+@Cacheable(true)
 @Table(name = "comment", catalog = "toilet", schema = "toilet")
 @NamedQueries({
-    @NamedQuery(name = "Comment.findAll", query = "SELECT c FROM Comment c ORDER BY c.posted DESC")})
+    @NamedQuery(name = "Comment.findAll", query = "SELECT c FROM Comment c ORDER BY c.posted DESC"),
+    @NamedQuery(name = "Comment.countComments", query = "SELECT COUNT(c) FROM Comment c")})
 public class Comment implements Serializable {
 
     private static final long serialVersionUID = 1L;

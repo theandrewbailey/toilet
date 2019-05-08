@@ -2,13 +2,9 @@ package libOdyssey.bean;
 
 import javax.ejb.EJB;
 import javax.ejb.Stateful;
-import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import libOdyssey.ResponseTag;
-import libOdyssey.db.Page;
 
 /**
  *
@@ -28,8 +24,6 @@ public class SessionBean {
     private Analyzer anal;
     @EJB
     private ExceptionRepo error;
-    @EJB
-    private GuardHolder guard;
 
     /**
      * @param req

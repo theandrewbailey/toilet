@@ -5,6 +5,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -14,6 +16,7 @@ public class Gzipper extends FileCompressorJob {
 
     private final int SIZE_DIFFERENCE = "Accept-Encoding: gzip\n".length();
     private final String COMMAND_KEY = "file_gzipCommand";
+    private final static Logger LOG = Logger.getLogger(Gzipper.class.getName());
 
     public Gzipper(Fileupload file) {
         super(file);
@@ -22,12 +25,14 @@ public class Gzipper extends FileCompressorJob {
     @Override
     public Boolean call() throws Exception {
         if (null != file.getGzipdata()) {
+            LOG.log(Level.FINEST, "File {0} already gzipped.", file.getFilename());
             return false;
         }
         byte[] compressedData = null;
         File tempfile = null;
         String command = imead.getValue(COMMAND_KEY);
         if (null == command) {
+            LOG.finest("Gzip command not set.");
             return false;
         }
         try {
@@ -40,8 +45,8 @@ public class Gzipper extends FileCompressorJob {
             if (compressedData.length + SIZE_DIFFERENCE > file.getFiledata().length) {
                 return false;
             }
-        } catch (IOException ex) {
-            error.add(null, "Compression failed", command, ex);
+        } catch (IOException | RuntimeException ex) {
+            LOG.log(Level.SEVERE, "Problem while running command: " + command, ex);
             return false;
         } finally {
             if (null != tempfile) {

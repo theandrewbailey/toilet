@@ -1,4 +1,4 @@
-<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %><c:if test="${pagen_first != null}"><ul class="pagenation"><%-- pagenation magics below --%><li class="pagen_label">pages:</li>
+<c:if test="${pagen_first != null}"><ul class="pagenation"><%-- pagenation magics below --%><li class="pagen_label">pages:</li>
     <c:if test="${pagen_current > 2}"><li><a class="pagen_newest" title="first page" href="${pagen_link}1">newest</a></li></c:if>
     <c:if test="${pagen_current != 1}"><li><a class="pagen_newer" title="previous page" href="${pagen_link}${pagen_current-1}">newer</a></li></c:if>
     <c:forEach begin="${pagen_first}" end="${pagen_last}" var="num"><li class="pagen_number"><c:choose>

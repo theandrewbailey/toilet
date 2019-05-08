@@ -7,12 +7,10 @@ import java.util.List;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.rss.iFeedBucket;
-import libWebsiteTools.tag.RequestToken;
+import libWebsiteTools.rss.FeedBucket;
 import toilet.UtilStatic;
 import toilet.bean.StateCache;
 import toilet.bean.EntryRepo;
@@ -26,18 +24,12 @@ import static toilet.servlet.AdminLoginServlet.POSTS;
  * @author alpha
  */
 @WebServlet(name = "adminPost", description = "Performs admin duties on posts (articles/comments)", urlPatterns = {"/adminPost"})
-public class AdminPost extends HttpServlet {
+public class AdminPost extends ToiletServlet {
 
     public static final String LAST_ARTICLE_EDITED = "art";
     public static final String CREATE_NEW_GROUP = "$_CREATE_NEW_GROUP";
     @EJB
-    private EntryRepo entry;
-    @EJB
-    private iFeedBucket src;
-    @EJB
-    private IMEADHolder imead;
-    @EJB
-    private StateCache cache;
+    private FeedBucket src;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -70,7 +62,6 @@ public class AdminPost extends HttpServlet {
         request.getSession().setAttribute("login", AdminLoginServlet.POSTS);
         request.setAttribute("title", "Posts");
         request.setAttribute("articles", articles);
-        request.setAttribute(RequestToken.ID_NAME, null);
         request.getRequestDispatcher(AdminLoginServlet.MAN_ENTRIES).forward(request, response);
     }
 
@@ -91,7 +82,6 @@ public class AdminPost extends HttpServlet {
         } else if (!groups.containsKey(art.getSectionid().getName())) {
             groups.put(art.getSectionid().getName(), art.getSectionid().getName());
         }
-        request.setAttribute(RequestToken.ID_NAME, null);
         request.getSession().setAttribute(LAST_ARTICLE_EDITED, art);
         request.getRequestDispatcher(AdminLoginServlet.MAN_ADD_ENTRY).forward(request, response);
         request.getSession().setAttribute(LAST_ARTICLE_EDITED, art);

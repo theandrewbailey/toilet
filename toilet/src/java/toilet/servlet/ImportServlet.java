@@ -6,25 +6,19 @@ import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.bean.ExceptionRepo;
-import libOdyssey.bean.GuardHolder;
-import libWebsiteTools.imead.IMEADHolder;
+import javax.ws.rs.core.HttpHeaders;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.BackupDaemon;
 
 @WebServlet(name = "ImportServlet", description = "Inserts articles, comments, and files via zip file upload", urlPatterns = {"/import"})
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1000) // 1000 megabytes
-public class ImportServlet extends HttpServlet {
+public class ImportServlet extends ToiletServlet {
 
     @EJB
     private BackupDaemon backup;
-    @EJB
-    private ExceptionRepo error;
-    @EJB
-    private IMEADHolder imead;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -34,7 +28,7 @@ public class ImportServlet extends HttpServlet {
             return;
         }
 
-        response.setHeader("Content-Disposition", "attachment;filename=" + backup.getZipName());
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + backup.getZipName());
         response.setContentType("application/zip");
         backup.generateZip(response.getOutputStream());
     }
@@ -54,6 +48,6 @@ public class ImportServlet extends HttpServlet {
             error.add(request, "Restore from zip failed", null, ex);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
-        response.sendRedirect(imead.getValue(GuardHolder.CANONICAL_URL));
+        response.sendRedirect(imead.getValue(GuardRepo.CANONICAL_URL));
     }
 }

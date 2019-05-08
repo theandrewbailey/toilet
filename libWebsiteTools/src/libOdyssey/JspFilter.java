@@ -6,6 +6,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPOutputStream;
+import javax.ejb.EJB;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -21,13 +22,18 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
 import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.imead.IMEADHolder;
 
 /**
  *
  * @author alpha
  */
-@WebFilter(description = "", filterName = "GzipCompressorFilter", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD}, urlPatterns = {"*.jsp"})
-public class GzipCompressorFilter implements Filter {
+@WebFilter(description = "", filterName = "GzipCompressorFilter", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD}, urlPatterns = {"*.jsp", "/rss/*"})
+public class JspFilter implements Filter {
+
+    public static final String CONTENT_SECURITY_POLICY = "libOdyssey_content_security_policy";
+    @EJB
+    private IMEADHolder imead;
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -35,6 +41,9 @@ public class GzipCompressorFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        Object csp = request.getAttribute(CONTENT_SECURITY_POLICY);
+        ((HttpServletResponse) response).addHeader("Content-Security-Policy", null == csp ? imead.getValue(CONTENT_SECURITY_POLICY) : csp.toString());
+
         String encoding = ((HttpServletRequest) request).getHeader(HttpHeaders.ACCEPT_ENCODING);
         if (null != encoding && FileServlet.GZIP_PATTERN.matcher(encoding).find()) {
             GZIPHttpServletResponseWrapper res = new GZIPHttpServletResponseWrapper((HttpServletResponse) response);

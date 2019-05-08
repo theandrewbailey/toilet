@@ -75,7 +75,7 @@ public final class UtilStatic {
                 sb.append(' ');
             }
         }
-        return sb.toString();
+        return sb.toString().trim();
     }
 
     /**

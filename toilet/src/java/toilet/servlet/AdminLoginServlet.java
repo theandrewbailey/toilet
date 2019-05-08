@@ -1,30 +1,30 @@
 package toilet.servlet;
 
 import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import javax.annotation.Resource;
-import javax.ejb.EJB;
-import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.bean.ExceptionRepo;
-import libOdyssey.bean.GuardHolder;
-import libWebsiteTools.file.FileRepo;
+import libOdyssey.CertPath;
+import libOdyssey.CertUtil;
+import libOdyssey.OdysseyFilter;
+import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.tag.AbstractInput;
-import toilet.bean.EntryRepo;
-import toilet.bean.StateCache;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.rss.ErrorRss;
 
 @WebServlet(name = "AdminLoginServlet", description = "Populates admin view JSPs", urlPatterns = {"/adminLogin"})
-public class AdminLoginServlet extends HttpServlet {
+public class AdminLoginServlet extends ToiletServlet {
 
     public static final String ADDENTRY = "admin_addEntry";
     public static final String ANALYZE = "admin_anal";
@@ -39,30 +39,20 @@ public class AdminLoginServlet extends HttpServlet {
     public static final String MAN_CONTENT = "WEB-INF/manContent.jsp";
     public static final String MAN_IMPORT = "WEB-INF/manImport.jsp";
     public static final String MAN_DAY_SELECT = "WEB-INF/manDaySel.jsp";
+    public static final String MAN_HEALTH = "WEB-INF/manHealth.jsp";
     public static final String MAN_ENTRIES = "WEB-INF/manEntry.jsp";
     public static final String MAN_SESSIONS = "WEB-INF/manSession.jsp";
-    @EJB
-    private UtilBean util;
-    @EJB
-    private ExceptionRepo error;
-    @EJB
-    private IMEADHolder imead;
-    @EJB
-    private EntryRepo entry;
-    @EJB
-    private FileRepo file;
-    @EJB
-    private StateCache cache;
-    @Resource
-    private ManagedExecutorService exec;
+    public static final String RIDDLE = "WEB-INF/riddle.jsp";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        asyncFiles(request);
+        request.getRequestDispatcher(RIDDLE).forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        asyncFiles(request);
         String answer = AbstractInput.getParameter(request, "answer");
         try {
             if (null == answer || answer.length() < 15) {
@@ -76,57 +66,108 @@ public class AdminLoginServlet extends HttpServlet {
             Future<Boolean> isAddEntry = exec.submit(new PasswordChecker(imead, answer, ADDENTRY));
             Future<Boolean> isContent = exec.submit(new PasswordChecker(imead, answer, CONTENT));
             Future<Boolean> isReset = exec.submit(new PasswordChecker(imead, answer, RESET));
-            Future<Boolean> isSessions = exec.submit(new PasswordChecker(imead, answer, SESSIONS));
-            Future<Boolean> isAnalyze = exec.submit(new PasswordChecker(imead, answer, ANALYZE));
+            Future<Boolean> isHealth = exec.submit(new PasswordChecker(imead, answer, SESSIONS));
 
             if (isImport.get()) {
                 request.getSession().setAttribute("login", IMPORT);
                 request.getRequestDispatcher(MAN_IMPORT).forward(request, response);
-
+                return;
             } else if (isLog.get()) {
                 request.getSession().setAttribute("login", LOG);
-                response.sendRedirect(imead.getValue(GuardHolder.CANONICAL_URL) + "rss/" + ErrorRss.NAME);
-
+                response.sendRedirect(imead.getValue(GuardRepo.CANONICAL_URL) + "rss/" + ErrorRss.NAME);
+                return;
             } else if (isPosts.get()) {
                 AdminPost.showList(request, response, entry.getArticleArchive(null));
-
+                return;
             } else if (isAddEntry.get()) {
                 Article art = (Article) request.getSession().getAttribute(AdminPost.LAST_ARTICLE_EDITED);
                 if (null == art) {
                     art = new Article();
                 }
                 AdminPost.displayArticleEdit(request, response, art);
-
+                return;
             } else if (isContent.get()) {
-                AdminContent.showFileList(request, response, file.getUploadArchive());
-
+                AdminContent.showFileList(request, response, file.getFileMetadata(null));
+                return;
             } else if (isReset.get()) {
                 util.resetEverything();
                 request.getSession().invalidate();
                 request.getSession(true);
-                response.sendRedirect(imead.getValue(GuardHolder.CANONICAL_URL));
-
-            } else if (isSessions.get()
-                    || (SESSIONS.equals(request.getSession().getAttribute("login"))
-                    && SESSIONS.equals(answer))) {
+                response.sendRedirect(imead.getValue(GuardRepo.CANONICAL_URL));
+                return;
+            } else if (isHealth.get()) {
+                asyncFiles(request);
+                request.setAttribute("uptime", exec.submit(() -> {
+                    try {
+                        return new String(FileUtil.runProcess("uptime", null, 1000));
+                    } catch (IOException | RuntimeException t) {
+                        return t.getLocalizedMessage();
+                    }
+                }));
+                request.setAttribute("free", exec.submit(() -> {
+                    try {
+                        return new String(FileUtil.runProcess("free -m", null, 1000));
+                    } catch (IOException | RuntimeException t) {
+                        return t.getLocalizedMessage();
+                    }
+                }));
+                request.setAttribute("disk", exec.submit(() -> {
+                    try {
+                        return new String(FileUtil.runProcess("df -hx tmpfs", null, 1000));
+                    } catch (IOException | RuntimeException t) {
+                        return t.getLocalizedMessage();
+                    }
+                }));
+                request.setAttribute("articles", exec.submit(() -> {
+                    return entry.getArticleArchive(null);
+                }));
+                request.setAttribute("comments", exec.submit(() -> {
+                    return entry.getCommentArchive(null);
+                }));
+                request.setAttribute("files", exec.submit(() -> {
+                    return file.getFileMetadata(null);
+                }));
+                Map<X509Certificate, LinkedHashMap> certInfo = new HashMap<>();
+                try {
+                    CertUtil certUtil = (CertUtil) request.getServletContext().getAttribute(CertUtil.class.getCanonicalName());
+                    List<CertPath<X509Certificate>> certPaths = certUtil.getServerCertificateChain(imead.getValue(OdysseyFilter.CERTIFICATE_NAME));
+                    for (CertPath<X509Certificate> path : certPaths) {
+                        for (X509Certificate x509 : path.getCertificates()) {
+                            LinkedHashMap<String, String> cert = CertUtil.formatCert(x509);
+                            if (null != cert) {
+                                certInfo.put(x509, cert);
+                            }
+                        }
+                    }
+                    request.setAttribute("certPaths", certPaths);
+                } catch (RuntimeException x) {
+                    error.add(request, "Certificate error", "building certificate chain", x);
+                }
+                request.setAttribute("certInfo", certInfo);
+                request.getRequestDispatcher(MAN_HEALTH).forward(request, response);
+                return;
+                /*
+            } else if (isSessions.get()) {
                 // TODO: analytics
                 request.getRequestDispatcher(MAN_DAY_SELECT).forward(request, response);
-
+                return;
             } else if (isAnalyze.get()
                     || (ANALYZE.equals(request.getSession().getAttribute("login"))
                     && ANALYZE.equals(answer))) {
                 // TODO: analytics
                 request.setAttribute("etags", cache.getEtags());
                 request.getRequestDispatcher(MAN_ANAL).forward(request, response);
-
+                return;
+/**/
             }
         } catch (InterruptedException | ExecutionException ex) {
             error.add(request, "Multithread Exception", "Something happened while verifying passwords", ex);
-        } catch (IllegalArgumentException a) {
-            request.getSession().setAttribute("login", null);
-            error.add(request, null, "Tried to access restricted area.", null);
-            response.sendRedirect("index");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            return;
         }
+        request.getSession().setAttribute("login", null);
+        error.add(request, null, "Tried to access restricted area.", null);
+        request.getRequestDispatcher("/").forward(request, response);
     }
 }
 

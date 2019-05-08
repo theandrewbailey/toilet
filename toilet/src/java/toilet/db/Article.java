@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
 import javax.persistence.Basic;
+import javax.persistence.Cacheable;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -27,27 +28,15 @@ import javax.validation.constraints.Size;
  * @author alpha
  */
 @Entity
+@Cacheable(true)
 @Table(name = "article", catalog = "toilet", schema = "toilet")
 @NamedQueries({
     @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.findBySection", query = "SELECT a FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findSummaries", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary) FROM Article a ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findSummariesBySection", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary) FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
     @NamedQuery(name = "Article.countArticles", query = "SELECT COUNT(a) FROM Article a"),
     @NamedQuery(name = "Article.countArticlesBySection", query = "SELECT COUNT(a) FROM Article a WHERE a.sectionid.name=:section")})
-public class Article implements Serializable {
-
-    /**
-     * @return the searchabletext
-     */
-    public String getSearchabletext() {
-        return searchabletext;
-    }
-
-    /**
-     * @param searchabletext the searchabletext to set
-     */
-    public void setSearchabletext(String searchabletext) {
-        this.searchabletext = searchabletext;
-    }
+public class Article implements Serializable, Comparable<Article> {
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -88,9 +77,6 @@ public class Article implements Serializable {
     @Size(min = 1, max = 2147483647)
     @Column(name = "postedamp", nullable = false, length = 2147483647)
     private String postedamp;
-    @Size(min = 1, max = 2147483647)
-    @Column(name = "searchabletext", nullable = false, length = 2147483647)
-    private String searchabletext;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 250)
@@ -124,15 +110,13 @@ public class Article implements Serializable {
         this.articleid = articleid;
     }
 
-    public Article(Integer articleid, String articletitle, String etag, Date modified, Date posted, String postedhtml, String postedmarkdown, String postedname) {
+    public Article(Integer articleid, String articletitle, String etag, Date posted, Date modified, String summary) {
         this.articleid = articleid;
         this.articletitle = articletitle;
         this.etag = etag;
-        this.modified = modified;
         this.posted = posted;
-        this.postedhtml = postedhtml;
-        this.postedmarkdown = postedmarkdown;
-        this.postedname = postedname;
+        this.modified = modified;
+        this.summary = summary;
     }
 
     public Integer getArticleid() {
@@ -290,6 +274,18 @@ public class Article implements Serializable {
      */
     public void setPostedamp(String postedamp) {
         this.postedamp = postedamp;
+    }
+
+    @Override
+    public int compareTo(Article other) {
+        if (null == other.getArticleid() && null == this.getArticleid()) {
+            return 0;
+        } else if (null != this.getArticleid() && null == other.getArticleid()) {
+            return -1;
+        } else if (null == this.getArticleid() && null != other.getArticleid()) {
+            return 1;
+        }
+        return this.getArticleid() - other.getArticleid();
     }
 
 }

@@ -2,22 +2,25 @@ package libWebsiteTools.imead;
 
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
+import javax.ejb.EJB;
 import javax.ejb.EJBException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.jsp.JspContext;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.PageContext;
+import javax.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.NullWriter;
 
 /**
  *
  * @author alpha
  */
-public class Local extends KeyVal {
+public class Local extends SimpleTagSupport {
 
     /**
      * this is the request attribute name that holds the list of user agent
@@ -32,6 +35,11 @@ public class Local extends KeyVal {
      */
     public static final String OVERRIDE_LOCALE_PARAM = "$_LIBIMEAD_OVERRIDE_LOCALE";
     private static final Logger LOG = Logger.getLogger(Local.class.getName());
+    @EJB
+    protected IMEADHolder imead;
+    private String key;
+    private List<String> params = new ArrayList<>();
+
     private String locale;
 
     /**
@@ -62,7 +70,7 @@ public class Local extends KeyVal {
                 return out;
             }
         } catch (ClassCastException cce) {
-            LOG.severe("Some unexpected object is occupying attribute "+LOCALE_PARAM+" in the session or request.");
+            LOG.severe("Some unexpected object is occupying attribute " + LOCALE_PARAM + " in the session or request.");
             throw cce;
         }
         out = Collections.list(req.getLocales());
@@ -74,7 +82,7 @@ public class Local extends KeyVal {
         }
         out.add(Locale.getDefault());
         Locale generic = IMEADHolder.getLanguageOnly(Locale.getDefault());
-        if (!generic.equals(Locale.getDefault())){
+        if (!generic.equals(Locale.getDefault())) {
             out.add(generic);
         }
         if (null != req.getSession(false)) {
@@ -87,37 +95,31 @@ public class Local extends KeyVal {
 
     /**
      * convenience method for the other resolveLocales()
+     *
      * @param jspc
-     * @return 
+     * @return
      */
     public static List<Locale> resolveLocales(JspContext jspc) {
         return resolveLocales((HttpServletRequest) ((PageContext) jspc).getRequest());
     }
 
-    @Override
     @SuppressWarnings({"unchecked", "UseSpecificCatch", "ThrowableResultIgnored"})
     protected String getValue() {
         try {
             getJspBody().invoke(new NullWriter());
         } catch (Exception n) {
         }
-        if (locale != null) {
-            try {
+        try {
+            if (locale != null) {
                 return MessageFormat.format(imead.getLocal(getKey(), locale), getParams().toArray());
-            } catch (EJBException e) {
-                if (!(e.getCause() instanceof LocalizedStringNotFoundException)) {
-                    throw e;
-                }
+            }
+            return MessageFormat.format(imead.getLocal(getKey(), resolveLocales(getJspContext())), getParams().toArray());
+        } catch (EJBException e) {
+            if (!(e.getCause() instanceof LocalizedStringNotFoundException)) {
+                throw e;
             }
         }
-
-        List<Locale> locales = resolveLocales(getJspContext());
-        try {
-            return MessageFormat.format(imead.getLocal(getKey(), locales), getParams().toArray());
-        } catch (EJBException e) {
-            // not much that can be done; key was not found, must report
-            throw e;
-        }
+        return "";
     }
 
     @Override
@@ -127,5 +129,21 @@ public class Local extends KeyVal {
 
     public void setLocale(String l) {
         locale = l;
+    }
+
+    public void setKey(String k) {
+        key = k;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setParams(List<String> p) {
+        params = p;
+    }
+
+    public List<String> getParams() {
+        return params;
     }
 }

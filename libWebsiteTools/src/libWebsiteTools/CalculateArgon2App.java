@@ -21,7 +21,7 @@ public class CalculateArgon2App {
 
     private static String hash(String password, String salt) {
         try {
-            return Argon2Factory.create().setIterations(5).setMemoryInKiB(65536).setParallelism(1).hash(password.getBytes("UTF-8"), salt.getBytes("UTF-8"));
+            return Argon2Factory.create().setIterations(16).setMemoryInKiB(8192).setParallelism(2).hash(password.getBytes("UTF-8"), salt.getBytes("UTF-8"));
         } catch (UnsupportedEncodingException ex) {
             throw new JVMNotSupportedError(ex);
         }

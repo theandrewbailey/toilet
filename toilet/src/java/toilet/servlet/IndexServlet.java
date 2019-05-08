@@ -3,35 +3,28 @@ package toilet.servlet;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
-import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.file.FileRepo;
-import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.tag.HtmlCss;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.UtilStatic;
 import toilet.bean.StateCache;
 import toilet.db.Article;
 
 @WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/index", "/index/*"})
-public class IndexServlet extends HttpServlet {
+public class IndexServlet extends ToiletServlet {
 
     public static final String HOME_JSP = "/WEB-INF/category.jsp";
-    @EJB
-    private StateCache cache;
-    @EJB
-    private IMEADHolder imead;
-    @EJB
-    private FileRepo file;
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
@@ -47,17 +40,7 @@ public class IndexServlet extends HttpServlet {
                 latest = a.getModified();
             }
         }
-        for (String css : imead.getLocal("page_css", Local.resolveLocales(request)).split("\n")) {
-            try {
-                Fileupload fu = file.getFileMetadata(FileRepo.getFilename(css));
-                if (fu.getAtime().after(latest)) {
-                    latest = fu.getAtime();
-                }
-            } catch (Exception e) {
-            }
-        }
         return latest.getTime();
-
     }
 
     @Override
@@ -66,14 +49,13 @@ public class IndexServlet extends HttpServlet {
         if (null == f) {
             f = cache.getIndexFetcher(request.getRequestURI());
         }
-
         List<Article> lEntry = f.getArticles();
         if (lEntry.isEmpty()) {
             request.setAttribute(StateCache.IndexFetcher.class.getCanonicalName(), null);
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-
+        asyncRecentCategories(request, f.getSection());
         String etag = cache.getEtag(request.getRequestURI());
         if (null == etag) {
             try {
@@ -84,14 +66,11 @@ public class IndexServlet extends HttpServlet {
                 for (Article a : lEntry) {
                     md.update(a.getEtag().getBytes("UTF-8"));
                 }
-                for (String css : imead.getLocal("page_css", Local.resolveLocales(request)).split("\n")) {
-                    try {
-                        Fileupload fu = file.getFileMetadata(FileRepo.getFilename(css));
-                        md.update(fu.getEtag().getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException e) {
-                    }
+                try {
+                    md.update(imead.getLocal(HtmlCss.PAGE_CSS_KEY, Local.resolveLocales(request)).getBytes("UTF-8"));
+                } catch (UnsupportedEncodingException e) {
                 }
-                etag = "\"" + HashUtil.getBase64(md.digest()) + "\"";
+                etag = "\"" + Base64.getEncoder().encodeToString(md.digest()) + "\"";
                 cache.setEtag(request.getRequestURI(), etag);
             } catch (UnsupportedEncodingException enc) {
                 throw new JVMNotSupportedError(enc);
@@ -104,18 +83,20 @@ public class IndexServlet extends HttpServlet {
             return;
         }
         request.setAttribute(StateCache.IndexFetcher.class.getCanonicalName(), f);
+        //response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=100000, immutable");
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        asyncFiles(request);
         doHead(request, response);
         StateCache.IndexFetcher f = (StateCache.IndexFetcher) request.getAttribute(StateCache.IndexFetcher.class.getCanonicalName());
-        if (null != f) {
+        if (null != f && !response.isCommitted()) {
             List<Article> lEntry = f.getArticles();
-            request.setAttribute("curGroup", f.getGroup());
-            request.setAttribute("title", f.getGroup());
+            request.setAttribute("curGroup", f.getSection());
+            request.setAttribute("title", f.getSection());
             request.setAttribute("articles", lEntry);
-            request.setAttribute("articleCategory", f.getGroup());
+            request.setAttribute("articleCategory", f.getSection());
             request.setAttribute("index", true);
 
             // dont bother if there is only 1 page total
@@ -126,7 +107,6 @@ public class IndexServlet extends HttpServlet {
                 request.setAttribute("pagen_current", f.getPage());
                 request.setAttribute("pagen_count", f.getCount());
             }
-
             HtmlMeta.addTag(request, "description", f.getDescription());
             request.getServletContext().getRequestDispatcher(HOME_JSP).forward(request, response);
         }

@@ -1,26 +1,19 @@
 package toilet.servlet;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libOdyssey.bean.GuardHolder;
-import libWebsiteTools.imead.IMEADHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
-import libWebsiteTools.tag.RequestToken;
-import libWebsiteTools.token.RequestTokenBucket;
 import toilet.UtilStatic;
-import toilet.bean.EntryRepo;
-import toilet.bean.StateCache;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.db.Comment;
 
@@ -29,24 +22,16 @@ import toilet.db.Comment;
  * @author alpha
  */
 @WebServlet(name = "CommentServlet", description = "Display article comments", urlPatterns = {"/comments/*"})
-public class CommentServlet extends HttpServlet {
+public class CommentServlet extends ToiletServlet {
 
     private static final String COMMENT_JSP = "/WEB-INF/comments.jsp";
     private static final String IFRAME_JSP = "/WEB-INF/commentsIframe.jsp";
-    @EJB
-    protected EntryRepo entry;
-    @EJB
-    protected StateCache cache;
-    @EJB
-    protected IMEADHolder imead;
-    @EJB
-    protected UtilBean util;
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
         try {
-            Article art = cache.getEntry(request.getRequestURI());
+            Article art = cache.getArticleFromURI(request.getRequestURI());
             request.setAttribute(Article.class.getCanonicalName(), art);
             return spamSuspected ? art.getModified().getTime() - 10000 : art.getModified().getTime();
         } catch (RuntimeException ex) {
@@ -57,10 +42,11 @@ public class CommentServlet extends HttpServlet {
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        response.setContentType("text/html;charset=UTF-8");
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null == art) {
             try {
-                art = cache.getEntry(request.getRequestURI());
+                art = cache.getArticleFromURI(request.getRequestURI());
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
                 request.getServletContext().getRequestDispatcher("/coroner/30").forward(request, response);
@@ -94,6 +80,7 @@ public class CommentServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        asyncFiles(request);
         doHead(request, response);
         HtmlMeta.addTag(request, "robots", "noindex");
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
@@ -101,7 +88,7 @@ public class CommentServlet extends HttpServlet {
             request.setAttribute("art", art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            request.setAttribute("commentIframe", imead.getValue(GuardHolder.CANONICAL_URL) + "comments/" + art.getArticleid() + (null == request.getParameter("iframe") ? "" : "?iframe"));
+            request.setAttribute("commentIframe", imead.getValue(GuardRepo.CANONICAL_URL) + "comments/" + art.getArticleid() + (null == request.getParameter("iframe") ? "" : "?iframe"));
             request.getServletContext().getRequestDispatcher(null == request.getParameter("iframe") ? COMMENT_JSP : IFRAME_JSP).forward(request, response);
         }
     }
@@ -111,43 +98,56 @@ public class CommentServlet extends HttpServlet {
         Matcher validator = UtilStatic.GENERAL_VALIDATION.matcher("");
         switch (AbstractInput.getParameter(request, "submit-type")) {
             case "comment":     // submitted comment
-                if (AbstractInput.getParameter(request, "text") == null || AbstractInput.getParameter(request, "text").isEmpty()
-                        || AbstractInput.getParameter(request, "name") == null || AbstractInput.getParameter(request, "name").isEmpty()) {
+                String postName = AbstractInput.getParameter(request, "name");
+                String postText = AbstractInput.getParameter(request, "text");
+                if (null == postText || postText.isEmpty()
+                        || null == postName || postName.isEmpty()) {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST);
-                    RequestTokenBucket.getRequestTokenBucket(request).addToken(AbstractInput.getParameter(request, RequestToken.ID_NAME), request.getHeader("Referer"));
                     return;
                 }
+                postName = postName.trim();
+                postText = UtilStatic.removeSpaces(postText);
                 String referred = request.getHeader("Referer");
                 if (request.getSession().isNew() || referred == null) {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
                     return;
                 }
-                String rawin = AbstractInput.getParameter(request, "text");
-
-                String totest = rawin.toLowerCase();
                 String[] spamwords = imead.getValue(ArticleServlet.SPAM_WORDS).split("\n");
                 for (String ua : spamwords) {
-                    if (Pattern.matches(ua, totest)) {
+                    if (Pattern.matches(ua, postText.toLowerCase())) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN);
                         return;
                     }
                 }
 
-                Comment c = new Comment();
-                c.setPostedhtml(UtilStatic.htmlFormat(UtilStatic.removeSpaces(rawin), false, true));
-                String postName = AbstractInput.getParameter(request, "name");
-                postName = postName.trim();
-                c.setPostedname(UtilStatic.htmlFormat(postName, false, false));
+                Comment newComment = new Comment();
+                newComment.setPostedhtml(UtilStatic.htmlFormat(postText, false, true));
+                newComment.setPostedname(UtilStatic.htmlFormat(postName, false, false));
                 if (!validator.reset(postName).matches()
-                        || !validator.reset(rawin).matches()
-                        || c.getPostedname().length() > 250 || c.getPostedhtml().length() > 64000) {
+                        || !validator.reset(postText).matches()
+                        || newComment.getPostedname().length() > 250 || newComment.getPostedhtml().length() > 64000) {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST);
                     return;
                 }
 
-                Integer id = cache.getEntry(request.getRequestURI()).getArticleid();
+                Article art = cache.getArticleFromURI(request.getRequestURI());
+                String postRequest = AbstractInput.getParameter(request, "original-request-time");
+                if (null != postRequest) {
+                    Date postRequestDate = new Date(Long.valueOf(postRequest));
+                    for (Comment existingComment : art.getCommentCollection()) {
+                        if ((existingComment.getPostedname().equals(newComment.getPostedname())) && existingComment.getPosted().after(postRequestDate)
+                                || existingComment.getPostedhtml().equals(newComment.getPostedhtml())) {
+                            response.setStatus(HttpServletResponse.SC_CONFLICT);
+                            request.getSession().setAttribute("LastPostedName", postName);
+                            request.setAttribute("commentText", postText);
+                            doGet(request, response);
+                            return;
+                        }
+                    }
+                }
+
                 HashMap<Comment, Integer> comments = new HashMap<>();
-                comments.put(c, id);
+                comments.put(newComment, art.getArticleid());
                 entry.addComments(comments);
                 util.resetCommentFeed();
                 request.getSession().setAttribute("LastPostedName", postName);

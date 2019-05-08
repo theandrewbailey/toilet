@@ -12,7 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import libWebsiteTools.rss.iFeed;
-import libWebsiteTools.rss.iFeedBucket;
+import libWebsiteTools.rss.FeedBucket;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -31,7 +31,7 @@ import org.w3c.dom.Element;
 public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
 
     @EJB
-    protected iFeedBucket feeds;
+    protected FeedBucket feeds;
     protected final Collection<RssChannel> channels = new ArrayList<>();
 
     /**
@@ -85,7 +85,7 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
     }
 
     @Override
-    public long getLastModified(){
+    public long getLastModified() {
         return -1;
     }
 
@@ -99,27 +99,33 @@ public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
     }
 
     @Override
-    public void postWrite(HttpServletRequest req) {
+    public iFeed postWrite(HttpServletRequest req) {
+        return this;
     }
 
     @Override
-    public void preAdd() {
+    public iFeed preAdd() {
+        return this;
     }
 
     @Override
-    public void postAdd() {
+    public iFeed postAdd() {
+        return this;
     }
 
     @Override
-    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+    public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
+        return this;
     }
 
     @Override
-    public void preRemove() {
+    public iFeed preRemove() {
+        return this;
     }
 
     @Override
-    public void postRemove() {
+    public iFeed postRemove() {
+        return this;
     }
 
     /**

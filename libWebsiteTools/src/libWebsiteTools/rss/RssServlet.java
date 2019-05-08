@@ -31,11 +31,11 @@ public class RssServlet extends HttpServlet {
 
     public static final String FEEDS = "RSS.feeds";
     public static final String INDENT = "RSS.indent";
-    public static final Pattern RSS_NAME_REGEX = Pattern.compile("^.+?/rss/([^\\?]*).*$");
+    public static final Pattern RSS_NAME_REGEX = Pattern.compile("^.+?/rss/([^\\?]+?)(?:\\?.*)?$");
     private static final Logger LOG = Logger.getLogger(RssServlet.class.getName());
-    @EJB
-    private iFeedBucket src;
     private final TransformerFactory xFormFact = TransformerFactory.newInstance();
+    @EJB
+    private FeedBucket src;
 
     public static String getRssName(String URL) {
         Matcher matcher = RSS_NAME_REGEX.matcher(URL);
@@ -103,11 +103,10 @@ public class RssServlet extends HttpServlet {
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String name = getRssName(request.getRequestURI());
         try {
             doHead(request, response);
             iFeed feed = getFeed(request);
-            LOG.log(Level.FINE, "RSS feed {0} requested, servicing", name);
+            LOG.log(Level.FINE, "RSS feed {0} requested, servicing", getRssName(request.getRequestURI()));
             Document XML = feed.preWrite(request, response);
             if (HttpServletResponse.SC_OK != response.getStatus()) {
                 response.sendError(response.getStatus());
@@ -125,8 +124,14 @@ public class RssServlet extends HttpServlet {
             trans.transform(DOMsrc, str);
             feed.postWrite(request);
         } catch (IOException | IllegalArgumentException | TransformerException ex) {
-            LOG.log(Level.SEVERE, "Error occured while retrieving RSS feed " + name, ex);
+            LOG.log(Level.SEVERE, "Error occured while retrieving RSS feed " + getRssName(request.getRequestURI()), ex);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
+
+    @Override
+    protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+    }
+
 }

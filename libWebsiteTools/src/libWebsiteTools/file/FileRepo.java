@@ -1,70 +1,54 @@
 package libWebsiteTools.file;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.sql.SQLException;
-import java.util.Date;
+import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceUnit;
-import javax.persistence.TypedQuery;
-import libWebsiteTools.JVMNotSupportedError;
+import libOdyssey.bean.GuardRepo;
 
 @Stateless
 public class FileRepo {
 
     public static final String LOCAL_NAME = "java:module/FileRepo";
+    public static final String DEFAULT_MIME_TYPE = "application/octet-stream";
     @PersistenceUnit
     private EntityManagerFactory PU;
     private static final Logger LOG = Logger.getLogger(FileRepo.class.getName());
-    private static final Pattern FILE_URL = Pattern.compile("^.*?/content/(.*?)(?:\\?.*)?$");
-    private static final Pattern IMMUTABLE_URL = Pattern.compile("^.*?/contentImmutable/[~/]+?/(.*?)(?:\\?.*)?$");
 
     public void evict() {
         PU.getCache().evict(Fileupload.class);
-    }
-
-    public static String getFilename(CharSequence URL) {
-        try {
-            Matcher m = FILE_URL.matcher(URLDecoder.decode(URL.toString(), "UTF-8"));
-            if (!m.matches() || null == m.group(1)) {
-                String immutable = getImmutable(URL);
-                if (null == immutable) {
-                    throw new NoResultException("Unable to get content filename from " + URL);
-                }
-            }
-            return m.group(1);
-        } catch (UnsupportedEncodingException ex) {
-            throw new JVMNotSupportedError(ex);
-        }
-    }
-
-    public static String getImmutable(CharSequence URL) {
-        try {
-            Matcher m = FILE_URL.matcher(URLDecoder.decode(URL.toString(), "UTF-8"));
-            if (!m.matches() || null == m.group(1)) {
-                return null;
-            }
-            return m.group(1);
-        } catch (UnsupportedEncodingException ex) {
-            throw new JVMNotSupportedError(ex);
-        }
+        PU.getCache().evict(Filemetadata.class);
     }
 
     public Fileupload getFile(String name) {
         EntityManager em = PU.createEntityManager();
-        TypedQuery<Fileupload> q = em.createNamedQuery("Fileupload.findByFilename", Fileupload.class);
-        q.setParameter("filename", name);
         try {
+            return em.find(Fileupload.class, name, GuardRepo.USE_CACHE_HINT);
+        } catch (NoResultException n) {
+            return null;
+        } finally {
             LOG.log(Level.FINEST, "File retrieved: {0}", name);
-            return q.getSingleResult();
+            em.close();
+        }
+    }
+
+    /**
+     *
+     * @param names
+     * @return metadata of requested names, or everything for null
+     */
+    public List<Filemetadata> getFileMetadata(List<String> names) {
+        EntityManager em = PU.createEntityManager();
+        try {
+            return null == names ? em.createNamedQuery("Filemetadata.findAll", Filemetadata.class).getResultList()
+                    : em.createNamedQuery("Filemetadata.findByFilenames", Filemetadata.class).setParameter("filenames", names).getResultList();
         } catch (NoResultException n) {
             return null;
         } finally {
@@ -72,28 +56,13 @@ public class FileRepo {
         }
     }
 
-    public Fileupload getFileMetadata(String name) {
+    public void addFiles(Collection<Fileupload> uploads) {
         EntityManager em = PU.createEntityManager();
-        try {
-            LOG.log(Level.FINEST, "File retrieved: {0}", name);
-            Object[] o = (Object[]) em.createNamedQuery("Fileupload.getMetadata").setParameter("filename", name).getSingleResult();
-            Fileupload fu = new Fileupload((Integer) o[0]);
-            fu.setAtime((Date) o[1]);
-            fu.setEtag(o[2].toString());
-            fu.setMimetype(o[3].toString());
-            return fu;
-        } catch (NoResultException n) {
-            return null;
-        } finally {
-            em.close();
-        }
-    }
-
-    public void addFiles(List<Fileupload> uploads) {
-        EntityManager em = PU.createEntityManager();
+        Fileupload last = null;
         try {
             em.getTransaction().begin();
             for (Fileupload upload : uploads) {
+                last = upload;
                 em.persist(upload);
                 LOG.log(Level.INFO, "File added {0}", upload.getFilename());
             }
@@ -102,7 +71,11 @@ public class FileRepo {
         } catch (RuntimeException d) {
             if (null != d.getCause() && d.getCause().getCause() instanceof SQLException) {
                 // this assumes that the problematic file is the only one uploaded
-                LOG.log(Level.INFO, "File already exists: {0}", uploads.get(0).getFilename());
+                if (null != last) {
+                    LOG.log(Level.INFO, "File already exists: {0}", last.getFilename());
+                } else {
+                    LOG.log(Level.INFO, "Something happened");
+                }
             }
             LOG.log(Level.SEVERE, "Files not committed");
             throw d;
@@ -114,7 +87,7 @@ public class FileRepo {
         }
     }
 
-    public void upsertFiles(List<Fileupload> uploads) {
+    public void upsertFiles(Collection<Fileupload> uploads) {
         EntityManager em = PU.createEntityManager();
         try {
             em.getTransaction().begin();
@@ -135,21 +108,29 @@ public class FileRepo {
         }
     }
 
-    public void deleteFile(Integer fileUploadId) {
+    public void deleteFile(String filename) {
         EntityManager em = PU.createEntityManager();
-        try {
-            em.getTransaction().begin();
-            em.remove(em.find(Fileupload.class, fileUploadId));
-            em.getTransaction().commit();
-        } finally {
-            em.close();
+        Fileupload f = em.find(Fileupload.class, filename);
+        if (null != f) {
+            try {
+                em.getTransaction().begin();
+                em.remove(f);
+                em.getTransaction().commit();
+            } finally {
+                em.close();
+            }
         }
     }
 
-    public List<Fileupload> getUploadArchive() {
+    /**
+     * process all files one by one
+     *
+     * @param operation
+     */
+    public void processUploadArchive(Consumer<Fileupload> operation) {
         EntityManager em = PU.createEntityManager();
         try {
-            return em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultList();
+            em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultStream().forEachOrdered(operation);
         } finally {
             em.close();
         }

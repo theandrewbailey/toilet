@@ -11,6 +11,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.Part;
@@ -22,6 +24,8 @@ import libWebsiteTools.tag.AbstractInput;
  * @author alpha
  */
 public class FileUtil {
+
+    private final static Logger LOG = Logger.getLogger(FileUtil.class.getName());
 
     public static List<Fileupload> getFilesFromRequest(HttpServletRequest req, String fieldname) throws IOException, ServletException {
         List<Part> fileparts = AbstractInput.getParts(req, fieldname);
@@ -40,7 +44,7 @@ public class FileUtil {
             }
             Fileupload file = new Fileupload();
             file.setAtime(new Date());
-            file.setEtag(HashUtil.getHashAsBase64(tehFile));
+            file.setEtag(HashUtil.getSHA256HashAsBase64(tehFile));
             file.setFiledata(tehFile);
             file.setFilename(fileName);
             if (file.getFilename().endsWith(".js")) {
@@ -63,7 +67,7 @@ public class FileUtil {
                 out.write(stdin);
             }
         }
-        System.out.println("running command: " + command);
+        LOG.log(Level.INFO, "running command: {0}", command);
         while (true) {
             try {
                 try (InputStream input = encoder.getInputStream()) {
@@ -76,10 +80,11 @@ public class FileUtil {
                 int exitcode = encoder.waitFor();
                 if (exitcode == 0) {
                 } else {
-                    System.out.println(new String(output.toByteArray()));
+                    LOG.log(Level.WARNING, "Command exited with {0}:\n{1}", new Object[]{exitcode, new String(output.toByteArray())});
                 }
                 break;
             } catch (InterruptedException | IOException ix) {
+                throw new RuntimeException("Problem while running command: " + command, ix);
             }
         }
         encoder.destroy();
@@ -99,5 +104,22 @@ public class FileUtil {
         } catch (IOException | ServletException e) {
             return null;
         }
+    }
+
+    /**
+     * useful for getting file contents out of a zip
+     *
+     * @param in
+     * @return
+     * @throws IOException
+     */
+    public static byte[] getByteArray(InputStream in) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] buf = new byte[65536];
+        int read;
+        while ((read = in.read(buf)) != -1) {
+            baos.write(buf, 0, read);
+        }
+        return baos.toByteArray();
     }
 }

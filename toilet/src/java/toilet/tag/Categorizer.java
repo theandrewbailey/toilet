@@ -6,7 +6,7 @@ import java.net.URLEncoder;
 import javax.ejb.EJB;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libOdyssey.bean.GuardHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.bean.StateCache;
@@ -35,7 +35,7 @@ public class Categorizer extends SimpleTagSupport {
     }
 
     private void execute(String o) throws JspException, IOException {
-        getJspContext().setAttribute("_cate_url", getUrl(imead.getValue(GuardHolder.CANONICAL_URL), o, 1));
+        getJspContext().setAttribute("_cate_url", getUrl(imead.getValue(GuardRepo.CANONICAL_URL), o, 1));
         getJspContext().setAttribute("_cate_group", o);
         getJspBody().invoke(null);
     }

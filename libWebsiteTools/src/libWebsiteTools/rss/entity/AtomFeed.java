@@ -35,8 +35,9 @@ public abstract class AtomFeed extends AtomCommonAttribs implements iFeed, iPubl
 
     // TODO: this, add "links"
     /**
-     * unlike what publish() is supposed to do, this takes the root element,
-     * and appends the feed's elements directly to it
+     * unlike what publish() is supposed to do, this takes the root element, and
+     * appends the feed's elements directly to it
+     *
      * @param root of the document
      * @return root of the document (what else?)
      */
@@ -224,26 +225,32 @@ public abstract class AtomFeed extends AtomCommonAttribs implements iFeed, iPubl
     }
 
     @Override
-    public void postWrite(HttpServletRequest req) {
+    public iFeed postWrite(HttpServletRequest req) {
+        return this;
     }
 
     @Override
-    public void preAdd() {
+    public iFeed preAdd() {
+        return this;
     }
 
     @Override
-    public void postAdd() {
+    public iFeed postAdd() {
+        return this;
     }
 
     @Override
-    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+    public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
+        return this;
     }
 
     @Override
-    public void preRemove() {
+    public iFeed preRemove() {
+        return this;
     }
 
     @Override
-    public void postRemove() {
+    public iFeed postRemove() {
+        return this;
     }
 }

@@ -1,21 +1,16 @@
 package toilet.servlet;
 
 import java.io.IOException;
-import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.OdysseyFilter;
-import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 
 @WebServlet(name = "CoronerServlet", description = "Error page stuff", urlPatterns = {"/coroner", "/coroner/*"})
-public class CoronerServlet extends HttpServlet {
+public class CoronerServlet extends ToiletServlet {
 
-    @EJB
-    private IMEADHolder imead;
     public static final String ERROR_JSP = "/WEB-INF/Error.jsp";
     public static final String CORONER_PREFIX = "coroner_";
     private final String[] vars = {"javax.servlet.error.status_code",
@@ -34,6 +29,7 @@ public class CoronerServlet extends HttpServlet {
             return;
         }
 
+        asyncFiles(request);
         String[] split = request.getRequestURI().split("coroner/");
         if (2 == split.length) {
             setJSPAttrs(request, response, split[1]);
@@ -61,6 +57,7 @@ public class CoronerServlet extends HttpServlet {
     }
 
     private void setJSPAttrs(HttpServletRequest request, HttpServletResponse response, String ErrCodeStr) throws ServletException, IOException {
+        asyncRecentCategories(request);
         String errorMessage = imead.getLocal(CORONER_PREFIX + ErrCodeStr, Local.resolveLocales(request));
         if (null == errorMessage) {
             errorMessage = imead.getLocal(CORONER_PREFIX + "404", Local.resolveLocales(request));

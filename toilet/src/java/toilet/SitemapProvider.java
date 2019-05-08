@@ -5,7 +5,6 @@ import java.util.Collections;
 import javax.ejb.EJB;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.annotation.WebListener;
-import libOdyssey.bean.GuardHolder;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.sitemap.AbstractPageSource;
 import libWebsiteTools.sitemap.ChangeFreq;
@@ -19,7 +18,7 @@ public class SitemapProvider extends AbstractPageSource {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        String baseUrl = imead.getValue(GuardHolder.CANONICAL_URL);
+        String baseUrl = imead.getValue(libOdyssey.bean.GuardRepo.CANONICAL_URL);
         urlMap = new ArrayList<>();
         urlMap.add(new UrlMap(baseUrl, null, ChangeFreq.daily, "0.7"));
         urlMap.add(new UrlMap(baseUrl + "spruce", null, ChangeFreq.always, "0.1"));

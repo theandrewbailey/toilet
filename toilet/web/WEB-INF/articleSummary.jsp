@@ -17,6 +17,5 @@
     <link rel="alternate" href="<h:local key="libOdyssey_guard_canonicalURL" locale=""/>rss/Comments.rss" title="Comments" type="application/rss+xml"/>
     <link rel="alternate" href="<h:local key="libOdyssey_guard_canonicalURL" locale=""/>rss/Spruce.rss" title="Spruce" type="application/rss+xml"/>
 </head><body>
-<header><h1><a title="Home" href="<h:local key="libOdyssey_guard_canonicalURL" locale=""/>">${site_title}</a></h1><c:if test="${index != null and index}">
-    <h2 class="noPrint"><h:local key="site_tagline"/></h2></c:if>
-</header>
+<c:out escapeXml="false" value="${art.summary}"/>
+</body></html>

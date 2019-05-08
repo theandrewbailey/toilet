@@ -5,32 +5,25 @@ import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.bean.GuardHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.file.FileRepo;
-import libWebsiteTools.file.Fileupload;
-import libWebsiteTools.token.RequestTokenBucket;
-import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
+import libWebsiteTools.tag.HtmlCss;
 import libWebsiteTools.tag.HtmlMeta;
-import libWebsiteTools.tag.RequestToken;
-import toilet.ArticlePreProcessor;
+import toilet.ArticleProcessor;
 import toilet.UtilStatic;
-import toilet.bean.EntryRepo;
-import toilet.bean.StateCache;
 import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.db.Comment;
@@ -38,28 +31,18 @@ import toilet.db.Section;
 import toilet.tag.ArticleUrl;
 
 @WebServlet(name = "ArticleServlet", description = "Gets a single article from the DB with comments", urlPatterns = {"/article/*"})
-public class ArticleServlet extends HttpServlet {
+public class ArticleServlet extends ToiletServlet {
 
     private static final String ARTICLE_JSP = "/WEB-INF/singleArticle.jsp";
     private static final String DEFAULT_NAME = "entry_defaultName";
     public static final String WORDS = "admin_magicwords";
     public static final String SPAM_WORDS = "site_spamwords";
-    @EJB
-    protected EntryRepo entry;
-    @EJB
-    protected StateCache cache;
-    @EJB
-    protected IMEADHolder imead;
-    @EJB
-    protected UtilBean util;
-    @EJB
-    protected FileRepo file;
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
         try {
-            Article art = cache.getEntry(request.getRequestURI());
+            Article art = cache.getArticleFromURI(request.getRequestURI());
             request.setAttribute(Article.class.getCanonicalName(), art);
             return spamSuspected ? art.getModified().getTime() - 10000 : art.getModified().getTime();
         } catch (RuntimeException ex) {
@@ -70,13 +53,14 @@ public class ArticleServlet extends HttpServlet {
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        response.setContentType("text/html;charset=UTF-8");
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null == art) {
             try {
-                art = cache.getEntry(request.getRequestURI());
+                art = cache.getArticleFromURI(request.getRequestURI());
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
-                request.getServletContext().getRequestDispatcher("/coroner/30").forward(request, response);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
         }
@@ -85,7 +69,7 @@ public class ArticleServlet extends HttpServlet {
             return;
         }
 
-        String properUrl = ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), art);
+        String properUrl = ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art);
         String actual = request.getRequestURI();
         if (!properUrl.endsWith(actual)) {
             request.setAttribute(Article.class.getCanonicalName(), null);
@@ -93,6 +77,7 @@ public class ArticleServlet extends HttpServlet {
             return;
         }
 
+        asyncRecentCategories(request, art.getSectionid().getName());
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
         request.setAttribute("spamSuspected", spamSuspected);
 
@@ -104,15 +89,11 @@ public class ArticleServlet extends HttpServlet {
                     MessageDigest md = HashUtil.getSHA256();
                     md.update(request.getSession().getId().getBytes("UTF-8"));
                     md.update(art.getEtag().getBytes("UTF-8"));
-                    for (String css : imead.getLocal("page_css", Local.resolveLocales(request)).split("\n")) {
-                        try {
-                            Fileupload fu = file.getFileMetadata(FileRepo.getFilename(css));
-                            md.update(fu.getEtag().getBytes("UTF-8"));
-                        } catch (UnsupportedEncodingException enc) {
-                            throw new JVMNotSupportedError(enc);
-                        }
+                    try {
+                        md.update(imead.getLocal(HtmlCss.PAGE_CSS_KEY, Local.resolveLocales(request)).getBytes("UTF-8"));
+                    } catch (UnsupportedEncodingException enc) {
                     }
-                    etag = HashUtil.getBase64(md.digest());
+                    etag = Base64.getEncoder().encodeToString(md.digest());
                     cache.setEtag(request.getRequestURI(), etag);
                 } catch (UnsupportedEncodingException enc) {
                     throw new JVMNotSupportedError(enc);
@@ -127,38 +108,40 @@ public class ArticleServlet extends HttpServlet {
             }
         }
         response.setDateHeader("Date", spamSuspected ? art.getModified().getTime() - 10000 : art.getModified().getTime());
+        //response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=100000, immutable");
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        asyncFiles(request);
         doHead(request, response);
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
-        if (null != art) {
+        if (null != art && !response.isCommitted()) {
             SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
             request.setAttribute("art", art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            if(art.getComments()){
-                request.setAttribute("commentIframe", imead.getValue(GuardHolder.CANONICAL_URL) + "comments/" + art.getArticleid() + "?iframe");
+            if (art.getComments()) {
+                request.setAttribute("commentIframe", imead.getValue(GuardRepo.CANONICAL_URL) + "comments/" + art.getArticleid() + "?iframe");
             }
             HtmlMeta.addTag(request, "description", art.getDescription());
             HtmlMeta.addTag(request, "author", art.getPostedname());
             HtmlMeta.addProperty(request, "og:title", art.getArticletitle());
-            HtmlMeta.addProperty(request, "og:url", ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), art));
+            HtmlMeta.addProperty(request, "og:url", ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art));
             if (null != art.getImageurl()) {
                 HtmlMeta.addProperty(request, "og:image", art.getImageurl());
             }
             if (null != art.getDescription()) {
                 HtmlMeta.addProperty(request, "og:description", art.getDescription());
             }
-            HtmlMeta.addProperty(request, "og:site_name", imead.getValue(UtilBean.SITE_TITLE));
+            HtmlMeta.addProperty(request, "og:site_name", imead.getLocal(UtilBean.SITE_TITLE, "en"));
             HtmlMeta.addProperty(request, "og:type", "article");
             HtmlMeta.addProperty(request, "og:article:published_time", htmlFormat.format(art.getPosted()));
             HtmlMeta.addProperty(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
             HtmlMeta.addProperty(request, "og:article:author", art.getPostedname());
             HtmlMeta.addProperty(request, "og:article:section", art.getSectionid().getName());
-            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), art));
-            HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(imead.getValue(GuardHolder.CANONICAL_URL), art));
+            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art));
+            HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(imead.getValue(GuardRepo.CANONICAL_URL), art));
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
     }
@@ -171,7 +154,6 @@ public class ArticleServlet extends HttpServlet {
                 if (AbstractInput.getParameter(request, "text") == null || AbstractInput.getParameter(request, "text").isEmpty()
                         || AbstractInput.getParameter(request, "name") == null || AbstractInput.getParameter(request, "name").isEmpty()) {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST);
-                    RequestTokenBucket.getRequestTokenBucket(request).addToken(AbstractInput.getParameter(request, RequestToken.ID_NAME), request.getHeader("Referer"));
                     return;
                 }
                 String referred = request.getHeader("Referer");
@@ -202,7 +184,7 @@ public class ArticleServlet extends HttpServlet {
                     return;
                 }
 
-                Integer id = cache.getEntry(request.getRequestURI()).getArticleid();
+                Integer id = cache.getArticleFromURI(request.getRequestURI()).getArticleid();
                 HashMap<Comment, Integer> comments = new HashMap<>();
                 comments.put(c, id);
                 entry.addComments(comments);
@@ -240,7 +222,7 @@ public class ArticleServlet extends HttpServlet {
                 art = entry.addArticles(articles);
                 util.resetArticleFeed();
                 cache.clearEtags();
-                response.sendRedirect(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), art));
+                response.sendRedirect(ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art));
                 break;
             default:
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
@@ -250,6 +232,11 @@ public class ArticleServlet extends HttpServlet {
 
     private Article updateArticleFromPage(HttpServletRequest req) {
         Article art = (Article) req.getSession().getAttribute(AdminPost.LAST_ARTICLE_EDITED);
+        boolean isNewArticle = null == art.getArticleid();
+        if (isNewArticle) {
+            int nextID = entry.countArticles(null).intValue();
+            art.setArticleid(++nextID);
+        }
         art.setArticletitle(AbstractInput.getParameter(req, "articletitle"));
         art.setDescription(AbstractInput.getParameter(req, "description"));
         art.setPostedname(AbstractInput.getParameter(req, "postedname") == null || AbstractInput.getParameter(req, "postedname").isEmpty()
@@ -265,6 +252,12 @@ public class ArticleServlet extends HttpServlet {
         }
         art.setComments(AbstractInput.getParameter(req, "comments") != null);
         art.setPostedmarkdown(AbstractInput.getParameter(req, "postedmarkdown"));
-        return new ArticlePreProcessor(art, imead, file).call();
+        try {
+            return new ArticleProcessor(ArticleProcessor.convert(art), imead, file).call();
+        } finally {
+            if (isNewArticle) {
+                art.setArticleid(null);
+            }
+        }
     }
 }

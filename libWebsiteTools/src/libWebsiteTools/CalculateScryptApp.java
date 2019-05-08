@@ -4,6 +4,8 @@ import com.lambdaworks.crypto.SCryptUtil;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Locale;
+import libWebsiteTools.imead.IMEADHolder;
 
 /**
  * small utility to calculate scrypt hashes from plaintext.

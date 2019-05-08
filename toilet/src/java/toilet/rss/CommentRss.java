@@ -14,13 +14,14 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import libOdyssey.bean.GuardHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
 import libWebsiteTools.rss.entity.RssChannel;
 import libWebsiteTools.rss.entity.RssItem;
+import libWebsiteTools.rss.iFeed;
 import org.w3c.dom.Document;
 import toilet.UtilStatic;
 import toilet.bean.EntryRepo;
@@ -53,7 +54,7 @@ public class CommentRss extends AbstractRssFeed {
         }
 
         lastUpdated = new Date(0);
-        RssChannel entries = new RssChannel(imead.getValue(UtilBean.SITE_TITLE) + " - Comments", imead.getValue(GuardHolder.CANONICAL_URL), imead.getValue(UtilBean.TAGLINE));
+        RssChannel entries = new RssChannel(imead.getLocal(UtilBean.SITE_TITLE, "en") + " - Comments", imead.getValue(GuardRepo.CANONICAL_URL), imead.getLocal(UtilBean.TAGLINE, "en"));
         entries.setWebMaster(imead.getValue(UtilBean.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
         entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
@@ -63,14 +64,14 @@ public class CommentRss extends AbstractRssFeed {
         for (Comment c : lComments) {
             RssItem i = new RssItem(c.getPostedhtml());
             entries.addItem(i);
-            i.addCategory(c.getArticleid().getSectionid().getName(), imead.getValue(GuardHolder.CANONICAL_URL) + "index/group=" + c.getArticleid().getSectionid().getName());
-            i.setLink(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), c.getArticleid()) + "#comments");
+            i.addCategory(c.getArticleid().getSectionid().getName(), imead.getValue(GuardRepo.CANONICAL_URL) + "index/group=" + c.getArticleid().getSectionid().getName());
+            i.setLink(ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), c.getArticleid()) + "#comments");
             i.setGuid(i.getLink());
             i.setPubDate(c.getPosted());
             i.setTitle("Re: " + c.getArticleid().getArticletitle());
             i.setAuthor(c.getPostedname());
             if (c.getArticleid().getComments()) {
-                i.setComments(ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), c.getArticleid()) + "#comments");
+                i.setComments(ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), c.getArticleid()) + "#comments");
             }
             if (i.getPubDate().after(lastUpdated)) {
                 lastUpdated = i.getPubDate();
@@ -80,7 +81,7 @@ public class CommentRss extends AbstractRssFeed {
     }
 
     @Override
-    public void preAdd() {
+    public iFeed preAdd() {
         XML = generateFeed(Integer.valueOf(imead.getValue(COMMENT_COUNT)));
         try {
             DOMSource DOMsrc = new DOMSource(XML);
@@ -88,14 +89,15 @@ public class CommentRss extends AbstractRssFeed {
             StreamResult str = new StreamResult(holder);
             Transformer trans = TransformerFactory.newInstance().newTransformer();
             trans.transform(DOMsrc, str);
-            etag = "\"" + HashUtil.getHash(holder.toString()) + "\"";
+            etag = "\"" + HashUtil.getSHA256Hash(holder.toString()) + "\"";
         } catch (TransformerException ex) {
             Logger.getLogger(CommentRss.class.getName()).log(Level.SEVERE, null, ex);
         }
+        return this;
     }
 
     @Override
-    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+    public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
         res.setHeader("Cache-Control", "public, max-age=" + 10000);
         res.setDateHeader("Last-Modified", lastUpdated.getTime());
         res.setDateHeader("Expires", new Date().getTime() + 10000000);
@@ -103,6 +105,7 @@ public class CommentRss extends AbstractRssFeed {
         if (etag.equals(req.getHeader("If-None-Match"))) {
             res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
         }
+        return this;
     }
 
     @Override

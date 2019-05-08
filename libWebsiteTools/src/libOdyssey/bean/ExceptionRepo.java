@@ -7,6 +7,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.Singleton;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -21,6 +23,7 @@ import libOdyssey.db.Exceptionevent;
  * @author alpha
  */
 @Singleton
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class ExceptionRepo {
 
     public static final String LOCAL_NAME = "java:module/ExceptionRepo";

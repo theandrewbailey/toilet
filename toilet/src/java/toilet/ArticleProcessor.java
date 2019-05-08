@@ -11,9 +11,11 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
-import libOdyssey.bean.GuardHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.Markdowner;
 import libWebsiteTools.file.FileRepo;
+import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.db.Article;
@@ -25,22 +27,22 @@ import toilet.tag.ArticleUrl;
  *
  * @author alpha
  */
-public class ArticlePreProcessor implements Callable<Article> {
+public class ArticleProcessor implements Callable<Article> {
 
-    private static final Logger LOG = Logger.getLogger(ArticlePreProcessor.class.getName());
-    private static final Pattern IMG_ATTRIB_PATTERN = Pattern.compile("<img (.+?)\\s?/?>");
+    private static final Logger LOG = Logger.getLogger(ArticleProcessor.class.getName());
+    public static final Pattern IMG_ATTRIB_PATTERN = Pattern.compile("<img (.+?)\\s?/?>");
     private static final Pattern IMG_X2 = Pattern.compile("^(.+)(\\..+)$");
-    private static final Pattern ATTRIB_PATTERN = Pattern.compile("([^\\s=]+)(?:=['|\\\"](.*?)['|\\\"])?");
+    public static final Pattern ATTRIB_PATTERN = Pattern.compile("([^\\s=]+)(?:=['|\\\"](.*?)['|\\\"])?");
     private static final Pattern PARA_PATTERN = Pattern.compile(".*?(<p>.*?</p>).*");
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<.+?>");
     // !?\["?(.+?)"?\]\(\S+?(?:\s"?(.+?)"?)?\)
     private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[\"?(.+?)\"?\\]\\(\\S+?(?:\\s\"?(.+?)\"?)?\\)");
 
-    private FileRepo file;
-    private final Article art;
-    private IMEADHolder imead;
+    public FileRepo file;
+    public Article art;
+    public IMEADHolder imead;
 
-    public ArticlePreProcessor(Article art, IMEADHolder imead, FileRepo file) {
+    public ArticleProcessor(Article art, IMEADHolder imead, FileRepo file) {
         this.art = art;
         this.file = file;
         this.imead = imead;
@@ -48,12 +50,42 @@ public class ArticlePreProcessor implements Callable<Article> {
 
     @Override
     public Article call() {
-        return preprocessArticle();
+        if (null == art.getPostedhtml() || null == art.getPostedmarkdown()) {
+            convert(art);
+        }
+        return processArticle();
     }
 
-    public Article preprocessArticle() {
+    /**
+     * will refresh the posted HTML in the article if possible
+     *
+     * @param art article to convert
+     * @return said article
+     */
+    public static Article convert(Article art) {
+        if (null != art.getPostedmarkdown()) {
+            art.setPostedhtml(Markdowner.getHtml(art.getPostedmarkdown()));
+        } else if (null != art.getPostedhtml()) {
+            art.setPostedmarkdown(Markdowner.getMarkdown(art.getPostedhtml()));
+            LOG.log(Level.INFO, "The markdown for article {0} had to be generated from HTML.", art.getArticletitle());
+        } else {
+            throw new IllegalArgumentException(String.format("The text for article %s cannot be recovered, because it has no HTML or markdown.", art.getArticletitle()));
+        }
+        return art;
+    }
+
+    /**
+     * article MUST have ID set, or else your homepage won't have links that go
+     * anywhere!
+     *
+     * @return processed article (same object as passed in constructor)
+     */
+    public Article processArticle() {
         if (null == art) {
-            throw new IllegalArgumentException("Can't preprocess an article when YOU DON'T PASS IT!");
+            throw new IllegalArgumentException("Can't process an article when YOU DON'T PASS IT!");
+        }
+        if (null == art.getPostedhtml() || null == art.getPostedmarkdown()) {
+            convert(art);
         }
         if (null == imead) {
             imead = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class);
@@ -61,16 +93,7 @@ public class ArticlePreProcessor implements Callable<Article> {
         if (null == file) {
             file = UtilStatic.getBean(FileRepo.LOCAL_NAME, FileRepo.class);
         }
-        String html = Markdowner.getHtml(art.getPostedmarkdown());
-        String searchable = HTML_TAG_PATTERN.matcher(art.getPostedmarkdown()).replaceAll("");
-        Matcher linkMatcher = MARKDOWN_LINK_PATTERN.matcher(searchable);
-        while (linkMatcher.find()) {
-            String replacement = 2 == linkMatcher.groupCount() ? linkMatcher.group(1) + " " + linkMatcher.group(2)
-                    : 1 == linkMatcher.groupCount() ? linkMatcher.group(1) : "";
-            searchable = linkMatcher.replaceFirst(replacement);
-            linkMatcher.reset(searchable);
-        }
-        art.setSearchabletext(searchable);
+        String html = art.getPostedhtml();
         String paragraph = "";
         Matcher paraMatcher = PARA_PATTERN.matcher(html);
         while (paraMatcher.find()) {
@@ -90,28 +113,34 @@ public class ArticlePreProcessor implements Callable<Article> {
             }
             HashMap<String, String> ampAttribs = new HashMap<>(attribs);
             String imgName = attribs.get("src");
+            ampAttribs.put("src", imgName);
             BufferedImage image;
             try {
                 Matcher doubleMatcher = IMG_X2.matcher(imgName);
                 Fileupload img = null;
                 if (doubleMatcher.find()) {
                     imgName = doubleMatcher.group(1) + "×2" + doubleMatcher.group(2);
-                    img = file.getFile(FileRepo.getFilename(imgName));
+                    img = file.getFile(FileServlet.getNameFromURL(imgName));
                 }
                 if (null == img) {
                     imgName = attribs.get("src");
-                    img = file.getFile(FileRepo.getFilename(imgName));
+                    img = file.getFile(FileServlet.getNameFromURL(imgName));
                 }
                 image = ImageIO.read(new ByteArrayInputStream(img.getFiledata()));
                 ampAttribs.put("width", Integer.toString(image.getWidth()));
                 ampAttribs.put("height", Integer.toString(image.getHeight()));
+                ampAttribs.put("src", FileServlet.getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), new Filemetadata(img.getFilename(), img.getAtime())));
                 if (!imgName.equals(attribs.get("src"))) {
-                    image = ImageIO.read(new ByteArrayInputStream(file.getFile(FileRepo.getFilename(attribs.get("src"))).getFiledata()));
+                    img = file.getFile(FileServlet.getNameFromURL(attribs.get("src")));
+                    image = ImageIO.read(new ByteArrayInputStream(img.getFiledata()));
                 }
                 attribs.put("width", Integer.toString(image.getWidth()));
                 attribs.put("height", Integer.toString(image.getHeight()));
+                art.setImageurl(FileServlet.getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), new Filemetadata(img.getFilename(), img.getAtime())));
+                attribs.put("src", art.getImageurl());
             } catch (IOException | NullPointerException ex) {
-                Logger.getLogger(ArticleServlet.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(ArticleServlet.class
+                        .getName()).log(Level.SEVERE, null, ex);
                 continue;
             }
             StringBuilder imgTagAttribs = new StringBuilder(imgAttribMatcher.group().length());
@@ -121,7 +150,6 @@ public class ArticlePreProcessor implements Callable<Article> {
                     imgTagAttribs.append("=\"").append(attribute.getValue()).append("\"");
                 }
             }
-            ampAttribs.put("src", imgName);
             StringBuilder ampImgTagAttribs = new StringBuilder(imgAttribMatcher.group().length());
             for (Map.Entry<String, String> attribute : ampAttribs.entrySet()) {
                 ampImgTagAttribs.append(" ").append(attribute.getKey());
@@ -130,20 +158,23 @@ public class ArticlePreProcessor implements Callable<Article> {
                 }
             }
             StringBuilder imgTag = new StringBuilder(imgTagAttribs.length() + 10).append("<img").append(imgTagAttribs).append("/>");
-            StringBuilder replacement = new StringBuilder(ampImgTagAttribs.length() * 2 + 100).append("<amp-img layout=\"responsive\"").append(ampImgTagAttribs).append("><noscript><img").append(ampImgTagAttribs).append("></noscript></amp-img>");
+            StringBuilder replacement = new StringBuilder(ampImgTagAttribs.length() * 2 + 100)
+                    .append("<amp-img layout=\"responsive\"").append(ampImgTagAttribs)
+                    .append("><noscript><img").append(ampImgTagAttribs).append("></noscript></amp-img>");
             html = html.replace(imgAttribMatcher.group(0), imgTag);
             ampHtml = ampHtml.replace(imgAttribMatcher.group(0), replacement);
-            if (null == art.getSummary() && image.getWidth() >= 600 && image.getHeight() >= 200) {
-                art.setSummary(String.format("<a href=\"%s\" class=\"withFigure\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s",
-                        ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), art), imgTag, art.getArticletitle(), paragraph
+            if (null == art.getSummary() && image.getWidth() >= 600 && image.getHeight() >= 300) {
+                art.setSummary(String.format(
+                        "<article class=\"article%s withFigure\"><a href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
+                        art.getArticleid(), ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art), imgTag, art.getArticletitle(), paragraph
                 ));
             }
         }
         art.setPostedhtml(html);
         art.setPostedamp(ampHtml);
         if (null == art.getSummary()) {
-            art.setSummary(String.format("<header><a href=\"%s\"><h1>%s</h1></a></header>%s",
-                    ArticleUrl.getUrl(imead.getValue(GuardHolder.CANONICAL_URL), art), art.getArticletitle(), paragraph));
+            art.setSummary(String.format("<article class=\"article%s\"><header><a href=\"%s\"><h1>%s</h1></a></header>%s</article>",
+                    art.getArticleid(), ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art), art.getArticletitle(), paragraph));
         }
         return art;
     }

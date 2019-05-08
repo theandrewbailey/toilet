@@ -9,6 +9,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
@@ -16,18 +18,20 @@ import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libOdyssey.bean.ExceptionRepo;
-import libOdyssey.bean.GuardHolder;
+import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.entity.AbstractRssFeed;
 import libWebsiteTools.rss.entity.RssChannel;
 import libWebsiteTools.rss.entity.RssItem;
+import libWebsiteTools.rss.iFeed;
 import org.python.util.PythonInterpreter;
 import org.w3c.dom.Document;
 
 @Startup
 @Singleton
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 @Feed(SpruceGenerator.SPRUCE_FEED_NAME)
 public class SpruceGenerator extends AbstractRssFeed {
 
@@ -38,18 +42,18 @@ public class SpruceGenerator extends AbstractRssFeed {
     private static final String LINK = "spruce";
     private static final String SPRUCE_COUNT = "rss_spruceCount";
     private static final Logger LOG = Logger.getLogger(SpruceGenerator.class.getName());
-    @EJB
-    private FileRepo file;
-    @EJB
-    private IMEADHolder imead;
-    @Resource
-    private ManagedExecutorService exec;
     private Document XML;
     private final RssChannel entries = new RssChannel("Spruce", LINK, "Some wisdom from Spruce");
     private Date lastEntry = new Date();
     private boolean changed = true;
 //    private ScriptEngine py;
     private PythonInterpreter py;
+    @EJB
+    private FileRepo file;
+    @EJB
+    private IMEADHolder imead;
+    @Resource
+    private ManagedExecutorService exec;
 
     @PostConstruct
     public void setup() {
@@ -132,14 +136,14 @@ public class SpruceGenerator extends AbstractRssFeed {
     }
 
     @Override
-    public synchronized void preAdd() {
+    public synchronized iFeed preAdd() {
         LOG.entering(SpruceGenerator.class.getName(), "preAdd");
         postRemove();
 
         exec.submit(new InitializeSpruce());
 
         entries.clearFeed();
-        entries.setLink(imead.getValue(GuardHolder.CANONICAL_URL) + LINK);
+        entries.setLink(imead.getValue(GuardRepo.CANONICAL_URL) + LINK);
         entries.setWebMaster(imead.getValue(UtilBean.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
         entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
@@ -148,6 +152,7 @@ public class SpruceGenerator extends AbstractRssFeed {
         entries.setTtl(60);
 
         LOG.exiting(SpruceGenerator.class.getName(), "preAdd");
+        return this;
     }
 
     public long lastModified() {
@@ -155,10 +160,11 @@ public class SpruceGenerator extends AbstractRssFeed {
     }
 
     @Override
-    public void doHead(HttpServletRequest req, HttpServletResponse res) {
+    public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
         res.setHeader("Cache-Control", "public, max-age=" + 300);
         res.setDateHeader("Last-Modified", lastEntry.getTime());
         res.setDateHeader("Expires", new Date().getTime() + 300000);
+        return this;
     }
 
     @Override
@@ -177,10 +183,11 @@ public class SpruceGenerator extends AbstractRssFeed {
     }
 
     @Override
-    public synchronized void postRemove() {
+    public synchronized iFeed postRemove() {
         if (py != null) {
             py.cleanup();
             py = null;
         }
+        return this;
     }
 }

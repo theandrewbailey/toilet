@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.Singleton;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -18,11 +20,12 @@ import org.w3c.dom.Element;
  * @author alpha
  */
 @Singleton
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class SiteMaster {
 
     public static final String LOCAL_NAME = "java:module/SiteMaster";
-    private final Set<Iterable<UrlMap>> sources = Collections.synchronizedSet(new HashSet<Iterable<UrlMap>>());
-    private static final Logger log = Logger.getLogger(SiteMaster.class.getName());
+    private final Set<Iterable<UrlMap>> sources = Collections.synchronizedSet(new HashSet<>());
+    private static final Logger LOG = Logger.getLogger(SiteMaster.class.getName());
 
     public void addSource(Iterable<UrlMap> src) {
         sources.add(src);
@@ -30,7 +33,7 @@ public class SiteMaster {
 
     public Document getSiteMap() {
         Document xml = null;
-        log.fine("Sitemap requested");
+        LOG.fine("Sitemap requested");
         int renderLevel = 0;
         int urlcount = 0;
         int size = 71;
@@ -63,7 +66,7 @@ public class SiteMaster {
                 }
             }
         } catch (ParserConfigurationException ex) {
-            log.log(Level.SEVERE, "Sitemap XML parser configured incorrectly", ex);
+            LOG.log(Level.SEVERE, "Sitemap XML parser configured incorrectly", ex);
         }
         return xml;
     }

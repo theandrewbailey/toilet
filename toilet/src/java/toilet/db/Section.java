@@ -3,6 +3,7 @@ package toilet.db;
 import java.io.Serializable;
 import java.util.Collection;
 import javax.persistence.Basic;
+import javax.persistence.Cacheable;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -21,6 +22,7 @@ import javax.validation.constraints.Size;
  * @author alpha
  */
 @Entity
+@Cacheable(true)
 @Table(name = "section", catalog = "toilet", schema = "toilet")
 @NamedQueries({
     @NamedQuery(name = "Section.findByName", query = "SELECT s FROM Section s WHERE s.name = :name"),
