@@ -3,18 +3,20 @@ package toilet.servlet;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
+import java.text.MessageFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.bean.GuardRepo;
+import javax.ws.rs.core.HttpHeaders;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.Local;
@@ -22,6 +24,7 @@ import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlCss;
 import libWebsiteTools.tag.HtmlMeta;
+import libWebsiteTools.tag.HtmlTime;
 import toilet.ArticleProcessor;
 import toilet.UtilStatic;
 import toilet.bean.UtilBean;
@@ -36,7 +39,7 @@ public class ArticleServlet extends ToiletServlet {
     private static final String ARTICLE_JSP = "/WEB-INF/singleArticle.jsp";
     private static final String DEFAULT_NAME = "entry_defaultName";
     public static final String WORDS = "admin_magicwords";
-    public static final String SPAM_WORDS = "site_spamwords";
+    public static final String SPAM_WORDS = "entry_spamwords";
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
@@ -83,7 +86,8 @@ public class ArticleServlet extends ToiletServlet {
 
         if (!spamSuspected) {
             String ifNoneMatch = request.getHeader("If-None-Match");
-            String etag = cache.getEtag(request.getRequestURI());
+            String etagTag = Local.getLocaleString(request) + request.getRequestURI();
+            String etag = cache.getEtag(etagTag);
             if (null == etag) {
                 try {
                     MessageDigest md = HashUtil.getSHA256();
@@ -94,13 +98,13 @@ public class ArticleServlet extends ToiletServlet {
                     } catch (UnsupportedEncodingException enc) {
                     }
                     etag = Base64.getEncoder().encodeToString(md.digest());
-                    cache.setEtag(request.getRequestURI(), etag);
+                    cache.setEtag(etagTag, etag);
                 } catch (UnsupportedEncodingException enc) {
                     throw new JVMNotSupportedError(enc);
                 }
             }
             etag = "\"" + etag + (spamSuspected ? "s" : "h") + "\"";
-            response.setHeader("ETag", etag);
+            response.setHeader(HttpHeaders.ETAG, etag);
             if (etag.equals(ifNoneMatch)) {
                 request.setAttribute(Article.class.getCanonicalName(), null);
                 response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
@@ -123,6 +127,11 @@ public class ArticleServlet extends ToiletServlet {
             request.setAttribute("articleCategory", art.getSectionid().getName());
             if (art.getComments()) {
                 request.setAttribute("commentIframe", imead.getValue(GuardRepo.CANONICAL_URL) + "comments/" + art.getArticleid() + "?iframe");
+                SimpleDateFormat timeFormat = new SimpleDateFormat(imead.getLocal(HtmlTime.DATE_FORMAT_LONG, Local.resolveLocales(request)));
+                String footer = MessageFormat.format(imead.getLocal("page_articleFooter", Local.resolveLocales(request)),
+                        new Object[]{timeFormat.format(art.getPosted()), art.getSectionid().getName()})
+                        + (1 == art.getCommentCollection().size() ? "1 comment." : art.getCommentCollection().size() + " comments.");
+                request.setAttribute("commentIframeTitle", footer);
             }
             HtmlMeta.addTag(request, "description", art.getDescription());
             HtmlMeta.addTag(request, "author", art.getPostedname());
@@ -185,9 +194,8 @@ public class ArticleServlet extends ToiletServlet {
                 }
 
                 Integer id = cache.getArticleFromURI(request.getRequestURI()).getArticleid();
-                HashMap<Comment, Integer> comments = new HashMap<>();
-                comments.put(c, id);
-                entry.addComments(comments);
+                c.setArticleid(new Article(id));
+                comms.upsert(Arrays.asList(c));
                 util.resetCommentFeed();
                 request.getSession().setAttribute("LastPostedName", postName);
                 cache.clearEtags();
@@ -195,34 +203,30 @@ public class ArticleServlet extends ToiletServlet {
                 break;
             case "article":     // created or edited article
                 Article art = updateArticleFromPage(request);
-                String sect = AbstractInput.getParameter(request, "section");
-                if (AdminPost.CREATE_NEW_GROUP.equals(sect)) {
-                    sect = AbstractInput.getParameter(request, "newsection");
-                }
                 if ("Preview".equals(request.getParameter("action"))) {
-                    art.setSectionid(new Section(0, sect));
                     AdminPost.displayArticleEdit(request, response, art);
                     return;
-                } else if (!imead.verifyArgon2(AbstractInput.getParameter(request, "words"), WORDS)) {
-                    request.setAttribute("mess", imead.getLocal(CoronerServlet.CORONER_PREFIX + "500", Local.resolveLocales(request)));
-                    art.setSectionid(new Section(0, sect));
+                } else if (!HashUtil.verifyArgon2Hash(imead.getValue(WORDS), AbstractInput.getParameter(request, "words"))) {
+                    request.setAttribute("ERROR_MESSAGE", imead.getLocal(CoronerServlet.ERROR_PREFIX + "500", Local.resolveLocales(request)));
                     AdminPost.displayArticleEdit(request, response, art);
                     return;
                 } else if (!validator.reset(art.getArticletitle()).matches()
                         || !validator.reset(art.getDescription()).matches()
                         || !validator.reset(art.getPostedname()).matches()
                         || !validator.reset(art.getPostedmarkdown()).matches()
-                        || !validator.reset(sect).matches()) {
-                    request.setAttribute("mess", imead.getLocal("page_patternMismatch", Local.resolveLocales(request)));
+                        || !validator.reset(art.getSectionid().getName()).matches()) {
+                    request.setAttribute("ERROR_MESSAGE", imead.getLocal("page_patternMismatch", Local.resolveLocales(request)));
                     AdminPost.displayArticleEdit(request, response, art);
                     return;
                 }
-                HashMap<Article, String> articles = new HashMap<>();
-                articles.put(art, sect);
-                art = entry.addArticles(articles);
-                util.resetArticleFeed();
+                art = arts.upsert(Arrays.asList(art)).get(0);
                 cache.clearEtags();
                 response.sendRedirect(ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art));
+                request.getSession().removeAttribute(AdminPost.LAST_ARTICLE_EDITED);
+                exec.submit(() -> {
+                    util.resetArticleFeed();
+                    arts.refreshSearch();
+                });
                 break;
             default:
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
@@ -234,11 +238,12 @@ public class ArticleServlet extends ToiletServlet {
         Article art = (Article) req.getSession().getAttribute(AdminPost.LAST_ARTICLE_EDITED);
         boolean isNewArticle = null == art.getArticleid();
         if (isNewArticle) {
-            int nextID = entry.countArticles(null).intValue();
+            int nextID = arts.count().intValue();
             art.setArticleid(++nextID);
         }
         art.setArticletitle(AbstractInput.getParameter(req, "articletitle"));
         art.setDescription(AbstractInput.getParameter(req, "description"));
+        art.setSectionid(new Section(0, AbstractInput.getParameter(req, "section")));
         art.setPostedname(AbstractInput.getParameter(req, "postedname") == null || AbstractInput.getParameter(req, "postedname").isEmpty()
                 ? imead.getValue(DEFAULT_NAME)
                 : AbstractInput.getParameter(req, "postedname"));

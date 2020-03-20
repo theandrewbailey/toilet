@@ -55,9 +55,9 @@ public class Gzipper extends FileCompressorJob {
         }
         if (null != compressedData) {
             synchronized (FileCompressorJob.POTATO) {
-                Fileupload activeFile = fileRepo.getFile(file.getFilename());
+                Fileupload activeFile = fileRepo.get(file.getFilename());
                 activeFile.setGzipdata(compressedData);
-                fileRepo.upsertFiles(Arrays.asList(activeFile));
+                fileRepo.upsert(Arrays.asList(activeFile));
             }
         }
         return true;

@@ -9,15 +9,15 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,user-scalable=yes">
     <h:meta/>
-    <h:localVar key="site_title"/><h:title siteTitle="${site_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
-    <link rel="shortcut icon" href="<h:local key="site_favicon" locale=""/>"/>
+    <h:localVar key="page_title"/><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
+    <link rel="shortcut icon" href="<h:local key="page_favicon" locale=""/>"/>
     <style amp-boilerplate>body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}</style><noscript><style amp-boilerplate>body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}</style></noscript>
     <style amp-custom>${css}</style>
-    <link rel="alternate" href="<h:local key="libOdyssey_guard_canonicalURL" locale=""/>rss/Articles.rss" title="Articles" type="application/rss+xml"/>
-    <link rel="alternate" href="<h:local key="libOdyssey_guard_canonicalURL" locale=""/>rss/Comments.rss" title="Comments" type="application/rss+xml"/>
-    <link rel="alternate" href="<h:local key="libOdyssey_guard_canonicalURL" locale=""/>rss/Spruce.rss" title="Spruce" type="application/rss+xml"/>
+    <link rel="alternate" href="<h:local key="security_baseURL" locale=""/>rss/Articles.rss" title="Articles" type="application/rss+xml"/>
+    <link rel="alternate" href="<h:local key="security_baseURL" locale=""/>rss/Comments.rss" title="Comments" type="application/rss+xml"/>
+    <link rel="alternate" href="<h:local key="security_baseURL" locale=""/>rss/Spruce.rss" title="Spruce" type="application/rss+xml"/>
 </head><body>
-<header><h1><a title="Home" href="<h:local key="libOdyssey_guard_canonicalURL" locale=""/>"><h:local key="site_title"/></a></h1></header>
+<header><h1><a title="Home" href="<h:local key="security_baseURL" locale=""/>"><h:local key="page_title"/></a></h1></header>
 <amp-pixel src="${canonical}" layout="nodisplay"></amp-pixel>
 <article class="article${art.articleid}"><header><h1 id="article${art.articleid}">${art.articletitle}</h1>
 <a class="ampMessage" href="<t:articleUrl article='${art}' link='false'/>"><h:local key="page_amp"/></a>

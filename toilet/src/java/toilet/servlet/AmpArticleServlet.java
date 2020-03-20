@@ -9,8 +9,9 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.JspFilter;
-import libOdyssey.bean.GuardRepo;
+import javax.ws.rs.core.HttpHeaders;
+import libWebsiteTools.JspFilter;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.Local;
@@ -52,7 +53,8 @@ public class AmpArticleServlet extends ArticleServlet {
         asyncRecentCategories(request, art.getSectionid().getName());
         request.setAttribute(JspFilter.CONTENT_SECURITY_POLICY, "default-src https: data: 'unsafe-inline'; object-src 'none'; frame-ancestors 'self'");
         String ifNoneMatch = request.getHeader("If-None-Match");
-        String etag = cache.getEtag(request.getRequestURI());
+        String etagTag = Local.getLocaleString(request) + request.getRequestURI();
+        String etag = cache.getEtag(etagTag);
         if (null == etag) {
             try {
                 MessageDigest md = HashUtil.getSHA256();
@@ -64,13 +66,13 @@ public class AmpArticleServlet extends ArticleServlet {
                     throw new JVMNotSupportedError(enc);
                 }
                 etag = Base64.getEncoder().encodeToString(md.digest());
-                cache.setEtag(request.getRequestURI(), etag);
+                cache.setEtag(etagTag, etag);
             } catch (UnsupportedEncodingException enc) {
                 throw new JVMNotSupportedError(enc);
             }
         }
         etag = "\"" + etag + "\"";
-        response.setHeader("ETag", etag);
+        response.setHeader(HttpHeaders.ETAG, etag);
         if (etag.equals(ifNoneMatch)) {
             request.setAttribute(Article.class.getCanonicalName(), null);
             response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
@@ -90,7 +92,7 @@ public class AmpArticleServlet extends ArticleServlet {
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
             request.setAttribute("canonical", ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art));
-            request.setAttribute("css", new String(file.getFile(imead.getLocal("page_cssamp", Local.resolveLocales(request))).getFiledata(), "UTF-8"));
+            request.setAttribute("css", new String(file.get(imead.getLocal("page_cssamp", Local.resolveLocales(request))).getFiledata(), "UTF-8"));
             HtmlMeta.addTag(request, "description", art.getDescription());
             HtmlMeta.addTag(request, "author", art.getPostedname());
             HtmlMeta.addProperty(request, "og:title", art.getArticletitle());

@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.bean.ExceptionRepo;
+import libWebsiteTools.bean.ExceptionRepo;
 
 public final class UtilStatic {
 
@@ -115,6 +115,13 @@ public final class UtilStatic {
                 case '"':
                     if (!inBrack) {
                         sb.append("&quot;");
+                    } else {
+                        sb.append(c);
+                    }
+                    break;
+                case '\'':
+                    if (!inBrack) {
+                        sb.append("&apos;");
                     } else {
                         sb.append(c);
                     }

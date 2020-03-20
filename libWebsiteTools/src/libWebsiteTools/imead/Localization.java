@@ -9,8 +9,6 @@ import javax.persistence.Entity;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 /**
  *
@@ -20,9 +18,10 @@ import javax.validation.constraints.Size;
 @Cacheable(true)
 @Table(name = "localization", schema = "tools")
 @NamedQueries({
-    @NamedQuery(name = "Localization.findAll", query = "SELECT l FROM Localization l"),
-    @NamedQuery(name = "Localization.findByLocalecode", query = "SELECT l FROM Localization l WHERE l.localizationPK.localecode = :localecode"),
-    @NamedQuery(name = "Localization.getDistinctLocales", query = "SELECT DISTINCT l.localizationPK.localecode FROM Localization l ORDER BY l.localizationPK.localecode ASC")})
+    @NamedQuery(name = "Localization.findAll", query = "SELECT l FROM Localization l ORDER BY l.localizationPK.localecode ASC, l.localizationPK.key ASC"),
+    @NamedQuery(name = "Localization.findByLocalecode", query = "SELECT l FROM Localization l WHERE l.localizationPK.localecode = :localecode ORDER BY l.localizationPK.key ASC"),
+    @NamedQuery(name = "Localization.getDistinctLocales", query = "SELECT DISTINCT l.localizationPK.localecode FROM Localization l ORDER BY l.localizationPK.localecode ASC"),
+    @NamedQuery(name = "Localization.count", query = "SELECT COUNT(l) FROM Localization l")})
 public class Localization implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -35,17 +34,9 @@ public class Localization implements Serializable {
     public Localization() {
     }
 
-    public Localization(LocalizationPK localizationPK) {
-        this.localizationPK = localizationPK;
-    }
-
-    public Localization(LocalizationPK localizationPK, String value) {
-        this.localizationPK = localizationPK;
-        this.value = value;
-    }
-
-    public Localization(String key, String localecode) {
+    public Localization(String localecode, String key, String value) {
         this.localizationPK = new LocalizationPK(key, localecode);
+        this.value = value;
     }
 
     public LocalizationPK getLocalizationPK() {
@@ -88,5 +79,5 @@ public class Localization implements Serializable {
     public String toString() {
         return "libOdyssey.db.Localization[ localizationPK=" + localizationPK + " ]";
     }
-    
+
 }

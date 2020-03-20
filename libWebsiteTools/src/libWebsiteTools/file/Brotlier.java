@@ -34,9 +34,9 @@ public class Brotlier extends FileCompressorJob {
             byte[] compressedData = FileUtil.runProcess(command, file.getFiledata(), file.getFiledata().length * 2);
             if (null != compressedData && compressedData.length + SIZE_DIFFERENCE < file.getFiledata().length) {
                 synchronized (FileCompressorJob.POTATO) {
-                    Fileupload activeFile = fileRepo.getFile(file.getFilename());
+                    Fileupload activeFile = fileRepo.get(file.getFilename());
                     activeFile.setBrdata(compressedData);
-                    fileRepo.upsertFiles(Arrays.asList(activeFile));
+                    fileRepo.upsert(Arrays.asList(activeFile));
                 }
             }
         } catch (IOException | RuntimeException ex) {

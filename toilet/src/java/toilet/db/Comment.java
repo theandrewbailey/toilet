@@ -25,10 +25,10 @@ import javax.validation.constraints.Size;
  */
 @Entity
 @Cacheable(true)
-@Table(name = "comment", catalog = "toilet", schema = "toilet")
+@Table(name = "comment", schema = "toilet")
 @NamedQueries({
     @NamedQuery(name = "Comment.findAll", query = "SELECT c FROM Comment c ORDER BY c.posted DESC"),
-    @NamedQuery(name = "Comment.countComments", query = "SELECT COUNT(c) FROM Comment c")})
+    @NamedQuery(name = "Comment.count", query = "SELECT COUNT(c) FROM Comment c")})
 public class Comment implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -44,8 +44,8 @@ public class Comment implements Serializable {
     private Date posted;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 2147483647)
-    @Column(name = "postedhtml", nullable = false, length = 2147483647)
+    @Size(min = 1, max = 10000000)
+    @Column(name = "postedhtml", nullable = false, length = 10000000)
     private String postedhtml;
     @Basic(optional = false)
     @NotNull
@@ -56,8 +56,8 @@ public class Comment implements Serializable {
     private Boolean isapproved;
     @Column(name = "isspam")
     private Boolean isspam;
-    @Size(max = 2147483647)
-    @Column(name = "postedmarkdown", length = 2147483647)
+    @Size(max = 10000000)
+    @Column(name = "postedmarkdown", length = 10000000)
     private String postedmarkdown;
     @JoinColumn(name = "articleid", referencedColumnName = "articleid", nullable = false)
     @ManyToOne(optional = false)

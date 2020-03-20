@@ -12,7 +12,7 @@
     <h:localVar key="page_message_text" var="page_message_text" /><h:textarea id="text" label="${page_message_text}" styleClass="comment" height="10" value="${commentText}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" /><br/>
     <input type="submit" value="Leave Message"/>
     <h:hidden id="submit-type" value="comment" />
-    <h:hidden id="original-request-time" value="${$_LIBODYSSEY_REQUEST_START_TIME.getTime()}" />
+    <h:hidden id="original-request-time" value="${$_LIBWEBSITETOOLS_REQUEST_START_TIME.getTime()}" />
 </fieldset></form><br/></c:when>
 <c:when test="${!art.comments}"><h:local key="page_commentDisabled" /></c:when></c:choose>
 </div>

@@ -1,6 +1,6 @@
 package libWebsiteTools;
 
-import at.gadermaier.argon2.Argon2Factory;
+import at.gadermaier.argon2.Argon2;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -21,7 +21,7 @@ public class CalculateArgon2App {
 
     private static String hash(String password, String salt) {
         try {
-            return Argon2Factory.create().setIterations(16).setMemoryInKiB(8192).setParallelism(2).hash(password.getBytes("UTF-8"), salt.getBytes("UTF-8"));
+            return Argon2.create().setIterations(16).setMemoryInKiB(8192).setParallelism(2).hash(password.getBytes("UTF-8"), salt.getBytes("UTF-8")).asString();
         } catch (UnsupportedEncodingException ex) {
             throw new JVMNotSupportedError(ex);
         }

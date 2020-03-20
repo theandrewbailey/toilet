@@ -1,6 +1,6 @@
 package toilet.rss;
 
-import libWebsiteTools.rss.entity.RssItem;
+import libWebsiteTools.rss.RssItem;
 import org.w3c.dom.Element;
 
 /**

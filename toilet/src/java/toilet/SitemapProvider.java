@@ -9,19 +9,27 @@ import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.sitemap.AbstractPageSource;
 import libWebsiteTools.sitemap.ChangeFreq;
 import libWebsiteTools.sitemap.UrlMap;
+import toilet.bean.SpruceGenerator;
 
 @WebListener("Gives out the site map.")
 public class SitemapProvider extends AbstractPageSource {
 
     @EJB
     private IMEADHolder imead;
+    @EJB
+    private SpruceGenerator spruce;
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        String baseUrl = imead.getValue(libOdyssey.bean.GuardRepo.CANONICAL_URL);
         urlMap = new ArrayList<>();
-        urlMap.add(new UrlMap(baseUrl, null, ChangeFreq.daily, "0.7"));
-        urlMap.add(new UrlMap(baseUrl + "spruce", null, ChangeFreq.always, "0.1"));
+        try {
+            String baseUrl = imead.getValue(libWebsiteTools.bean.GuardRepo.CANONICAL_URL);
+            urlMap.add(new UrlMap(baseUrl, null, ChangeFreq.daily, "0.7"));
+            if (spruce.shouldBeReady()) {
+                urlMap.add(new UrlMap(baseUrl + "spruce", null, ChangeFreq.always, "0.1"));
+            }
+        } catch (NullPointerException n) {
+        }
         urlMap = Collections.unmodifiableList(urlMap);
         super.contextInitialized(sce);
     }

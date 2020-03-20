@@ -14,7 +14,7 @@ public class Antispam {
 
     @EJB
     private IMEADHolder imead;
-    private static final String SPAMWORDS = "site_spamwords";
+    private static final String SPAMWORDS = "entry_spamwords";
 
     public boolean isSpam(String commentText) {
         commentText = commentText.toLowerCase();

@@ -6,7 +6,7 @@ import java.net.URLEncoder;
 import javax.ejb.EJB;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.db.Article;

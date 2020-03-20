@@ -1,6 +1,10 @@
 package toilet.servlet;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.regex.Matcher;
@@ -10,8 +14,12 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.HashUtil;
+import libWebsiteTools.JVMNotSupportedError;
+import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;
+import libWebsiteTools.tag.HtmlCss;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.UtilStatic;
 import toilet.db.Article;
@@ -64,9 +72,25 @@ public class CommentServlet extends ToiletServlet {
         if (!spamSuspected) {
             response.setHeader(HttpHeaders.CACHE_CONTROL, "private, must-revalidate, max-age=600");
             String ifNoneMatch = request.getHeader("If-None-Match");
-            String etag = cache.getEtag(request.getRequestURI());
+            String etagTag = Local.getLocaleString(request) + request.getRequestURI();
+            String etag = cache.getEtag(etagTag);
+            if (null == etag) {
+                try {
+                    MessageDigest md = HashUtil.getSHA256();
+                    md.update(request.getSession().getId().getBytes("UTF-8"));
+                    md.update(art.getEtag().getBytes("UTF-8"));
+                    try {
+                        md.update(imead.getLocal(HtmlCss.PAGE_CSS_KEY, Local.resolveLocales(request)).getBytes("UTF-8"));
+                    } catch (UnsupportedEncodingException enc) {
+                    }
+                    etag = Base64.getEncoder().encodeToString(md.digest());
+                    cache.setEtag(etagTag, etag);
+                } catch (UnsupportedEncodingException enc) {
+                    throw new JVMNotSupportedError(enc);
+                }
+            }
             etag = "\"" + etag + (spamSuspected ? "s" : "h") + "\"";
-            response.setHeader("ETag", etag);
+            response.setHeader(HttpHeaders.ETAG, etag);
             if (etag.equals(ifNoneMatch)) {
                 request.setAttribute(Article.class.getCanonicalName(), null);
                 response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
@@ -145,10 +169,8 @@ public class CommentServlet extends ToiletServlet {
                         }
                     }
                 }
-
-                HashMap<Comment, Integer> comments = new HashMap<>();
-                comments.put(newComment, art.getArticleid());
-                entry.addComments(comments);
+                newComment.setArticleid(art);
+                comms.upsert(Arrays.asList(newComment));
                 util.resetCommentFeed();
                 request.getSession().setAttribute("LastPostedName", postName);
                 cache.clearEtags();

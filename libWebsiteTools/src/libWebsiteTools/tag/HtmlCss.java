@@ -2,17 +2,16 @@ package libWebsiteTools.tag;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import javax.ejb.EJB;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.jsp.JspWriter;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libOdyssey.bean.GuardRepo;
 import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.file.FileServlet;
 import libWebsiteTools.file.Filemetadata;
-
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 
@@ -41,13 +40,23 @@ public class HtmlCss extends SimpleTagSupport {
             }
         } catch (Exception x) {
         }
-        List<String> filenames = new ArrayList<>();
-        for (String filename : imead.getLocal(PAGE_CSS_KEY, Local.resolveLocales(req)).split("\n")) {
-            filenames.add(FileServlet.getNameFromURL(filename));
+        try {
+            List<String> filenames = new ArrayList<>();
+            List<Filemetadata> files = new ArrayList<>();
+            for (String filename : imead.getLocal(PAGE_CSS_KEY, Local.resolveLocales(req)).split("\n")) {
+                List<Filemetadata> f = file.getFileMetadata(Arrays.asList(filename));
+                if (null != f && !f.isEmpty()) {
+                    files.addAll(f);
+                } else {
+                    filenames.add(FileServlet.getNameFromURL(filename));
+                }
+            }
+            files.addAll(file.getFileMetadata(filenames));
+            req.setAttribute(PAGE_CSS_KEY, files);
+            return files;
+        } catch (Exception x) {
+            return new ArrayList<>();
         }
-        List<Filemetadata> files = file.getFileMetadata(filenames);
-        req.setAttribute(PAGE_CSS_KEY, files);
-        return files;
     }
 
     @Override
@@ -56,8 +65,8 @@ public class HtmlCss extends SimpleTagSupport {
         for (Filemetadata f : getCssFiles((HttpServletRequest) ((PageContext) getJspContext()).getRequest(), imead, file)) {
             // TOTAL HACK: this assumes that the CSS is hosted locally 
             try {
-                // will generate a unique URL based on the file's last update time, so browsers will get and cache a new resource
-                String url = FileServlet.getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), f);
+                // will create a unique URL based on the file's last update time, so browsers will get and cache a new resource
+                String url = f.getUrl();
                 // TOTAL HACK: this assumes that the etag is a base64 sha-2 hash of the file contents ONLY, for subresource integrity
                 switch (f.getEtag().length()) { // different flavors of sha-2 will have different digest lengths
                     case 44:

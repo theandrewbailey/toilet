@@ -44,7 +44,7 @@ public class FileUtil {
             }
             Fileupload file = new Fileupload();
             file.setAtime(new Date());
-            file.setEtag(HashUtil.getSHA256HashAsBase64(tehFile));
+            file.setEtag(HashUtil.getSHA256Hash(tehFile));
             file.setFiledata(tehFile);
             file.setFilename(fileName);
             if (file.getFilename().endsWith(".js")) {

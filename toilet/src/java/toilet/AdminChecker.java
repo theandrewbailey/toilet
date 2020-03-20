@@ -14,6 +14,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.tag.AbstractInput;
+import toilet.servlet.AdminLoginServlet;
 
 /**
  *
@@ -33,9 +34,10 @@ public class AdminChecker implements Filter {
         HttpServletResponse res = (HttpServletResponse) response;
         res.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
         res.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + 1000);
-        if (req.getRequestURI().endsWith("/adminLogin") && "GET".equalsIgnoreCase(req.getMethod())) {
+        if ((req.getRequestURI().endsWith("/adminLogin") && "GET".equalsIgnoreCase(req.getMethod()))
+                || FirstTimeDetector.FIRST_TIME_SETUP.equals(request.getServletContext().getAttribute(FirstTimeDetector.FIRST_TIME_SETUP))) {
             // the exception
-        } else if (req.getSession().getAttribute("login") == null && AbstractInput.getParameter(req, "answer") == null) {
+        } else if (req.getSession().getAttribute(AdminLoginServlet.PERMISSION) == null && AbstractInput.getParameter(req, "answer") == null) {
             res.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }

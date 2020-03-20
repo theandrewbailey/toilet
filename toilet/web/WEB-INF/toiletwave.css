@@ -1,0 +1,178 @@
+/* Toiletwave. トイレ周波美学 */
+html,body,blockquote,div,span,article,section,header,figure,figcaption,footer,h1,h2,h3,iframe,nav,p,pre,abbr,a,form,input,textarea,label,time,fieldset,legend,ul,li,img,table,thead,tbody,tr,td,code,br,strong,main,sup,sub,.reset{
+  margin: 0.0em;
+  border: 0.0em;
+  padding: 0.0em;
+  list-style: none;
+  font-weight: normal;
+  vertical-align: baseline;
+  box-sizing: border-box;
+  background-color: transparent;
+  text-decoration-skip-ink: none;
+}article,footer,header,nav,section,main,figure,figcaption{
+  display: block;
+}html{
+  font-family: "Times New Roman", "SimSun", "NSimSun", serif;
+  font-size: 16pt;
+}strong{
+  font-weight: bold;
+}pre{
+  overflow-x: scroll;
+}body>header{
+  text-transform: full-width;
+}h1{
+  font-size: 200%;
+}h2{
+  font-size: 120%;
+}body>header{
+  text-align: center;
+}body>header>h1>a:after{
+  content: " トイレ周波美学";
+}p,pre,li,.pagenation{
+  margin: 0.0em 0.0em 1.3em 0.0em;
+}img{
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  vertical-align: top;
+}p:last-of-type>img{
+  margin: -1.0em 0.0em 0.0em 0.0em;
+}abbr{
+  border-bottom: 1px dotted;
+}sup{
+  font-size: 0.7em;
+  vertical-align: top;
+}fieldset{
+  margin-inline-start: 2px;
+  margin-inline-end: 2px;
+  padding-block-start: 0.35em;
+  padding-block-end: 0.625em;
+  padding-inline-start: 0.75em;
+  padding-inline-end: 0.75em;
+  border: 2px groove ThreeDLightShadow;
+  min-inline-size: min-content;
+}ol>li{
+  list-style: decimal outside none;
+}article{
+  margin-bottom: 2em;
+}article>footer,.articleFooter{
+  font-size: 75%;
+  line-height: 1.8em;
+}article>p:last-of-type{
+  margin: 0.0em 0.0em 0.0em 0.0em;
+}article>table td,article>table th{
+  padding: 0.0em 0.5em;
+}article.comment,.noComment{
+  margin-top: 1.5em;
+}article>ul,article>ul>li>*,blockquote{
+  margin-left: 2em;
+}article>ul>li>*:first-child{
+  margin: 0.0em;
+}article>iframe{
+  overflow: hidden;
+}.comment>p,.noComment{
+  font-size: 85%;
+  line-height: 1.8em;
+}.comment>footer{
+  font-size: 75%;
+  line-height: 1.7em;
+}.entryform,legend{
+  padding: 0.0em;
+}input,textarea,select,input[type="submit"],button{
+  font-family: "SimSun", "NSimSun";
+  letter-spacing: 0.07em;
+  font-size: 80%;
+  resize: none;
+  background-color: #fff;
+  border-width: 2px;
+  border-style: inset;
+  border-color: #808080 #d3d3d3 #d3d3d3 #808080;
+  margin: 0em 0.2em 0.2em 0em;
+  padding:  0.1em 0.1em 0.1em 0.1em;
+}input[type="submit"],button{
+  border-style: outset;
+  border-color: #d3d3d3 #808080 #808080 #d3d3d3;
+  background: #c0c0c0;
+  color: black;
+  padding:  0.2em 0.5em 0.2em 0.5em;
+  min-width: 7em;
+}input[type="submit"]:active:hover,button:active:hover{
+  border-style: inset;
+  background: #999999;
+  border-color: #808080 #d3d3d3 #d3d3d3 #808080;
+}#commentSubmission{
+  margin: 2.0em 0.0em 0.0em 0.0em;
+}#commentSubmission>fieldset>textarea{
+  width: 100%;
+  box-sizing: border-box;
+}.pagenation{
+  list-style-type: none;
+  text-align: center;
+}.pagen_newest:before{
+  content: "<< ";
+}.pagen_newer:before{
+  content: "< ";
+}.pagen_older:after{
+  content: " >";
+}.pagen_oldest:after{
+  content: " >>";
+}.pagenation *{
+  display: inline;
+}.pagenation>span,.pagenation>a,.pagenation>ul>li{
+  margin: 0.0em 0.7em 0.0em 0.0em;
+  list-style: none outside none;
+  white-space: nowrap;
+}p.error{
+  font-size: 150%;
+}nav>h1,#recentEntries>h1,#recentCategoryEntries>h1,.side_bottom>h1{
+  font-size: 130%;
+}aside>*{
+  font-size: 80%;
+  padding: 0.3em 0.3em 0.0em 0.3em;
+}aside li{
+  line-height: 1.6em;
+}nav>ul>li>a,#recentEntries>ul>li>a,#recentCategoryEntries>ul>li>a{
+  display: block;
+}body>footer{
+  clear: both;
+}@media screen{html{
+    padding: 0.5em;
+    color: #620d55;
+    background-color: #e9fbff;
+  }html.reset{
+    background-color: rgba(233, 251, 255, 0);
+    min-width: unset;
+  }body{
+    width: 100%;
+  }body>*{
+    margin: 0.0em auto 0.0em auto;
+    min-width: 300px;
+  }figure{
+    max-width: -webkit-max-content;
+    max-width: max-content;
+    position: relative;
+    width: auto;
+  }aside{
+    background-image: linear-gradient(#fbf,#e9fbff);
+  }.error{
+    background-color: #ffa07a;
+    color: #000088;
+}}@media screen and (min-width: 901px){body>*{
+    max-width: 1160px;
+  }#leftContent{
+    margin-right: 200px;
+    width: 960px;
+    width: calc(100% - 200px);
+  }#leftContent:after{
+    content: "";
+    display: table;
+    clear: both;
+  }main{
+    float: left;
+  }html:not([amp]) aside{
+    float: right;
+    margin-left: -200px;
+    width: calc(200px - 0.2em);
+  }.pagenation{
+    float: right;
+}}

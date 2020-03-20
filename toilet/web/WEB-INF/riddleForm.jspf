@@ -1,0 +1,4 @@
+<form class="adminform" action="<h:local key="security_baseURL" locale=""/>adminLogin" method="post" accept-charset="UTF-8">
+    <h:localVar key="page_door" /><h:localVar key="page_valueMissing" var="valueMissing" />
+    <h:password id="answer" label="${page_door}" size="40" autofocus="${autofocus}" valueMissing="${valueMissing}" required="true" labelNextLine="true"/>
+</form>

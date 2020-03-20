@@ -27,7 +27,7 @@ public class WellKnownServlet extends ToiletServlet {
                 request.getServletContext().getRequestDispatcher("/content/robots.txt").forward(request, response);
                 break;
             case "/favicon.ico":
-                UtilStatic.permaMove(response, imead.getValue("site_favicon"));
+                UtilStatic.permaMove(response, imead.getValue("page_favicon"));
                 break;
             default:
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);

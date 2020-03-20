@@ -21,15 +21,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.HttpHeaders;
-import libOdyssey.OdysseyFilter;
-import libOdyssey.ResponseTag;
-import libOdyssey.bean.ExceptionRepo;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.OdysseyFilter;
+import libWebsiteTools.tag.ResponseTag;
+import libWebsiteTools.bean.ExceptionRepo;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.JVMNotSupportedError;
+import libWebsiteTools.JspFilter;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 
-public abstract class FileServlet extends HttpServlet {
+public class FileServlet extends HttpServlet {
 
     // 0b1111111111111111111111100000000 == 0x7fffff00 == 2,147,483,392 ms == 24 days, 20 hours 31 minutes 23.392 seconds exactly
     public static final long MAX_AGE_MILLISECONDS = 0b1111111111111111111111100000000;
@@ -37,7 +38,7 @@ public abstract class FileServlet extends HttpServlet {
     public static final long YEAR_SECONDS = 31535000;
     public static final Pattern GZIP_PATTERN = Pattern.compile("(?:.*? )?gzip(?:,.*)?");
     public static final Pattern BR_PATTERN = Pattern.compile("(?:.*? )?br(?:,.*)?");
-    private static final String UNAUTHORIZED_CONTENT_REQUEST = "content_unauthorized";
+    private static final String CROSS_SITE_REQUEST = "error_cross_site_request";
     // [ origin, timestamp for immutable requests (guaranteed null if not immutable), file path, query string ]
     private static final Pattern FILE_URL = Pattern.compile("^(.*?)/content(?:Immutable/([^/]+))?/([^\\?]+)\\??(.*)?");
     @EJB
@@ -50,8 +51,6 @@ public abstract class FileServlet extends HttpServlet {
     protected GuardRepo guard;
     @Resource
     protected ManagedExecutorService exec;
-
-    abstract protected String getBaseURL();
 
     public static String getNameFromURL(CharSequence URL) {
         try {
@@ -82,18 +81,22 @@ public abstract class FileServlet extends HttpServlet {
         } else if (null == f.getFilename() || "".equals(f.getFilename())) {
             throw new IllegalArgumentException("empty filename!");
         } else if (null == f.getAtime()) {
-            throw new IllegalArgumentException("no modified time for "+f.getFilename());
+            throw new IllegalArgumentException("no modified time for " + f.getFilename());
         }
         return new StringBuilder(300).append(canonicalURL).append("contentImmutable/")
                 .append(Base64.getUrlEncoder().encodeToString(BigInteger.valueOf(f.getAtime().getTime()).toByteArray()))
                 .append("/").append(f.getFilename()).toString();
     }
 
+    public static String getImmutableURL(String canonicalURL, Fileupload f) {
+        return getImmutableURL(canonicalURL, new Filemetadata(f.getFilename(), f.getAtime()));
+    }
+
     @Override
     protected long getLastModified(HttpServletRequest request) {
         Fileupload c;
         try {
-            c = file.getFile(getNameFromURL(request.getRequestURL()));
+            c = file.get(getNameFromURL(request.getRequestURL()));
             c.getAtime();
             request.setAttribute(FileServlet.class.getCanonicalName(), c);
         } catch (Exception ex) {
@@ -111,7 +114,7 @@ public abstract class FileServlet extends HttpServlet {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
-        if (GuardRepo.matchesAny(request.getHeader("Origin"), guard.getDomains()) && originMatcher.matches()) {
+        if (GuardRepo.matchesAny(request.getHeader("Origin"), guard.getAcceptableDomains()) && originMatcher.matches()) {
             response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
         } else {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -130,7 +133,7 @@ public abstract class FileServlet extends HttpServlet {
         if (null == c) {
             try {
                 String name = getNameFromURL(request.getRequestURL());
-                c = file.getFile(name);
+                c = file.get(name);
                 if (null == c) {
                     throw new FileNotFoundException(name);
                 }
@@ -147,11 +150,15 @@ public abstract class FileServlet extends HttpServlet {
         }
 
         if (c.getMimetype().startsWith("image") || c.getMimetype().startsWith("audio") || c.getMimetype().startsWith("video")) {
-            if (!fromApprovedDomain(request)) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                error.add(request, null, imead.getLocal(UNAUTHORIZED_CONTENT_REQUEST, Local.resolveLocales(request)), null);
-                request.setAttribute(OdysseyFilter.HANDLED_ERROR, true);
-                return;
+            try {
+                if (!fromApprovedDomain(request)) {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    error.add(request, null, imead.getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(request)), null);
+                    request.setAttribute(OdysseyFilter.HANDLED_ERROR, true);
+                    return;
+                }
+            } catch (NullPointerException n) {
+                // lucky
             }
         }
 
@@ -159,9 +166,10 @@ public abstract class FileServlet extends HttpServlet {
         response.setHeader(HttpHeaders.ETAG, etag);
         if (null != request.getHeader("Referer")) {
             Matcher originMatcher = GuardRepo.ORIGIN_PATTERN.matcher(request.getHeader("Referer"));
-            if (GuardRepo.matchesAny(request.getHeader("Referer"), guard.getDomains()) && originMatcher.matches()) {
+            if (null != guard.getAcceptableDomains()
+                    && GuardRepo.matchesAny(request.getHeader("Referer"), guard.getAcceptableDomains()) && originMatcher.matches()) {
                 response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
-            } else {
+            } else if (null != guard.getCanonicalOrigin()) {
                 response.setHeader("Access-Control-Allow-Origin", guard.getCanonicalOrigin());
             }
         } else {
@@ -180,7 +188,7 @@ public abstract class FileServlet extends HttpServlet {
             response.setCharacterEncoding(null);
         }
         String encoding = request.getHeader(HttpHeaders.ACCEPT_ENCODING);
-        response.setHeader(HttpHeaders.VARY, HttpHeaders.ETAG + ", " + HttpHeaders.CONTENT_ENCODING + ", " + HttpHeaders.ACCEPT_ENCODING);
+        response.setHeader(HttpHeaders.VARY, JspFilter.VARY_HEADER);
         response.setContentLength(c.getFilemetadata().getDatasize());
         if (null != encoding && GZIP_PATTERN.matcher(encoding).find() && null != c.getGzipdata()) {
             response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
@@ -228,20 +236,20 @@ public abstract class FileServlet extends HttpServlet {
         try {
             List<Fileupload> uploadedfiles = FileUtil.getFilesFromRequest(request, "filedata");
             for (Fileupload uploadedfile : uploadedfiles) {
-                if (null != file.getFile(uploadedfile.getFilename())) {
-                    request.setAttribute("error", "File exists: " + uploadedfile.getFilename());
+                if (null != file.get(uploadedfile.getFilename())) {
+                    request.setAttribute("ERROR_MESSAGE", "File exists: " + uploadedfile.getFilename());
                     return;
                 }
-                uploadedfile.setUrl(getBaseURL() + uploadedfile.getFilename());
+                uploadedfile.setUrl(getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), uploadedfile));
             }
-            file.addFiles(uploadedfiles);
+            file.upsert(uploadedfiles);
             request.setAttribute("uploadedfiles", uploadedfiles);
             for (Fileupload fileupload : uploadedfiles) {
                 exec.submit(new Brotlier(fileupload));
                 exec.submit(new Gzipper(fileupload));
             }
         } catch (FileNotFoundException fx) {
-            request.setAttribute("error", "File not sent");
+            request.setAttribute("ERROR_MESSAGE", "File not sent");
         } catch (EJBException | IOException | ServletException ex) {
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }

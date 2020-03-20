@@ -13,10 +13,8 @@ public class Select extends AbstractInput {
     private Boolean mutliple = false;
 
     @Override
-    public String generateTag() {
-        StringBuilder out = new StringBuilder(300 + getParameters().size() * 60);
-
-        label(out);
+    public String createTag() {
+        StringBuilder out = label(new StringBuilder(300 + getParameters().size() * 60));
 
         out.append("<select id=\"").append(getId()).append("\" name=\"").append(getId());
         if (null != getAccesskey()) {
@@ -64,8 +62,7 @@ public class Select extends AbstractInput {
             }
         }
 
-        out.append("</select>");
-        return out.toString();
+        return out.append("</select>").toString();
     }
 
     private void addOption(StringBuilder out, Map.Entry entry) {

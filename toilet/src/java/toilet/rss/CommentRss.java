@@ -1,8 +1,8 @@
 package toilet.rss;
 
 import java.io.StringWriter;
+import java.util.Collection;
 import java.util.Date;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
@@ -14,17 +14,17 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
-import libWebsiteTools.rss.entity.AbstractRssFeed;
-import libWebsiteTools.rss.entity.RssChannel;
-import libWebsiteTools.rss.entity.RssItem;
+import libWebsiteTools.rss.AbstractRssFeed;
+import libWebsiteTools.rss.RssChannel;
+import libWebsiteTools.rss.RssItem;
 import libWebsiteTools.rss.iFeed;
 import org.w3c.dom.Document;
 import toilet.UtilStatic;
-import toilet.bean.EntryRepo;
+import toilet.bean.CommentRepo;
 import toilet.bean.UtilBean;
 import toilet.db.Comment;
 import toilet.tag.ArticleUrl;
@@ -35,8 +35,9 @@ public class CommentRss extends AbstractRssFeed {
 
     public static final String NAME = "Comments.rss";
     private static final String COMMENT_COUNT = "rss_commentCount";
+    private static final Logger LOG = Logger.getLogger(CommentRss.class.getName());
     @EJB
-    private EntryRepo entry;
+    private CommentRepo entry;
     @EJB
     private IMEADHolder imead;
     private Document XML;
@@ -46,10 +47,10 @@ public class CommentRss extends AbstractRssFeed {
     public CommentRss() {
     }
 
-    public Document generateFeed(Integer numEntries) {
+    public Document createFeed(Integer numEntries) {
         // if instantiated manually
         if (entry == null && imead == null) {
-            entry = UtilStatic.getBean(EntryRepo.LOCAL_NAME, EntryRepo.class);
+            entry = UtilStatic.getBean(CommentRepo.LOCAL_NAME, CommentRepo.class);
             imead = UtilStatic.getBean(UtilBean.IMEAD_LOCAL_NAME, IMEADHolder.class);
         }
 
@@ -59,7 +60,7 @@ public class CommentRss extends AbstractRssFeed {
         entries.setManagingEditor(entries.getWebMaster());
         entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
 
-        List<Comment> lComments = entry.getCommentArchive(numEntries);
+        Collection<Comment> lComments = entry.getAll(numEntries);
 
         for (Comment c : lComments) {
             RssItem i = new RssItem(c.getPostedhtml());
@@ -82,8 +83,8 @@ public class CommentRss extends AbstractRssFeed {
 
     @Override
     public iFeed preAdd() {
-        XML = generateFeed(Integer.valueOf(imead.getValue(COMMENT_COUNT)));
         try {
+            XML = createFeed(Integer.valueOf(imead.getValue(COMMENT_COUNT)));
             DOMSource DOMsrc = new DOMSource(XML);
             StringWriter holder = new StringWriter(10000);
             StreamResult str = new StreamResult(holder);
@@ -91,7 +92,11 @@ public class CommentRss extends AbstractRssFeed {
             trans.transform(DOMsrc, str);
             etag = "\"" + HashUtil.getSHA256Hash(holder.toString()) + "\"";
         } catch (TransformerException ex) {
-            Logger.getLogger(CommentRss.class.getName()).log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, "Coment feed will not be available due to an XML transformation error.", ex);
+            return null;
+        } catch (NumberFormatException n) {
+            LOG.log(Level.SEVERE, "Comment feed will not be available due to an invalid parameter.");
+            return null;
         }
         return this;
     }

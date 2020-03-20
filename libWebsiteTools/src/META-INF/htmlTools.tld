@@ -11,7 +11,7 @@
     <tag>
         <name>responseTag</name>
         <description>Sets two variables inside: requestTime (when the request first arrived) and renderMillis (number of milliseconds since requestTime).</description>
-        <tag-class>libOdyssey.ResponseTag</tag-class>
+        <tag-class>libWebsiteTools.tag.ResponseTag</tag-class>
         <body-content>scriptless</body-content>
     </tag>
     <description>Internationalization Made Easy And Dynamic. Uses IMEAD.keyvalue and IMEAD.localization tables to fill in small pieces of localization specific and configuration text. see libWebsiteTools.IMEADHolder.</description>
@@ -100,6 +100,81 @@
         </attribute>
     </tag>
     <tag>
+        <name>button</name>
+        <tag-class>libWebsiteTools.tag.Button</tag-class>
+        <body-content>scriptless</body-content>
+        <attribute>
+            <name>accesskey</name>
+            <description>ctrl+shift+accesskey to activate</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autocomplete</name>
+            <description>browser content hint</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>autofocus</name>
+            <description>should this have focus by default?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>disabled</name>
+            <description>should this be disabled?</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>id</name>
+            <description>id and name</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>styleClass</name>
+            <description>CSS class(es)</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>tabindex</name>
+            <description>tab index</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>title</name>
+            <description>tooltip description</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>type</name>
+            <description>the type of button this is, like "submit"</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>value</name>
+            <description>inital text value</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
         <description>will link all css files described in imead.localization page_css value</description>
         <name>css</name>
         <tag-class>libWebsiteTools.tag.HtmlCss</tag-class>
@@ -141,6 +216,25 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Boolean</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>datalist</name>
+        <tag-class>libWebsiteTools.tag.Datalist</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>id</name>
+            <description>id</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>options</name>
+            <description>a list of potential options</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.util.Collection</type>
         </attribute>
     </tag>
     <tag>
@@ -283,6 +377,13 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>datalist</name>
+            <description>a list of potential options, or an ID of an existing datalist on the page</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
         </attribute>
         <attribute>
             <name>required</name>
@@ -819,6 +920,13 @@
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>labelNextLine</name>
+            <description>place a &lt;br/&gt; between label and control</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Boolean</type>
         </attribute>
         <attribute>
             <name>length</name>

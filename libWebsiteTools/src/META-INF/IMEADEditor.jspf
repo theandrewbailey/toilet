@@ -1,6 +1,6 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="h" uri="uri:libwebsitetools:htmlTools" %>
-<form method="POST">
+<form method="POST" accept-charset="UTF-8">
     <table>
         <thead>
             <th>key</th>

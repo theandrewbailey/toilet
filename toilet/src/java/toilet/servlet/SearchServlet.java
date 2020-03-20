@@ -27,7 +27,7 @@ public class SearchServlet extends ToiletServlet {
             return;
         }
         asyncRecentCategories(request);
-        List results = entry.search(searchTerm);
+        List results = arts.search(searchTerm);
         if (results.isEmpty()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;

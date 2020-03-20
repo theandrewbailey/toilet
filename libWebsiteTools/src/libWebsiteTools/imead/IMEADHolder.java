@@ -1,10 +1,6 @@
 package libWebsiteTools.imead;
 
-import at.gadermaier.argon2.Argon2Factory;
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,18 +9,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.EJB;
+import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-import libOdyssey.bean.ExceptionRepo;
-import libWebsiteTools.JVMNotSupportedError;
+import javax.persistence.TypedQuery;
+import libWebsiteTools.db.Repository;
 
 /**
  * Internationalization Made Easy And Dynamic
@@ -34,37 +31,155 @@ import libWebsiteTools.JVMNotSupportedError;
  * @author alpha
  */
 @Singleton
+@LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
-public class IMEADHolder {
+public class IMEADHolder implements Repository<Localization> {
 
     public static final String LOCAL_NAME = "java:module/IMEADHolder";
     private static final Logger LOG = Logger.getLogger(IMEADHolder.class.getName());
-    private static final String ARGON2_SALT_KEY = "argon2_salt";
     private Map<Locale, Properties> localizedCache = new HashMap<>();
 
     @PersistenceUnit
     private EntityManagerFactory PU;
-    @EJB
-    private ExceptionRepo error;
 
+    /**
+     *
+     * @param in any locale
+     * @return a locale as language only (no country, etc.)
+     */
     public static Locale getLanguageOnly(Locale in) {
         Locale.Builder build = new Locale.Builder();
         build.setLanguage(in.getLanguage());
         return build.build();
     }
 
+    /**
+     * refresh cache of all properties from the DB
+     */
     @PostConstruct
-    public void populateCache() {
+    @Override
+    public void evict() {
         LOG.entering(IMEADHolder.class.getName(), "populateCache");
         PU.getCache().evict(Localization.class);
         localizedCache = Collections.unmodifiableMap(getProperties());
         LOG.exiting(IMEADHolder.class.getName(), "populateCache");
     }
 
+    /**
+     * remove property from DB and refresh cache
+     *
+     * @param locale
+     * @param key
+     */
+    @Override
+    public Localization delete(Object localPK) {
+        EntityManager em = PU.createEntityManager();
+        Localization out = em.find(Localization.class, localPK);
+        try {
+            em.getTransaction().begin();
+            em.remove(out);
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+        evict();
+        return out;
+    }
+
+    /**
+     * add all specified Localizations to DB and refresh cache
+     *
+     * @param entities
+     */
+    @Override
+    public List<Localization> upsert(Collection<Localization> entities) {
+        ArrayList<Localization> out = new ArrayList<>(entities.size());
+        EntityManager em = PU.createEntityManager();
+        boolean dirty = false;
+        try {
+            em.getTransaction().begin();
+            for (Localization l : entities) {
+                Localization existing = em.find(Localization.class, l.localizationPK);
+                if (null != existing && !existing.getValue().equals(l.getValue())) {
+                    existing.setValue(l.getValue());
+                    dirty = true;
+                    out.add(existing);
+                } else if (null == existing) {
+                    em.persist(l);
+                    dirty = true;
+                    out.add(l);
+                }
+            }
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+        if (dirty) {
+            evict();
+        }
+        return out;
+    }
+
+    @Override
+    public Localization get(Object localPK) {
+        EntityManager em = PU.createEntityManager();
+        try {
+            return em.find(Localization.class, localPK);
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public List<Localization> getAll(Integer limit) {
+        EntityManager em = PU.createEntityManager();
+        try {
+            TypedQuery<Localization> q = em.createNamedQuery("Localization.findAll", Localization.class);
+            if (null != limit) {
+                q.setMaxResults(limit);
+            }
+            return q.getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public void processArchive(Consumer<Localization> operation, Boolean transaction) {
+        EntityManager em = PU.createEntityManager();
+        try {
+            if (transaction) {
+                em.getTransaction().begin();
+                em.createNamedQuery("Localization.findAll", Localization.class).getResultStream().forEachOrdered(operation);
+                em.getTransaction().commit();
+            } else {
+                em.createNamedQuery("Localization.findAll", Localization.class).getResultStream().forEachOrdered(operation);
+            }
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public Long count() {
+        EntityManager em = PU.createEntityManager();
+        try {
+            TypedQuery<Long> qn = em.createNamedQuery("Localization.count", Long.class);
+            return qn.getSingleResult();
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * load all properties from DB
+     *
+     * @return map of Locale to Properties
+     */
     public Map<Locale, Properties> getProperties() {
         EntityManager em = PU.createEntityManager();
         try {
-            List<String> supportedLocales = em.createNamedQuery("Localization.getDistinctLocales", String.class).getResultList();
+            List<String> supportedLocales = getSupportedLocales();
             Map<Locale, Properties> output = new HashMap<>(supportedLocales.size() * 2);
             for (String supportedLocale : supportedLocales) {
                 Locale l = Locale.forLanguageTag(null != supportedLocale ? supportedLocale : "");
@@ -82,79 +197,14 @@ public class IMEADHolder {
 
     /**
      *
-     * @return mapping of locale code to .properties file contents
+     * @return supported locales in DB
      */
-    public Map<String, String> backup() {
-        Map<String, String> localeFiles = new HashMap<>(localizedCache.size() * 2);
-        for (Locale l : localizedCache.keySet()) {
-            try {
-                StringWriter propertiesContent = new StringWriter(10000);
-                localizedCache.get(l).store(propertiesContent, null);
-                String localeString = l != Locale.ROOT ? l.toLanguageTag() : "";
-                localeFiles.put(localeString, propertiesContent.toString());
-            } catch (IOException ex) {
-                error.add(null, "Can't backup properties", "Can't backup properties for locale " + l.toLanguageTag(), ex);
-            }
-        }
-        return localeFiles;
-    }
-
-    /**
-     *
-     * @param locale
-     * @param propertiesContent contents of a .properties file
-     * @return the new Properties object
-     */
-    public Properties restore(String locale, String propertiesContent) {
-        locale = null != locale ? locale : "";
-        Properties props = new Properties();
-        Map<Locale, Properties> localeTemp = new HashMap<>(localizedCache);
-        try {
-            props.load(new StringReader(propertiesContent));
-            localeTemp.put(Locale.forLanguageTag(locale), restore(locale, props));
-            localizedCache = Collections.unmodifiableMap(localeTemp);
-        } catch (IOException ex) {
-            error.add(null, "Can't restore properties", "Can't restore properties for locale " + locale, ex);
-        } finally {
-        }
-        return props;
-    }
-
-    public Properties restore(String locale, Properties props) {
+    public List<String> getSupportedLocales() {
         EntityManager em = PU.createEntityManager();
-        em.getTransaction().begin();
         try {
-            for (Localization prop : em.createNamedQuery("Localization.findByLocalecode", Localization.class).setParameter("localecode", locale).getResultList()) {
-                em.remove(prop);
-            }
-            em.getTransaction().commit();
-            em.getTransaction().begin();
-            for (Object key : props.keySet()) {
-                em.persist(new Localization(new LocalizationPK(key.toString(), locale), props.getProperty(key.toString())));
-            }
-            em.getTransaction().commit();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            return em.createNamedQuery("Localization.getDistinctLocales", String.class).getResultList();
         } finally {
             em.close();
-        }
-        return props;
-    }
-
-    /**
-     * run Argon2 on toVerify and compare result to value stored at key
-     *
-     * @param toVerify
-     * @param key
-     * @return does it match?
-     */
-    public boolean verifyArgon2(String toVerify, String key) {
-        try {
-            return Argon2Factory.create().setIterations(16).setMemoryInKiB(8192).setParallelism(2)
-                    .hash(toVerify.getBytes("UTF-8"), getValue(ARGON2_SALT_KEY).getBytes("UTF-8"))
-                    .equals(getValue(key));
-        } catch (UnsupportedEncodingException ex) {
-            throw new JVMNotSupportedError(ex);
         }
     }
 

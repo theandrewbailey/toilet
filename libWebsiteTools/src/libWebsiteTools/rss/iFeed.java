@@ -9,12 +9,7 @@ import org.w3c.dom.Document;
 /**
  * interface for a RSS Feed.
  *
- * to put feed into service, add to the RssFeedSource EJB, -OR-
- *
- * add a context-param element in the web.xml, like so:
- *
- * name: RSS.feeds value: my.rss.feed;my.rss.secondFeed
- *
+ * to put feed into service, add to the FeedBucket EJB.
  * feeds are guaranteed to added and destroyed in the order declared.
  *
  * AbstractRssFeed is a mostly complete implementation (includes DOM), and
@@ -26,6 +21,12 @@ import org.w3c.dom.Document;
  * @see libWebsiteTools.rss.RssServlet
  */
 public interface iFeed extends Serializable {
+
+    /**
+     *
+     * @return what this feed should be called
+     */
+    public String getName();
 
     /**
      * preAdd will be called before this feed is made available.

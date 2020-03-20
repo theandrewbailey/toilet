@@ -5,15 +5,15 @@ public class Textarea extends AbstractInput {
     private Integer height;
 
     @Override
-    public String generateTag() {
-        StringBuilder out = new StringBuilder(1000);
-
-        label(out);
+    public String createTag() {
+        StringBuilder out = label(new StringBuilder(1000));
 
         out.append("<textarea id=\"").append(getId());
         out.append("\" name=\"").append(getId());
         if (null != height) {
             out.append("\" rows=\"").append(height.toString());
+        } else if (null == height && null != getValue()) {
+            out.append("\" rows=\"").append(Math.max(3, getValue().split("\n").length));
         }
         if (null != getLength()) {
             out.append("\" cols=\"").append(getLength().toString());

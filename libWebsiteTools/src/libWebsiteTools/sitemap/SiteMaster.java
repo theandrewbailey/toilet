@@ -9,6 +9,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
+import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -20,6 +21,7 @@ import org.w3c.dom.Element;
  * @author alpha
  */
 @Singleton
+@LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class SiteMaster {
 

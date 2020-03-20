@@ -24,7 +24,7 @@ import javax.ejb.Startup;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.HashCache;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
@@ -41,13 +41,13 @@ import toilet.tag.Categorizer;
  */
 @Startup
 @Singleton
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 @LocalBean
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class StateCache implements Iterable<UrlMap> {
 
     public static final String LOCAL_NAME = "java:module/StateCache";
-    public static final String PPP = "index_ppp";
-    public static final String PAC = "index_pac";
+    public static final String POSTS_PER_PAGE = "page_post_count";
+    public static final String PAGES_AROUND_CURRENT = "page_around_current";
     public static final Pattern INDEX_PATTERN = Pattern.compile(".*?/index(?:/(\\D*?))?(?:/([0-9]*)(?:\\?.*)?)?$");
     public static final Pattern ARTICLE_PATTERN = Pattern.compile(".*?/(?:(?:article)|(?:comments)|(?:amp)|(?:articleSummary))/([0-9]*)(?:/[\\w\\-\\.\\(\\)\\[\\]\\{\\}\\+,%_]*/?)?(?:\\?.*)?(?:#.*)?$");
     private int pagesAroundCurrent = 3;
@@ -63,7 +63,7 @@ public class StateCache implements Iterable<UrlMap> {
     @EJB
     private IMEADHolder imead;
     @EJB
-    private EntryRepo entry;
+    private ArticleRepo entry;
 
     /**
      * detect page numbers from URI
@@ -100,7 +100,7 @@ public class StateCache implements Iterable<UrlMap> {
 
     public Article getArticleFromURI(String URI) {
         try {
-            return entry.getArticle(new Integer(StateCache.getArticleIdFromURI(URI)));
+            return entry.get(new Integer(StateCache.getArticleIdFromURI(URI)));
         } catch (NumberFormatException x) {
             return null;
         }
@@ -118,11 +118,11 @@ public class StateCache implements Iterable<UrlMap> {
         entry.evict();
         urlMap.set(null);
         // pagination params
-        if (imead.getValue(PPP) != null) {
-            postsPerPage = Integer.parseInt(imead.getValue(PPP));
+        if (imead.getValue(POSTS_PER_PAGE) != null) {
+            postsPerPage = Integer.parseInt(imead.getValue(POSTS_PER_PAGE));
         }
-        if (imead.getValue(PAC) != null) {
-            pagesAroundCurrent = Integer.parseInt(imead.getValue(PAC));
+        if (imead.getValue(PAGES_AROUND_CURRENT) != null) {
+            pagesAroundCurrent = Integer.parseInt(imead.getValue(PAGES_AROUND_CURRENT));
         }
         canonicalUrl = imead.getValue(GuardRepo.CANONICAL_URL);
         EntityManager em = toiletPU.createEntityManager();
@@ -137,11 +137,11 @@ public class StateCache implements Iterable<UrlMap> {
                 popularity.put(score, data[0].toString());
             }
             ArrayList<String> cateTemp = new ArrayList<>(popularity.values());
-            cateTemp.remove(imead.getValue(EntryRepo.DEFAULT_CATEGORY));
+            cateTemp.remove(imead.getValue(ArticleRepo.DEFAULT_CATEGORY));
             Collections.reverse(cateTemp);
             categories = Collections.unmodifiableList(cateTemp);
         } catch (ArrayIndexOutOfBoundsException ex) {
-            categories = new ArrayList<>();
+            categories = Collections.unmodifiableList(new ArrayList<>());
         } finally {
             em.close();
         }
@@ -183,7 +183,7 @@ public class StateCache implements Iterable<UrlMap> {
                 if (urlMap.get() != null && !urlMap.get().isEmpty()) {
                     return urlMap.get().iterator();
                 }
-                List<Article> entries = entry.getArticleArchive(null);
+                List<Article> entries = new ArrayList<>(entry.getAll(null));
                 Collections.reverse(entries);
                 List<String> cates = new ArrayList<>(getArticleCategories());
                 cates.add("");
@@ -256,7 +256,7 @@ public class StateCache implements Iterable<UrlMap> {
                 }
             }
         }
-        return imead.getValue(EntryRepo.DEFAULT_CATEGORY);
+        return imead.getValue(ArticleRepo.DEFAULT_CATEGORY);
     }
 
     public class IndexFetcher {
@@ -282,13 +282,13 @@ public class StateCache implements Iterable<UrlMap> {
                 section = null;
             } catch (NumberFormatException e) {
             }
-            if (imead.getValue(EntryRepo.DEFAULT_CATEGORY).equals(section)) {
+            if (null != section && section.equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
                 section = null;
             }
 
             // get total of all, to display number of pages limit
             if (count == 0) {
-                double counted = entry.countArticles(section);
+                double counted = entry.count(section);
                 count = (int) Math.ceil(counted / postsPerPage);
             }
             // wierd algoritim to determine how many pagination links to other pages on this page

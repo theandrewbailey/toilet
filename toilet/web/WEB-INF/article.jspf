@@ -10,6 +10,6 @@
     <footer><h:local key="page_commentFooter"><h:param><h:time datetime="${comm.posted}" pubdate="true"/></h:param><h:param object="${fn:trim(comm.postedname)}"/></h:local></footer></article></c:forEach>
     <c:if test="${!art.comments}"><h:local key="page_commentDisabled" /></c:if></section>
     </c:when><c:when test="${null != commentIframe}">
-        <iframe src="${commentIframe}" id="comments" width="100%"></iframe>
+        <iframe src="${commentIframe}" id="comments" width="100%" title="${commentIframeTitle}"></iframe>
     </c:when></c:choose>
 </article>

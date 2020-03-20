@@ -21,7 +21,7 @@ public abstract class AbstractInput extends SimpleTagSupport {
 
     public static final String DISABLE_FIELDNAME_OBFUSCATION = "$_LIBWEBSITETOOLS_DISABLE_FIELDNAME_OBFUSCATION";
     public static final String DISABLE_REFERRER_CHECKING = "$_LIBWEBSITETOOLS_DISABLE_REQUEST_TOKEN_REFERRER_CHECKING";
-    //public static final String ORIGINAL_URL = "$_LIBODYSSEY_ORIGINAL_URL";
+    //public static final String ORIGINAL_URL = "$_security_ORIGINAL_URL";
     public static final String ORIGINAL_REQUEST_URL = "$_LIBWEBSITETOOLS_ORIGINAL_REQUEST_URL";
     public static final String DEFAULT_PATTERN = "^[\\u{000A}\\u{000D}\\u{0020}-\\u{007E}\\u{00A1}-\\u{052F}]*$";
 
@@ -96,9 +96,9 @@ public abstract class AbstractInput extends SimpleTagSupport {
         if (null != req.getServletContext().getAttribute(DISABLE_REFERRER_CHECKING)
                 || (null != req.getSession(false)
                 && null != req.getSession().getAttribute(DISABLE_REFERRER_CHECKING))) {
-            return HashUtil.getHmacSHA256(req.getSession().getId(), str);
+            return HashUtil.getHmacSHA256Hash(req.getSession().getId(), str);
         }
-        return HashUtil.getHmacSHA256(req.getSession().getId(), req.getHeader("referer") + str);
+        return HashUtil.getHmacSHA256Hash(req.getSession().getId(), req.getHeader("referer") + str);
     }
 
     public static String getTokenURL(HttpServletRequest req) {
@@ -122,10 +122,9 @@ public abstract class AbstractInput extends SimpleTagSupport {
         if (null != req.getServletContext().getAttribute(DISABLE_REFERRER_CHECKING)
                 || (null != req.getSession(false)
                 && null != req.getSession().getAttribute(DISABLE_REFERRER_CHECKING))) {
-
-            return HashUtil.getHmacSHA256(req.getSession().getId(), str);
+            return HashUtil.getHmacSHA256Hash(req.getSession().getId(), str);
         }
-        return HashUtil.getHmacSHA256(req.getSession().getId(), getTokenURL(req) + str);
+        return HashUtil.getHmacSHA256Hash(req.getSession().getId(), getTokenURL(req) + str);
     }
 
     public abstract String getType();
@@ -133,23 +132,24 @@ public abstract class AbstractInput extends SimpleTagSupport {
     @Override
     public void doTag() throws JspException, IOException {
         req = (HttpServletRequest) ((PageContext) getJspContext()).getRequest();
-        getJspContext().getOut().print(generateTag());
+        getJspContext().getOut().print(createTag());
     }
 
-    protected void label(StringBuilder out) {
+    protected StringBuilder label(StringBuilder out) {
         if (null != getLabel()) {
             out.append("<label for=\"").append(getId());
             out.append("\">");
             out.append(getLabel());
             out.append(getLabelNextLine() ? "</label><br/>" : "</label>");
         }
+        return out;
     }
 
     /**
      * @return all but the final "/>" of the input tag (will close all attribute
      * quotes)
      */
-    protected StringBuilder generateIncompleteTag() {
+    protected StringBuilder createIncompleteTag() {
         StringBuilder out = new StringBuilder(300);
         out.append("<input id=\"").append(getId());
         out.append("\" name=\"").append(getId());
@@ -211,11 +211,14 @@ public abstract class AbstractInput extends SimpleTagSupport {
         return out.append("\"");
     }
 
-    public String generateTag() {
-        StringBuilder out = new StringBuilder(400);
-        label(out);
-        out.append(generateIncompleteTag()).append("/>");
-        return out.toString();
+    /**
+     * This is the entrypoint for tags. Whatever comes out of this is all that
+     * gets put on the page.
+     *
+     * @return
+     */
+    public String createTag() {
+        return label(new StringBuilder(400)).append(createIncompleteTag()).append("/>").toString();
     }
 
     public String getAccesskey() {

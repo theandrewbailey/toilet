@@ -3,12 +3,8 @@
   <persistence-unit name="toiletPU" transaction-type="RESOURCE_LOCAL">
     <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
     <non-jta-data-source>java/toiletPS</non-jta-data-source>
-    <class>libOdyssey.db.Exceptionevent</class>
-    <class>libOdyssey.db.Honeypot</class>
-    <class>libOdyssey.db.Page</class>
-    <class>libOdyssey.db.Pageday</class>
-    <class>libOdyssey.db.Pageonpageday</class>
-    <class>libOdyssey.db.Pagerequest</class>
+    <class>libWebsiteTools.db.Exceptionevent</class>
+    <class>libWebsiteTools.db.Honeypot</class>
     <class>libWebsiteTools.file.Fileupload</class>
     <class>libWebsiteTools.file.Filemetadata</class>
     <class>libWebsiteTools.imead.Localization</class>
@@ -18,11 +14,14 @@
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <shared-cache-mode>ENABLE_SELECTIVE</shared-cache-mode>
     <properties>
-      <!--<property name="eclipselink.logging.level" value="FINE"/>-->
       <property name="eclipselink.jdbc.cache-statements" value="true"/>
       <property name="eclipselink.cache.shared.default" value="true"/>
       <property name="eclipselink.cache.type.default" value="HardWeak"/>
       <property name="eclipselink.cache.size.default" value="1000"/>
+      <property name="javax.persistence.schema-generation.database.action" value="create"/>
+      <property name="javax.persistence.schema-generation.create-source" value="script"/>
+      <property name="javax.persistence.schema-generation.create-script-source" value="toiletsetup.sql"/>
+      <property name="hibernate.hbm2ddl.import_files_sql_extractor" value="org.hibernate.tool.hbm2ddl.MultipleLinesSqlCommandExtractor" />
     </properties>
   </persistence-unit>
 </persistence>

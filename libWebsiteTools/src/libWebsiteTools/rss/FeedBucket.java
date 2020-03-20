@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
+import javax.ejb.LocalBean;
 import javax.ejb.Lock;
 import javax.ejb.LockType;
 import javax.ejb.Singleton;
@@ -18,6 +21,7 @@ import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
+import libWebsiteTools.db.Repository;
 
 /**
  * The feed bucket, the source from which all RSS feeds come. Does what the
@@ -27,8 +31,9 @@ import javax.xml.transform.TransformerFactory;
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
 @Singleton
+@LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
-public class FeedBucket {
+public class FeedBucket implements Repository<iFeed> {
 
     public static final String LOCAL_NAME = "java:module/FeedManager";
     public static final String TIME_FORMAT = "EEE, dd MMM yyyy HH:mm:ss z";
@@ -62,61 +67,29 @@ public class FeedBucket {
     }
 
     /**
-     * adds a feed to be available from the servlet
-     *
-     * @param name how the feed is accessed in the URL ("peanutButter" will be
-     * accessible through /rss/peanutButter)
-     * @param feed feed object to add
-     */
-    public void addFeed(String name, iFeed feed) {
-        if (feeds.containsKey(name)) {
-            throw new IllegalStateException(String.format("Feed already exists, name: {0} class: {1}", new Object[]{name, feed.getClass().getName()}));
-        }
-        synchronized (feed) {
-            feeds.put(name.toLowerCase(), feed.preAdd());
-            feed.postAdd();
-        }
-        LOG.log(Level.INFO, "Feed added, name: {0} class: {1}", new Object[]{name, feed.getClass().getName()});
-    }
-
-    /**
      * uses @Feed to extract the desired URL for the feed, and uses it to call
      * addFeed(String, iFeed)
      *
-     * @param feed feed object to add
+     * @param entities feed objects to add
      * @see libRssServlet.Feed
      */
-    public void addFeed(iFeed feed) {
-        addFeed(feed.getClass().getAnnotation(Feed.class) != null
-                ? feed.getClass().getAnnotation(Feed.class).value()
-                : feed.getClass().getSimpleName(), feed);
-    }
-
-    /**
-     * adds a RssFeed by class name must have @Feed on the class, as
-     * addFeed(iFeed) is called
-     *
-     * @param className fully qualified name of class
-     */
-    public void addFeed(String className) {
-        try {
-            addFeed((iFeed) Class.forName(className).newInstance());
-        } catch (InstantiationException ex) {
-            LOG.log(Level.SEVERE, "Feed " + className + " is not instantiatable", ex);
-        } catch (IllegalAccessException ex) {
-            LOG.log(Level.SEVERE, "Feed " + className + " has an inaccessable constructor", ex);
-        } catch (IllegalArgumentException ex) {
-            LOG.log(Level.SEVERE, "Feed " + className + " has invalid constructor arguments", ex);
-            throw ex;
-        } catch (ClassNotFoundException ex) {
-            LOG.log(Level.SEVERE, "Feed " + className + " was not found", ex);
-        } catch (IllegalStateException ex) {
-            LOG.log(Level.SEVERE, "Feed " + className + " already exists", ex);
-            throw ex;
-        } catch (ClassCastException ex) {
-            LOG.log(Level.SEVERE, "Class " + className + " does not implement iFeed", ex);
-            throw ex;
+    @Override
+    public List<iFeed> upsert(Collection<iFeed> entities) {
+        for (iFeed feed : entities) {
+            if (feeds.containsKey(feed.getName())) {
+                continue;
+            }
+            synchronized (feed) {
+                feed = feed.preAdd();
+                if (null == feed) {
+                    throw new NullPointerException("A feed can't be added, nor served.");
+                }
+                feeds.put(feed.getName(), feed);
+                feed.postAdd();
+            }
+            LOG.log(Level.INFO, "Feed added, name: {0} class: {1}", new Object[]{feed.getName(), feed.getClass().getName()});
         }
+        return new ArrayList<>(entities);
     }
 
     /**
@@ -125,8 +98,28 @@ public class FeedBucket {
      * @param feed name
      * @return iFeed
      */
-    public iFeed getFeed(String feed) {
-        return feeds.get(feed.toLowerCase());
+    @Override
+    public iFeed get(Object name) {
+        return feeds.get(name.toString());
+    }
+
+    @Override
+    public List<iFeed> getAll(Integer limit) {
+        return new ArrayList<>(feeds.values());
+    }
+
+    @Override
+    public void processArchive(Consumer<iFeed> operation, Boolean transaction) {
+        feeds.values().stream().forEachOrdered(operation);
+    }
+
+    @Override
+    public void evict() {
+    }
+
+    @Override
+    public Long count() {
+        return new Long(feeds.size());
     }
 
     /**
@@ -134,34 +127,28 @@ public class FeedBucket {
      *
      * @param name name of feed to remove
      */
-    public void removeFeed(String name) {
-        if (!feeds.containsKey(name)) {
-            throw new IllegalStateException(String.format("Feed doesn't exist, name: {0}", new Object[]{name}));
+    @Override
+    public iFeed delete(Object name) {
+        if (!feeds.containsKey(name.toString())) {
+            throw new IllegalStateException(String.format("Feed doesn't exist, name: %1s", name));
         }
-        iFeed feed = getFeed(name);
+        iFeed feed = get(name);
         synchronized (feed) {
             feed.preRemove();
-            feeds.remove(name).postRemove();
+            feeds.remove(name.toString()).postRemove();
         }
         LOG.log(Level.INFO, "Feed removed: {0}", name);
-    }
-
-    /**
-     * graciously removes a feed by class uses @Feed to determine which to
-     * remove
-     *
-     * @param feed instance to remove
-     */
-    public void removeFeed(iFeed feed) {
-        removeFeed(feed.getClass().getAnnotation(Feed.class).value());
+        return feed;
     }
 
     @PreDestroy
     @Lock(LockType.WRITE)
     void destroy() {
-        Collection<String> set = new ArrayList<>(feeds.keySet());
-        for (String el : set) {
-            removeFeed(el);
+        for (String el : new ArrayList<>(feeds.keySet())) {
+            try {
+                delete(el);
+            } catch (Exception x) {
+            }
         }
         LOG.log(Level.INFO, "FeedBucket destroyed");
     }

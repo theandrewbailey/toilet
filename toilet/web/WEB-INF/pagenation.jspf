@@ -1,10 +1,10 @@
-<c:if test="${pagen_first != null}"><ul class="pagenation"><%-- pagenation magics below --%><li class="pagen_label">pages:</li>
-    <c:if test="${pagen_current > 2}"><li><a class="pagen_newest" title="first page" href="${pagen_link}1">newest</a></li></c:if>
-    <c:if test="${pagen_current != 1}"><li><a class="pagen_newer" title="previous page" href="${pagen_link}${pagen_current-1}">newer</a></li></c:if>
-    <c:forEach begin="${pagen_first}" end="${pagen_last}" var="num"><li class="pagen_number"><c:choose>
-        <c:when test="${num eq pagen_current}">${num}</c:when>
-        <c:otherwise><a class="pagen" href="${pagen_link}${num}">${num}</a></c:otherwise>
-    </c:choose></li></c:forEach>
-    <c:if test="${pagen_current != pagen_count}"><li><a class="pagen_older" title="next page" href="${pagen_link}${pagen_current+1}">older</a></li></c:if>
-    <c:if test="${pagen_current < pagen_count-1}"><li><a class="pagen_oldest" title="last page" href="${pagen_link}${pagen_count}">oldest</a></li></c:if>
-</ul></c:if>
+<c:if test="${pagen_first != null}"><div class="pagenation"><%-- pagenation magics below --%><span class="pagen_label">pages:</span>
+<c:if test="${pagen_current > 2}"><a class="pagen_newest" title="first page" href="${pagen_link}1">newest</a></c:if>
+<c:if test="${pagen_current != 1}"><a class="pagen_newer" title="previous page" href="${pagen_link}${pagen_current-1}">newer</a></c:if>
+<ul><c:forEach begin="${pagen_first}" end="${pagen_last}" var="num"><li class="pagen_number"><c:choose>
+    <c:when test="${num eq pagen_current}">${num}</c:when>
+    <c:otherwise><a class="pagen" href="${pagen_link}${num}">${num}</a></c:otherwise>
+</c:choose></li></c:forEach></ul>
+<c:if test="${pagen_current != pagen_count}"><a class="pagen_older" title="next page" href="${pagen_link}${pagen_current+1}">older</a></c:if>
+<c:if test="${pagen_current < pagen_count-1}"><a class="pagen_oldest" title="last page" href="${pagen_link}${pagen_count}">oldest</a></c:if>
+</div></c:if>

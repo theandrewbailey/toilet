@@ -5,7 +5,9 @@ import java.util.Date;
 import javax.persistence.Basic;
 import javax.persistence.Cacheable;
 import javax.persistence.Column;
+import javax.persistence.ConstraintMode;
 import javax.persistence.Entity;
+import javax.persistence.ForeignKey;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
@@ -27,7 +29,8 @@ import javax.validation.constraints.Size;
 @Cacheable(true)
 @Table(name = "fileupload", schema = "tools")
 @NamedQueries({
-    @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f ORDER BY f.filename")})
+    @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f ORDER BY f.filename"),
+    @NamedQuery(name = "Fileupload.count", query = "SELECT COUNT(f) FROM Fileupload f")})
 public class Fileupload implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -68,7 +71,7 @@ public class Fileupload implements Serializable {
     @Lob
     @Column(name = "brdata")
     private byte[] brdata;
-    @JoinColumn(name = "filename", insertable = false, updatable = false)
+    @JoinColumn(name = "filename", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     @OneToOne
     private Filemetadata filemetadata;
 

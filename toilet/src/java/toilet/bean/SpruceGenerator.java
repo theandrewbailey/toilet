@@ -3,6 +3,7 @@ package toilet.bean;
 import libWebsiteTools.file.FileRepo;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
@@ -12,25 +13,27 @@ import javax.annotation.Resource;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
+import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.bean.ExceptionRepo;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.bean.ExceptionRepo;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.Feed;
-import libWebsiteTools.rss.entity.AbstractRssFeed;
-import libWebsiteTools.rss.entity.RssChannel;
-import libWebsiteTools.rss.entity.RssItem;
+import libWebsiteTools.rss.AbstractRssFeed;
+import libWebsiteTools.rss.RssChannel;
+import libWebsiteTools.rss.RssItem;
 import libWebsiteTools.rss.iFeed;
 import org.python.util.PythonInterpreter;
 import org.w3c.dom.Document;
 
 @Startup
 @Singleton
+@LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 @Feed(SpruceGenerator.SPRUCE_FEED_NAME)
 public class SpruceGenerator extends AbstractRssFeed {
@@ -57,11 +60,29 @@ public class SpruceGenerator extends AbstractRssFeed {
 
     @PostConstruct
     public void setup() {
-        feeds.addFeed(this);
+        if (!shouldBeReady()) {
+            LOG.log(Level.WARNING, "Spruce is not configured, and will not be available. Goodbye.");
+            return;
+        }
+        feeds.upsert(Arrays.asList(this));
     }
 
+    /**
+     *
+     * @return is the interpreter running right now?
+     */
     public boolean ready() {
         return py != null;
+    }
+
+    /**
+     *
+     * @return is the interpreter likely to be available?
+     */
+    public boolean shouldBeReady() {
+        return null != imead.getValue(SPRUCE_COUNT)
+                && null != imead.getValue(DICTIONARY_XML)
+                && null != file.get(imead.getValue(DICTIONARY_XML));
     }
 
     private synchronized String getSentence() {
@@ -98,7 +119,7 @@ public class SpruceGenerator extends AbstractRssFeed {
         public PythonInterpreter call() throws Exception {
             if (py == null) {
                 LOG.info("starting Spruce");
-                Fileupload dictionary = file.getFile(imead.getValue(DICTIONARY_XML));
+                Fileupload dictionary = file.get(imead.getValue(DICTIONARY_XML));
                 if (null != dictionary) {
                     try {
                         byte[] dictionaryxml = dictionary.getFiledata();

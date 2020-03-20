@@ -29,13 +29,13 @@ import javax.validation.constraints.Size;
  */
 @Entity
 @Cacheable(true)
-@Table(name = "article", catalog = "toilet", schema = "toilet")
+@Table(name = "article", schema = "toilet")
 @NamedQueries({
     @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a ORDER BY a.posted DESC"),
     @NamedQuery(name = "Article.findSummaries", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary) FROM Article a ORDER BY a.posted DESC"),
     @NamedQuery(name = "Article.findSummariesBySection", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary) FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.countArticles", query = "SELECT COUNT(a) FROM Article a"),
-    @NamedQuery(name = "Article.countArticlesBySection", query = "SELECT COUNT(a) FROM Article a WHERE a.sectionid.name=:section")})
+    @NamedQuery(name = "Article.count", query = "SELECT COUNT(a) FROM Article a"),
+    @NamedQuery(name = "Article.countBySection", query = "SELECT COUNT(a) FROM Article a WHERE a.sectionid.name=:section")})
 public class Article implements Serializable, Comparable<Article> {
 
     private static final long serialVersionUID = 1L;
@@ -66,16 +66,16 @@ public class Article implements Serializable, Comparable<Article> {
     private Date posted;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 2147483647)
-    @Column(name = "postedhtml", nullable = false, length = 2147483647)
+    @Size(min = 1, max = 10000000)
+    @Column(name = "postedhtml", nullable = false, length = 10000000)
     private String postedhtml;
     @Basic(optional = false)
     @NotNull
-    @Size(min = 1, max = 2147483647)
-    @Column(name = "postedmarkdown", nullable = false, length = 2147483647)
+    @Size(min = 1, max = 10000000)
+    @Column(name = "postedmarkdown", nullable = false, length = 10000000)
     private String postedmarkdown;
-    @Size(min = 1, max = 2147483647)
-    @Column(name = "postedamp", nullable = false, length = 2147483647)
+    @Size(min = 1, max = 10000000)
+    @Column(name = "postedamp", nullable = false, length = 10000000)
     private String postedamp;
     @Basic(optional = false)
     @NotNull

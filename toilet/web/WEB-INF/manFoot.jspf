@@ -1,7 +1,11 @@
-<br/><footer id="downContent">
+<footer id="downContent">
+<c:set var="autofocus" value="false" scope="page"/>
+<c:if test="${FIRST_TIME_SETUP != 'FIRST_TIME_SETUP'}"><fieldset><legend><h:local key="page_footLogin"/></legend>
+<%@ include file="/WEB-INF/riddleForm.jspf" %>
+</fieldset></c:if>
+<br/>
 <p><h:responseTag><h:local key="page_footFormat">
     <h:param><h:time datetime="${requestTime}"/></h:param>
     <h:param object="${renderMillis}"/>
 </h:local></h:responseTag></p>
-<p><a href="${libOdyssey_guard_canonicalURL}adminLogin">Return</a></p>
 </footer><h:javascript/></body></html>

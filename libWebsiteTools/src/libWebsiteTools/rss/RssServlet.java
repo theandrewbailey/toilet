@@ -26,10 +26,9 @@ import org.w3c.dom.Document;
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-@WebServlet(name = "RssServlet", description = "RSS host servlet, generates XML DOM for RSS feeds", urlPatterns = {"/rss/*"}, loadOnStartup = 1)
+@WebServlet(name = "RssServlet", description = "RSS host servlet, writes XML DOM for RSS feeds", urlPatterns = {"/rss/*"}, loadOnStartup = 1)
 public class RssServlet extends HttpServlet {
 
-    public static final String FEEDS = "RSS.feeds";
     public static final String INDENT = "RSS.indent";
     public static final Pattern RSS_NAME_REGEX = Pattern.compile("^.+?/rss/([^\\?]+?)(?:\\?.*)?$");
     private static final Logger LOG = Logger.getLogger(RssServlet.class.getName());
@@ -48,24 +47,13 @@ public class RssServlet extends HttpServlet {
             return feed;
         }
         String name = getRssName(req.getRequestURL().toString());
-        feed = src.getFeed(name);
+        feed = src.get(name);
         if (feed == null) {
             LOG.log(Level.FINE, "RSS feed {0} not found", name);
             return null;
         }
         req.setAttribute(iFeed.class.getCanonicalName(), feed);
         return feed;
-    }
-
-    @Override
-    public void init() throws ServletException {
-        xFormFact.setAttribute("indent-number", 4);
-        String feeds = getServletContext().getInitParameter(FEEDS);
-        if (feeds != null && !feeds.isEmpty()) {
-            for (String f : feeds.split(";")) {
-                src.addFeed(f);
-            }
-        }
     }
 
     @Override

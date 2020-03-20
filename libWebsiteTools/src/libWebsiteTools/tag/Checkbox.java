@@ -13,13 +13,12 @@ public class Checkbox extends AbstractInput {
     }
 
     @Override
-    protected void label(StringBuilder out) {
+    protected StringBuilder label(StringBuilder out) {
+        return out;
     }
 
     @Override
-    public String generateTag() {
-        StringBuilder out = new StringBuilder(super.generateTag());
-        super.label(out);
-        return out.toString();
+    public String createTag() {
+        return super.label(new StringBuilder(super.createTag())).toString();
     }
 }

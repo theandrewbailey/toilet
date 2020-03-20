@@ -6,12 +6,12 @@ import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libOdyssey.bean.ExceptionRepo;
-import libOdyssey.db.Exceptionevent;
+import libWebsiteTools.bean.ExceptionRepo;
+import libWebsiteTools.db.Exceptionevent;
 import libWebsiteTools.rss.Feed;
-import libWebsiteTools.rss.entity.AbstractRssFeed;
-import libWebsiteTools.rss.entity.RssChannel;
-import libWebsiteTools.rss.entity.RssItem;
+import libWebsiteTools.rss.AbstractRssFeed;
+import libWebsiteTools.rss.RssChannel;
+import libWebsiteTools.rss.RssItem;
 import org.w3c.dom.Document;
 import toilet.servlet.AdminLoginServlet;
 
@@ -30,7 +30,7 @@ public class ErrorRss extends AbstractRssFeed {
 
     @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        if (AdminLoginServlet.LOG.equals(req.getSession().getAttribute("login"))) {
+        if (AdminLoginServlet.LOG.equals(req.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             LOG.fine("Exception RSS feed requested");
             RssChannel badRequests = new RssChannel("running log", req.getRequestURL().toString(), "404s, etc.");
             badRequests.setLimit(1000);

@@ -76,14 +76,19 @@ public class Local extends SimpleTagSupport {
         out = Collections.list(req.getLocales());
         if (null != req.getSession(false)) {
             Locale override = (Locale) req.getSession().getAttribute(OVERRIDE_LOCALE_PARAM);
-            if (override != null) {
+            if (override != null && !out.contains(override)) {
                 out.add(0, override);
             }
         }
-        out.add(Locale.getDefault());
+        if (!out.contains(Locale.getDefault())) {
+            out.add(Locale.getDefault());
+        }
         Locale generic = IMEADHolder.getLanguageOnly(Locale.getDefault());
-        if (!generic.equals(Locale.getDefault())) {
+        if (!generic.equals(Locale.getDefault()) && !out.contains(generic)) {
             out.add(generic);
+        }
+        if (!out.contains(Locale.ROOT)) {
+            out.add(Locale.ROOT);
         }
         if (null != req.getSession(false)) {
             req.getSession().setAttribute(LOCALE_PARAM, out);
@@ -103,6 +108,21 @@ public class Local extends SimpleTagSupport {
         return resolveLocales((HttpServletRequest) ((PageContext) jspc).getRequest());
     }
 
+    public static void resetLocales(HttpServletRequest req) {
+        if (null != req.getSession(false)) {
+            req.getSession().removeAttribute(LOCALE_PARAM);
+            req.getSession().removeAttribute(OVERRIDE_LOCALE_PARAM);
+        }
+    }
+
+    public static String getLocaleString(HttpServletRequest req) {
+        ArrayList<String> langTags = new ArrayList<>();
+        for (Locale l : resolveLocales(req)) {
+            langTags.add(l.toLanguageTag());
+        }
+        return String.join(", ", langTags);
+    }
+
     @SuppressWarnings({"unchecked", "UseSpecificCatch", "ThrowableResultIgnored"})
     protected String getValue() {
         try {
@@ -118,13 +138,18 @@ public class Local extends SimpleTagSupport {
             if (!(e.getCause() instanceof LocalizedStringNotFoundException)) {
                 throw e;
             }
+        } catch (NullPointerException n) {
         }
         return "";
     }
 
     @Override
     public void doTag() throws JspException, IOException {
-        getJspContext().getOut().print(getValue());
+        try {
+            getJspContext().getOut().print(getValue());
+        } catch (Exception x) {
+            // don't do anything
+        }
     }
 
     public void setLocale(String l) {

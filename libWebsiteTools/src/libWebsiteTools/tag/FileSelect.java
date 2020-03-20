@@ -5,8 +5,8 @@ public class FileSelect extends AbstractInput {
     private String accept;
 
     @Override
-    protected StringBuilder generateIncompleteTag() {
-        StringBuilder out = super.generateIncompleteTag();
+    protected StringBuilder createIncompleteTag() {
+        StringBuilder out = super.createIncompleteTag();
         if (null != accept) {
             out.append(" accept=\"").append(accept).append("\"");
         }

@@ -11,7 +11,7 @@ import javax.ejb.Stateless;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import toilet.rss.ArticleRss;
@@ -28,8 +28,8 @@ public class UtilBean {
     public static final String LOCAL_NAME = "java:module/UtilBean";
     public static final String IMEAD_LOCAL_NAME = "java:module/IMEADHolder";
     public static final String PERSISTENCE = "toiletPU";
-    public static final String SITE_TITLE = "site_title";
-    public static final String TAGLINE = "site_tagline";
+    public static final String SITE_TITLE = "page_title";
+    public static final String TAGLINE = "page_tagline";
     public static final String COPYRIGHT = "rss_copyright";
     public static final String LANGUAGE = "rss_language";
     public static final String MASTER = "rss_master";
@@ -64,14 +64,14 @@ public class UtilBean {
     public void resetEverything() {
         LOG.entering(UtilBean.class.getName(), "resetEverything");
         toiletPU.getCache().evictAll();
-        imead.populateCache();
+        imead.evict();
         cache.reset();
         init();
         guard.refresh();
         exec.submit(() -> {
             {
                 backup.backup();
-                src.getFeed(SpruceGenerator.SPRUCE_FEED_NAME).preAdd();
+                src.get(SpruceGenerator.SPRUCE_FEED_NAME).preAdd();
                 return true;
             }
         });
@@ -81,7 +81,7 @@ public class UtilBean {
     public synchronized void resetArticleFeed() {
         exec.submit(() -> {
             {
-                src.getFeed(ArticleRss.NAME).preAdd();
+                src.get(ArticleRss.NAME).preAdd();
                 return true;
             }
         });
@@ -90,7 +90,7 @@ public class UtilBean {
     public synchronized void resetCommentFeed() {
         exec.submit(() -> {
             {
-                src.getFeed(CommentRss.NAME).preAdd();
+                src.get(CommentRss.NAME).preAdd();
                 return true;
             }
         });

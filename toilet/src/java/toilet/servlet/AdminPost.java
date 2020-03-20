@@ -2,22 +2,21 @@ package toilet.servlet;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import libWebsiteTools.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import toilet.UtilStatic;
 import toilet.bean.StateCache;
-import toilet.bean.EntryRepo;
+import toilet.bean.ArticleRepo;
 import toilet.db.Article;
-import toilet.db.Section;
 import toilet.rss.CommentRss;
-import static toilet.servlet.AdminLoginServlet.POSTS;
 
 /**
  *
@@ -38,19 +37,18 @@ public class AdminPost extends ToiletServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String login = request.getSession().getAttribute("login").toString();
         String answer = request.getParameter("answer");
-        if (answer != null && imead.verifyArgon2(answer, POSTS)) {
-            showList(request, response, entry.getArticleArchive(null));
-        } else if (login.equals(AdminLoginServlet.POSTS)) {
+        if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.POSTS), answer)) {
+            showList(request, response, arts.getAll(null));
+        } else if (AdminLoginServlet.POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             if (request.getParameter("deletecomment") != null) {      // delete comment
-                entry.deleteComment(Integer.parseInt(request.getParameter("deletecomment")));
-                src.getFeed(CommentRss.NAME).preAdd();
+                comms.delete(Integer.parseInt(request.getParameter("deletecomment")));
+                src.get(CommentRss.NAME).preAdd();
                 cache.clearEtags();
-                showList(request, response, entry.getArticleArchive(null));
+                showList(request, response, arts.getAll(null));
                 return;
             } else if (request.getParameter("editarticle") != null) {      // set up to edit Entry
-                Article art = entry.getArticle(Integer.parseInt(request.getParameter("editarticle")));
+                Article art = arts.get(Integer.parseInt(request.getParameter("editarticle")));
                 displayArticleEdit(request, response, art);
                 return;
             }
@@ -58,8 +56,8 @@ public class AdminPost extends ToiletServlet {
         }
     }
 
-    public static void showList(HttpServletRequest request, HttpServletResponse response, List<Article> articles) throws ServletException, IOException {
-        request.getSession().setAttribute("login", AdminLoginServlet.POSTS);
+    public static void showList(HttpServletRequest request, HttpServletResponse response, Collection<Article> articles) throws ServletException, IOException {
+        request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.POSTS);
         request.setAttribute("title", "Posts");
         request.setAttribute("articles", articles);
         request.getRequestDispatcher(AdminLoginServlet.MAN_ENTRIES).forward(request, response);
@@ -69,18 +67,14 @@ public class AdminPost extends ToiletServlet {
         if (art.getCommentCollection() == null) {
             art.setCommentCollection(new ArrayList<>());
         }
-        LinkedHashMap<String, String> groups = new LinkedHashMap<>();
-        String defaultGroup = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class).getValue(EntryRepo.DEFAULT_CATEGORY);
-        groups.put(defaultGroup, defaultGroup);
-        for (String group : UtilStatic.getBean(StateCache.LOCAL_NAME, StateCache.class).getArticleCategories()) {
-            groups.put(group, group);
-        }
-        groups.put(CREATE_NEW_GROUP, "new group --&gt;");
+        LinkedHashSet<String> groups = new LinkedHashSet<>();
+        String defaultGroup = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class).getValue(ArticleRepo.DEFAULT_CATEGORY);
+        groups.addAll(UtilStatic.getBean(StateCache.LOCAL_NAME, StateCache.class).getArticleCategories());
         request.setAttribute("groups", groups);
         if (null == art.getSectionid()) {
-            art.setSectionid(new Section(0, defaultGroup));
-        } else if (!groups.containsKey(art.getSectionid().getName())) {
-            groups.put(art.getSectionid().getName(), art.getSectionid().getName());
+            groups.add(defaultGroup);
+        } else if (!groups.add(art.getSectionid().getName())) {
+            groups.add(art.getSectionid().getName());
         }
         request.getSession().setAttribute(LAST_ARTICLE_EDITED, art);
         request.getRequestDispatcher(AdminLoginServlet.MAN_ADD_ENTRY).forward(request, response);

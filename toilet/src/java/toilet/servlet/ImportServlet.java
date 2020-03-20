@@ -9,8 +9,10 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libOdyssey.bean.GuardRepo;
+import libWebsiteTools.HashUtil;
+import libWebsiteTools.bean.GuardRepo;
 import libWebsiteTools.tag.AbstractInput;
+import toilet.FirstTimeDetector;
 import toilet.bean.BackupDaemon;
 
 @WebServlet(name = "ImportServlet", description = "Inserts articles, comments, and files via zip file upload", urlPatterns = {"/import"})
@@ -22,28 +24,30 @@ public class ImportServlet extends ToiletServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Object seslog = request.getSession().getAttribute("login");
-        if (!AdminLoginServlet.IMPORT.equals(seslog)) {
+        if (!AdminLoginServlet.IMPORT.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
 
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + backup.getZipName());
         response.setContentType("application/zip");
-        backup.generateZip(response.getOutputStream());
+        backup.createZip(response.getOutputStream());
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminLoginServlet.IMPORT.equals(request.getSession().getAttribute("login"))
-                || !imead.verifyArgon2(AbstractInput.getParameter(request, "words"), ArticleServlet.WORDS)) {
+        if (FirstTimeDetector.FIRST_TIME_SETUP.equals(getServletContext().getAttribute(FirstTimeDetector.FIRST_TIME_SETUP))) {
+            // this is OK
+        } else if (!AdminLoginServlet.IMPORT.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
+                || !HashUtil.verifyArgon2Hash(imead.getValue(ArticleServlet.WORDS), AbstractInput.getParameter(request, "words"))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
 
-        try{
+        try {
             ZipInputStream zip = new ZipInputStream(AbstractInput.getPart(request, "zip").getInputStream());
             backup.restoreFromZip(zip);
+            getServletContext().removeAttribute(FirstTimeDetector.FIRST_TIME_SETUP);
         } catch (Exception ex) {
             error.add(request, "Restore from zip failed", null, ex);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
