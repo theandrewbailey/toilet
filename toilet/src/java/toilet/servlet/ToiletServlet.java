@@ -1,26 +1,23 @@
 package toilet.servlet;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.enterprise.concurrent.ManagedExecutorService;
+import javax.inject.Inject;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libWebsiteTools.bean.ExceptionRepo;
+import libWebsiteTools.cache.PageCacheProvider;
 import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.tag.HtmlCss;
-import libWebsiteTools.tag.HtmlScript;
+import libWebsiteTools.imead.Local;
 import toilet.bean.ArticleRepo;
 import toilet.bean.CommentRepo;
 import toilet.bean.StateCache;
 import toilet.bean.UtilBean;
-import toilet.db.Article;
 
 /**
  *
@@ -28,6 +25,10 @@ import toilet.db.Article;
  */
 public abstract class ToiletServlet extends HttpServlet {
 
+    public static final String ERROR_PREFIX = "error_";
+    public static final String ERROR_MESSAGE_PARAM = "ERROR_MESSAGE";
+    public static final String ERROR_JSP = "/WEB-INF/error.jsp";
+    public static final String ERROR_IFRAME_JSP = "/WEB-INF/errorIframe.jsp";
     @Resource
     protected ManagedExecutorService exec;
     @EJB
@@ -44,26 +45,19 @@ public abstract class ToiletServlet extends HttpServlet {
     protected IMEADHolder imead;
     @EJB
     protected UtilBean util;
+    @Inject
+    protected PageCacheProvider pageCacheProvider;
 
-    protected void asyncFiles(HttpServletRequest req) {
-        req.setAttribute("asyncFiles", exec.submit(() -> {
-            HtmlCss.getCssFiles(req, imead, file);
-            HtmlScript.getJavascriptFiles(req, imead, file);
-            return true;
-        }));
+    protected void showError(HttpServletRequest req, HttpServletResponse res, String errorMessage) {
+        req.setAttribute(ERROR_MESSAGE_PARAM, errorMessage);
+        try {
+            getServletContext().getRequestDispatcher(null == req.getParameter("iframe") ? ERROR_JSP : ERROR_IFRAME_JSP).forward(req, res);
+        } catch (IllegalStateException | ServletException | IOException ix) {
+        }
     }
 
-    protected void asyncRecentCategories(HttpServletRequest req, String... categories) {
-        req.setAttribute("asyncCats", exec.submit(() -> {
-            Map<String, Collection<Article>> cats = new LinkedHashMap<>(5);
-            for (String section : categories) {
-                if (null != section && 0 != section.length()) {
-                    cats.put(section, arts.getSection(section, 1, 10));
-                }
-            }
-            cats.put("", arts.getSection(null, 1, 10));
-            return cats;
-        }));
+    protected void showError(HttpServletRequest req, HttpServletResponse res, Integer errorCode) {
+        showError(req, res, imead.getLocal(ERROR_PREFIX + errorCode, Local.resolveLocales(req, imead)));
     }
 
     @Override

@@ -20,6 +20,13 @@
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
+        <attribute>
+            <description>page number</description>
+            <name>page</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
     </tag>
     <tag>
         <name>articleUrl</name>
@@ -72,6 +79,32 @@
             <name>id</name>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+    <tag>
+        <name>recentArticles</name>
+        <tag-class>toilet.tag.RecentArticles</tag-class>
+        <body-content>scriptless</body-content>
+        <attribute>
+            <description>how many articles</description>
+            <name>number</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <description>category to display from</description>
+            <name>category</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <description>article variable. default: _article</description>
+            <name>var</name>
+            <required>false</required>
+            <rtexprvalue>false</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
     </tag>

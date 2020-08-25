@@ -12,15 +12,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.LocalBean;
+import javax.ejb.Startup;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
 import javax.persistence.ParameterMode;
 import javax.persistence.PersistenceUnit;
+import javax.persistence.Query;
 import javax.persistence.StoredProcedureQuery;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.db.Repository;
@@ -33,13 +35,14 @@ import toilet.db.Section;
  *
  * @author alpha
  */
+@Startup
 @Stateless
 @LocalBean
 public class ArticleRepo implements Repository<Article> {
-    
+
     public static final String DEFAULT_CATEGORY = "entry_defaultCategory";
     public static final String LOCAL_NAME = "java:module/ArticleRepo";
-    
+
     private static final Logger LOG = Logger.getLogger(ArticleRepo.class.getName());
     @PersistenceUnit
     private EntityManagerFactory toiletPU;
@@ -49,13 +52,13 @@ public class ArticleRepo implements Repository<Article> {
     private CommentRepo comment;
     @EJB
     private StateCache cache;
-    
+
     @Override
     public void evict() {
         toiletPU.getCache().evict(Article.class);
         toiletPU.getCache().evict(Section.class);
     }
-    
+
     public List<Article> getSection(String sect, Integer page, Integer perPage) {
         LOG.log(Level.FINE, "Retrieving articles, section {0}, page {1}, per page {2}", new Object[]{sect, page, perPage});
         if (null != sect && sect.equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
@@ -64,8 +67,8 @@ public class ArticleRepo implements Repository<Article> {
         EntityManager em = toiletPU.createEntityManager();
         try {
             TypedQuery<Article> q = sect == null
-                    ? em.createNamedQuery("Article.findSummaries", Article.class)
-                    : em.createNamedQuery("Article.findSummariesBySection", Article.class).setParameter("section", sect);
+                    ? em.createNamedQuery("Article.findAll", Article.class)
+                    : em.createNamedQuery("Article.findBySection", Article.class).setParameter("section", sect);
             if (page != null && perPage != null) {
                 q.setFirstResult(perPage * (page - 1));        // pagination start
                 q.setMaxResults(perPage);                      // pagination limit
@@ -75,12 +78,12 @@ public class ArticleRepo implements Repository<Article> {
             em.close();
         }
     }
-    
+
     @Override
     public Long count() {
         return count(null);
     }
-    
+
     public Long count(String sect) {
         LOG.log(Level.FINE, "Counting articles in section {0}", sect);
         if (null != sect && sect.equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
@@ -98,17 +101,35 @@ public class ArticleRepo implements Repository<Article> {
             em.close();
         }
     }
-    
-    public List search(String searchTerm) {
+
+    @SuppressWarnings("unchecked")
+    public List<Article> search(String searchTerm) {
         EntityManager em = toiletPU.createEntityManager();
         try {
             StoredProcedureQuery q = em.createStoredProcedureQuery("toilet.search_articles", Article.class);
-            q.registerStoredProcedureParameter("initialterm", String.class, ParameterMode.IN).setParameter("initialterm", searchTerm);
+            q.registerStoredProcedureParameter(1, String.class, ParameterMode.IN).setParameter(1, searchTerm);
             q.execute();
             return q.getResultList();
         } finally {
             em.close();
         }
+    }
+
+    public String searchSuggestion(String searchTerm) {
+        EntityManager em = toiletPU.createEntityManager();
+        try {
+            Query q = em.createNativeQuery("SELECT word, similarity(?1, word) FROM toilet.articlewords WHERE (word % ?1) = TRUE ORDER BY similarity DESC");
+            List results = q.setParameter(1, searchTerm).setMaxResults(1).getResultList();
+            Object[] row = (Object[]) results.iterator().next();
+            Float sim = (Float) row[1];
+            if (0.4f < sim && 1.0f > sim) {
+                return row[0].toString();
+            }
+        } catch (NullPointerException n) {
+        } finally {
+            em.close();
+        }
+        return null;
     }
 
     /**
@@ -121,10 +142,11 @@ public class ArticleRepo implements Repository<Article> {
      */
     @Override
     public List<Article> upsert(Collection<Article> articles) {
+        LOG.log(Level.INFO, "Upserting {0} articles", articles.size());
         Article dbArt;
         ArrayList<Article> out = new ArrayList<>(articles.size());
         EntityManager em = toiletPU.createEntityManager();
-        
+
         try {
             em.getTransaction().begin();
             for (Article art : articles) {
@@ -132,7 +154,7 @@ public class ArticleRepo implements Repository<Article> {
                     String sect = art.getSectionid().getName();
                     boolean getnew = art.getArticleid() == null;
                     dbArt = getnew ? new Article() : em.find(Article.class, art.getArticleid());
-                    
+
                     dbArt.setPosted(art.getPosted() == null ? dbArt.getModified() : art.getPosted());
                     dbArt.setComments(art.getComments());
                     dbArt.setCommentCollection(art.getComments() ? dbArt.getCommentCollection() : null);
@@ -145,7 +167,7 @@ public class ArticleRepo implements Repository<Article> {
                     dbArt.setSummary(art.getSummary());
                     dbArt.setImageurl(art.getImageurl());
                     dbArt.setModified(new Date(new Date().getTime() / 1000 * 1000));
-                    
+
                     if (dbArt.getSectionid() == null || !dbArt.getSectionid().getName().equals(sect)) {
                         Section esec;
                         TypedQuery<Section> q = em.createNamedQuery("Section.findByName", Section.class).setParameter("name", sect);
@@ -163,7 +185,7 @@ public class ArticleRepo implements Repository<Article> {
                         em.persist(dbArt);
                     }
                     out.add(dbArt);
-                    LOG.log(Level.INFO, "Entry added {0}, section {1}", new Object[]{art.getArticletitle(), sect});
+                    LOG.log(Level.INFO, "Article added {0}, section {1}", new Object[]{art.getArticletitle(), sect});
                 } catch (Throwable x) {
                     LOG.throwing(ArticleRepo.class.getCanonicalName(), "addArticles", x);
                 }
@@ -178,25 +200,25 @@ public class ArticleRepo implements Repository<Article> {
             em.close();
         }
     }
-    
+
     public void refreshSearch() {
         EntityManager em = toiletPU.createEntityManager();
         em.createStoredProcedureQuery("toilet.refresh_articlesearch").execute();
         em.close();
     }
-    
+
     @Override
     public Article get(Object articleId) {
         EntityManager em = toiletPU.createEntityManager();
         //em.setProperty(QueryHints.CACHE_USAGE, CacheUsage.CheckCacheThenDatabase);
         //em.setProperty(QueryHints.READ_ONLY, HintValues.TRUE);
         try {
-            return em.find(Article.class, articleId, GuardRepo.USE_CACHE_HINT);
+            return em.find(Article.class, articleId, SecurityRepo.USE_CACHE_HINT);
         } finally {
             em.close();
         }
     }
-    
+
     @Override
     public List<Article> getAll(Integer limit) {
         EntityManager em = toiletPU.createEntityManager();
@@ -210,7 +232,7 @@ public class ArticleRepo implements Repository<Article> {
             em.close();
         }
     }
-    
+
     @Deprecated
     @Override
     public Article delete(Object articleId) {
@@ -218,7 +240,7 @@ public class ArticleRepo implements Repository<Article> {
         try {
             Article e = em.find(Article.class, articleId);
             em.getTransaction().begin();
-            
+
             if (e.getSectionid().getArticleCollection().size() == 1) {
                 em.remove(e);
                 em.remove(e.getSectionid());
@@ -233,7 +255,7 @@ public class ArticleRepo implements Repository<Article> {
             em.close();
         }
     }
-    
+
     public void deleteEverything() {
         EntityManager em = toiletPU.createEntityManager();
         try {
@@ -258,7 +280,7 @@ public class ArticleRepo implements Repository<Article> {
             em.close();
         }
     }
-    
+
     public static void updateArticleHash(EntityManager em, Integer articleId) {
         Article art = em.find(Article.class, articleId);
         art.setEtag(Base64.getEncoder().encodeToString(hashArticle(art, art.getCommentCollection(), art.getSectionid().getName())));
@@ -279,7 +301,7 @@ public class ArticleRepo implements Repository<Article> {
             em.close();
         }
     }
-    
+
     private static byte[] hashArticle(Article e, Collection<Comment> comments, String sect) {
         try {
             MessageDigest sha = HashUtil.getSHA256();

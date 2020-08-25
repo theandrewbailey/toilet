@@ -6,12 +6,13 @@ import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.bean.ExceptionRepo;
 import libWebsiteTools.db.Exceptionevent;
-import libWebsiteTools.rss.Feed;
-import libWebsiteTools.rss.AbstractRssFeed;
 import libWebsiteTools.rss.RssChannel;
 import libWebsiteTools.rss.RssItem;
+import libWebsiteTools.rss.SimpleRssFeed;
+import libWebsiteTools.rss.iFeed;
 import org.w3c.dom.Document;
 import toilet.servlet.AdminLoginServlet;
 
@@ -19,9 +20,8 @@ import toilet.servlet.AdminLoginServlet;
  *
  * @author alpha
  */
-@Feed(ErrorRss.NAME)
 @WebListener
-public class ErrorRss extends AbstractRssFeed {
+public class ErrorRss extends SimpleRssFeed {
 
     @EJB
     private ExceptionRepo exr;
@@ -29,8 +29,23 @@ public class ErrorRss extends AbstractRssFeed {
     private static final Logger LOG = Logger.getLogger(ExceptionRepo.class.getName());
 
     @Override
+    public String getName() {
+        return NAME;
+    }
+
+    @Override
+    public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
+        res.setHeader(HttpHeaders.CACHE_CONTROL, "private, must-revalidate, max-age=600");
+        if (null != req.getSession(false) && AdminLoginServlet.LOG.equals(req.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+            return this;
+        }
+        res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return this;
+    }
+
+    @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        if (AdminLoginServlet.LOG.equals(req.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        if (null != req.getSession(false) && AdminLoginServlet.LOG.equals(req.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             LOG.fine("Exception RSS feed requested");
             RssChannel badRequests = new RssChannel("running log", req.getRequestURL().toString(), "404s, etc.");
             badRequests.setLimit(1000);
@@ -44,6 +59,7 @@ public class ErrorRss extends AbstractRssFeed {
             return super.refreshFeed(badRequests);
         }
         LOG.fine("Error RSS feed invalid authentication");
-        throw new RuntimeException();
+        res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return null;
     }
 }

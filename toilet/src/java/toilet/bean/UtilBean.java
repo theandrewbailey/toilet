@@ -7,11 +7,13 @@ import javax.annotation.Resource;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
+import javax.ejb.LocalBean;
+import javax.ejb.Startup;
 import javax.ejb.Stateless;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import toilet.rss.ArticleRss;
@@ -21,7 +23,9 @@ import toilet.rss.CommentRss;
  *
  * @author alpha
  */
+@Startup
 @Stateless
+@LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class UtilBean {
 
@@ -43,7 +47,7 @@ public class UtilBean {
     @EJB
     private BackupDaemon backup;
     @EJB
-    private GuardRepo guard;
+    private SecurityRepo guard;
     @EJB
     private StateCache cache;
     @Resource

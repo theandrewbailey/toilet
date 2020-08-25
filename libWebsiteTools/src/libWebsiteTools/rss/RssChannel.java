@@ -4,8 +4,6 @@ import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import libWebsiteTools.rss.FeedBucket;
-import libWebsiteTools.rss.iPublishable;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -19,9 +17,9 @@ public class RssChannel implements Serializable, iPublishable {
     protected final String docs="http://cyber.law.harvard.edu/tech/rss";
     private final String[] namesOfDays=new String[]{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-    private String title="Replace Me";  // standard RSS parameters
-    private String link="Replace Me";
-    private String description="Replace Me";
+    private String title="Replace This Title";  // standard RSS parameters
+    private String link="Replace this link";
+    private String description="Replace this description";
     private String copyright;
     private String managingEditor;
     private String webMaster;

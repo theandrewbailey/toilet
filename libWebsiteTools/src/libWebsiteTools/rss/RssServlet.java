@@ -1,6 +1,10 @@
 package libWebsiteTools.rss;
 
 import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -31,6 +35,12 @@ public class RssServlet extends HttpServlet {
 
     public static final String INDENT = "RSS.indent";
     public static final Pattern RSS_NAME_REGEX = Pattern.compile("^.+?/rss/([^\\?]+?)(?:\\?.*)?$");
+    private static final Map<iFeed.MimeType, String> MIME_TYPE_JSP = Collections.unmodifiableMap(new HashMap<iFeed.MimeType, String>() {
+        {
+            put(iFeed.MimeType.RSS, "/RssOut.jsp");
+            put(iFeed.MimeType.ATOM, "/AtomOut.jsp");
+        }
+    });
     private static final Logger LOG = Logger.getLogger(RssServlet.class.getName());
     private final TransformerFactory xFormFact = TransformerFactory.newInstance();
     @EJB
@@ -47,6 +57,7 @@ public class RssServlet extends HttpServlet {
             return feed;
         }
         String name = getRssName(req.getRequestURL().toString());
+        req.setAttribute(RssServlet.class.getSimpleName(), name);
         feed = src.get(name);
         if (feed == null) {
             LOG.log(Level.FINE, "RSS feed {0} not found", name);
@@ -63,7 +74,7 @@ public class RssServlet extends HttpServlet {
             LOG.log(Level.FINE, "RSS feed {0} not found", getRssName(request.getRequestURI()));
             return -1;
         }
-        return feed.getLastModified();
+        return feed.getLastModified(request);
     }
 
     @Override
@@ -101,15 +112,16 @@ public class RssServlet extends HttpServlet {
                 return;
             }
             DOMSource DOMsrc = new DOMSource(XML);
-            StreamResult str = new StreamResult(response.getWriter());
-            response.setContentType(feed.getClass().getAnnotation(Feed.class) != null
-                    ? feed.getClass().getAnnotation(Feed.class).MIME()
-                    : Feed.MIME_RSS);
+            StringWriter write = new StringWriter(1000000);
+            StreamResult str = new StreamResult(write);
             Transformer trans;
             synchronized (xFormFact) {
                 trans = xFormFact.newTransformer();
             }
             trans.transform(DOMsrc, str);
+            request.setAttribute("RSSOut", write.toString());
+            // forward to JSP so feed may be cached
+            request.getServletContext().getRequestDispatcher(MIME_TYPE_JSP.get(feed.getMimeType())).forward(request, response);
             feed.postWrite(request);
         } catch (IOException | IllegalArgumentException | TransformerException ex) {
             LOG.log(Level.SEVERE, "Error occured while retrieving RSS feed " + getRssName(request.getRequestURI()), ex);
@@ -118,8 +130,27 @@ public class RssServlet extends HttpServlet {
     }
 
     @Override
-    protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     }
 
+    @Override
+    protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+    }
+
+    @Override
+    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+    }
+
+    @Override
+    protected void doTrace(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+    }
 }

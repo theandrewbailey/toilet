@@ -41,12 +41,14 @@ import javax.ws.rs.core.MultivaluedHashMap;
  */
 public class CertUtil {
 
+    public static final String CERTIFICATE_CHAIN = "$_LIBWEBSITETOOLS_CERTIFICATE_CHAIN";
     /**
      * contains root CAs and intermediates, but not the server's (leaf)
      * certificate
      */
     private final MultivaluedHashMap<X500Principal, X509Certificate> CERTIFICATE_STORE = new MultivaluedHashMap<>();
     private static final Logger LOG = Logger.getLogger(CertUtil.class.getName());
+    private static final String SCT_EXTENSION = "1.3.6.1.4.1.11129.2.4.2";
 
     /**
      * open keystores on instantiation
@@ -88,33 +90,6 @@ public class CertUtil {
         } catch (UnrecoverableEntryException | KeyStoreException ex) {
             throw new RuntimeException("Something went wrong with your keystore.", ex);
         }
-    }
-
-    /**
-     *
-     * @param chains
-     * @return a value suitable for a Public-Key-Pins HTTP header
-     */
-    public static String getPublicKeyPins(List<CertPath<X509Certificate>> chains) {
-        Date certDate = null;
-        LinkedHashSet<String> publicKeyPins = new LinkedHashSet<>(chains.size() * 2);
-        for (CertPath<X509Certificate> certificateChain : chains) {
-            for (X509Certificate cert : certificateChain.getCertificates()) {
-                if (CertUtil.isValid(cert)) {
-                    publicKeyPins.add(String.format("pin-sha256=\"%s\"", new Object[]{CertUtil.getCertificatePinSHA256(cert)}));
-                    if (null == certDate || cert.getNotAfter().before(certDate)) {
-                        certDate = cert.getNotAfter();
-                    }
-                } else {
-                    throw new RuntimeException(String.format("A certificate in your trust chain is not valid!\n%s", new Object[]{cert.getSubjectX500Principal().toString()}));
-                }
-            }
-        }
-        if (!publicKeyPins.isEmpty()) {
-            publicKeyPins.add("max-age=");
-            return String.join("; ", publicKeyPins);
-        }
-        return null;
     }
 
     public static Date getEarliestExperation(List<CertPath<X509Certificate>> chains) {
@@ -274,6 +249,10 @@ public class CertUtil {
         return certificate.getSubjectX500Principal().equals(certificate.getIssuerX500Principal()) && verify(certificate, certificate.getPublicKey());
     }
 
+    public static boolean hasSCT(X509Certificate certificate) {
+        return null != certificate.getExtensionValue(SCT_EXTENSION);
+    }
+
     /**
      *
      * @param certificate
@@ -293,6 +272,9 @@ public class CertUtil {
             //fields.put("Key (" + certificate.getPublicKey().getAlgorithm() + ")", insertChars(HashUtil.getHex(certificate.getPublicKey().getEncoded()), ' '));
             fields.put("Fingerprint", HashUtil.getHex(HashUtil.getSHA256().digest(certificate.getEncoded())).toLowerCase());
             fields.put("Pin", getCertificatePinSHA256(certificate));
+            if (hasSCT(certificate)) {
+                fields.put("SCT", "present");
+            }
             fields.put("Issuer", isSelfSigned(certificate) ? getRdnValue(issuer, "CN") + " (self-signed)" : getRdnValue(issuer, "CN"));
             fields.put("Crypto", certificate.getPublicKey().getAlgorithm() + " + " + certificate.getSigAlgName());
             //fields.put("Signature (" + certificate.getSigAlgName() + ")", insertChars(HashUtil.getHex(certificate.getSignature()), ' '));

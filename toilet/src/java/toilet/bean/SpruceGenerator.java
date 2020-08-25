@@ -4,8 +4,10 @@ import libWebsiteTools.file.FileRepo;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
-import java.util.concurrent.Callable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
@@ -20,13 +22,13 @@ import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libWebsiteTools.bean.ExceptionRepo;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.rss.Feed;
-import libWebsiteTools.rss.AbstractRssFeed;
 import libWebsiteTools.rss.RssChannel;
 import libWebsiteTools.rss.RssItem;
+import libWebsiteTools.rss.SimpleRssFeed;
+import libWebsiteTools.rss.iDynamicFeed;
 import libWebsiteTools.rss.iFeed;
 import org.python.util.PythonInterpreter;
 import org.w3c.dom.Document;
@@ -35,8 +37,7 @@ import org.w3c.dom.Document;
 @Singleton
 @LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
-@Feed(SpruceGenerator.SPRUCE_FEED_NAME)
-public class SpruceGenerator extends AbstractRssFeed {
+public class SpruceGenerator extends SimpleRssFeed implements iDynamicFeed {
 
     public static final String LOCAL_NAME = "java:module/SpruceGenerator";
     public static final String DICTIONARY_XML = "spruce_dictionary";
@@ -49,6 +50,7 @@ public class SpruceGenerator extends AbstractRssFeed {
     private final RssChannel entries = new RssChannel("Spruce", LINK, "Some wisdom from Spruce");
     private Date lastEntry = new Date();
     private boolean changed = true;
+    private static final Map<String, String> URLs;
 //    private ScriptEngine py;
     private PythonInterpreter py;
     @EJB
@@ -57,6 +59,12 @@ public class SpruceGenerator extends AbstractRssFeed {
     private IMEADHolder imead;
     @Resource
     private ManagedExecutorService exec;
+
+    static {
+        HashMap<String, String> temp = new HashMap<>();
+        temp.put(SPRUCE_FEED_NAME, "Spruce");
+        URLs = Collections.unmodifiableMap(temp);
+    }
 
     @PostConstruct
     public void setup() {
@@ -113,10 +121,27 @@ public class SpruceGenerator extends AbstractRssFeed {
         return out;
     }
 
-    private class InitializeSpruce implements Callable<PythonInterpreter> {
+    @Override
+    public String getName() {
+        return SPRUCE_FEED_NAME;
+    }
 
-        @Override
-        public PythonInterpreter call() throws Exception {
+    @Override
+    public Map<String, String> getFeedURLs(HttpServletRequest req) {
+        return URLs;
+    }
+
+    @Override
+    public boolean willHandle(String name) {
+        return false;
+    }
+
+    @Override
+    public synchronized iFeed preAdd() {
+        LOG.entering(SpruceGenerator.class.getName(), "preAdd");
+        postRemove();
+
+        exec.submit(() -> {
             if (py == null) {
                 LOG.info("starting Spruce");
                 Fileupload dictionary = file.get(imead.getValue(DICTIONARY_XML));
@@ -152,19 +177,10 @@ public class SpruceGenerator extends AbstractRssFeed {
                     }
                 }
             }
-            return py;
-        }
-    }
-
-    @Override
-    public synchronized iFeed preAdd() {
-        LOG.entering(SpruceGenerator.class.getName(), "preAdd");
-        postRemove();
-
-        exec.submit(new InitializeSpruce());
+        });
 
         entries.clearFeed();
-        entries.setLink(imead.getValue(GuardRepo.CANONICAL_URL) + LINK);
+        entries.setLink(imead.getValue(SecurityRepo.CANONICAL_URL) + LINK);
         entries.setWebMaster(imead.getValue(UtilBean.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
         entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
@@ -176,7 +192,8 @@ public class SpruceGenerator extends AbstractRssFeed {
         return this;
     }
 
-    public long lastModified() {
+    @Override
+    public long getLastModified(HttpServletRequest req) {
         return lastEntry.getTime();
     }
 

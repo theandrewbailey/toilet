@@ -5,7 +5,7 @@ import java.util.Date;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libWebsiteTools.OdysseyFilter;
+import libWebsiteTools.GuardFilter;
 
 /**
  *
@@ -17,7 +17,7 @@ public class ResponseTag extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        Date start = (Date) getJspContext().getAttribute(OdysseyFilter.TIME_PARAM, PageContext.REQUEST_SCOPE);
+        Date start = (Date) getJspContext().getAttribute(GuardFilter.TIME_PARAM, PageContext.REQUEST_SCOPE);
         getJspContext().setAttribute("requestTime", start);
         Long time = new Date().getTime() - start.getTime();
         getJspContext().setAttribute("renderMillis", time);

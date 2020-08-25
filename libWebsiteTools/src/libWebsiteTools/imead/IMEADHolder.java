@@ -21,6 +21,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
+import libWebsiteTools.HashUtil;
 import libWebsiteTools.db.Repository;
 
 /**
@@ -38,20 +39,10 @@ public class IMEADHolder implements Repository<Localization> {
     public static final String LOCAL_NAME = "java:module/IMEADHolder";
     private static final Logger LOG = Logger.getLogger(IMEADHolder.class.getName());
     private Map<Locale, Properties> localizedCache = new HashMap<>();
+    private String localizedHash = "";
 
     @PersistenceUnit
     private EntityManagerFactory PU;
-
-    /**
-     *
-     * @param in any locale
-     * @return a locale as language only (no country, etc.)
-     */
-    public static Locale getLanguageOnly(Locale in) {
-        Locale.Builder build = new Locale.Builder();
-        build.setLanguage(in.getLanguage());
-        return build.build();
-    }
 
     /**
      * refresh cache of all properties from the DB
@@ -59,17 +50,17 @@ public class IMEADHolder implements Repository<Localization> {
     @PostConstruct
     @Override
     public void evict() {
-        LOG.entering(IMEADHolder.class.getName(), "populateCache");
+        LOG.entering(IMEADHolder.class.getName(), "evict");
         PU.getCache().evict(Localization.class);
         localizedCache = Collections.unmodifiableMap(getProperties());
-        LOG.exiting(IMEADHolder.class.getName(), "populateCache");
+        localizedHash = HashUtil.getSHA256Hash(localizedCache.toString());
+        LOG.exiting(IMEADHolder.class.getName(), "evict");
     }
 
     /**
      * remove property from DB and refresh cache
      *
-     * @param locale
-     * @param key
+     * @param localPK
      */
     @Override
     public Localization delete(Object localPK) {
@@ -179,11 +170,11 @@ public class IMEADHolder implements Repository<Localization> {
     public Map<Locale, Properties> getProperties() {
         EntityManager em = PU.createEntityManager();
         try {
-            List<String> supportedLocales = getSupportedLocales();
+            List<String> supportedLocales = getLocaleStrings();
             Map<Locale, Properties> output = new HashMap<>(supportedLocales.size() * 2);
             for (String supportedLocale : supportedLocales) {
                 Locale l = Locale.forLanguageTag(null != supportedLocale ? supportedLocale : "");
-                Properties props = new Properties();
+                Properties props = new SortedProperties();
                 for (Localization prop : em.createNamedQuery("Localization.findByLocalecode", Localization.class).setParameter("localecode", supportedLocale).getResultList()) {
                     props.put(prop.getLocalizationPK().getKey(), prop.getValue());
                 }
@@ -195,11 +186,15 @@ public class IMEADHolder implements Repository<Localization> {
         }
     }
 
+    public Collection<Locale> getLocales() {
+        return localizedCache.keySet();
+    }
+
     /**
      *
      * @return supported locales in DB
      */
-    public List<String> getSupportedLocales() {
+    public List<String> getLocaleStrings() {
         EntityManager em = PU.createEntityManager();
         try {
             return em.createNamedQuery("Localization.getDistinctLocales", String.class).getResultList();
@@ -209,6 +204,8 @@ public class IMEADHolder implements Repository<Localization> {
     }
 
     /**
+     * equivalent to calling getLocal with the root locale
+     *
      * @param key
      * @return value from keyValue map (from DB)
      */
@@ -268,5 +265,12 @@ public class IMEADHolder implements Repository<Localization> {
             throw new NullPointerException("Locale " + locale + " is not valid.");
         }
         return localizedCache.get(l).getProperty(key);
+    }
+
+    /**
+     * @return the localizedHash
+     */
+    public String getLocalizedHash() {
+        return localizedHash;
     }
 }

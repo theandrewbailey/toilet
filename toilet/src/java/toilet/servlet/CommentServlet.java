@@ -6,7 +6,6 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.servlet.ServletException;
@@ -16,10 +15,12 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.cache.CachedPage;
+import libWebsiteTools.cache.PageCache;
+import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;
-import libWebsiteTools.tag.HtmlCss;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.UtilStatic;
 import toilet.db.Article;
@@ -65,54 +66,41 @@ public class CommentServlet extends ToiletServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
+        response.setDateHeader(HttpHeaders.DATE, spamSuspected ? art.getModified().getTime() - 10000 : art.getModified().getTime());
         request.setAttribute("spamSuspected", spamSuspected);
-
-        if (!spamSuspected) {
-            response.setHeader(HttpHeaders.CACHE_CONTROL, "private, must-revalidate, max-age=600");
-            String ifNoneMatch = request.getHeader("If-None-Match");
-            String etagTag = Local.getLocaleString(request) + request.getRequestURI();
-            String etag = cache.getEtag(etagTag);
-            if (null == etag) {
-                try {
-                    MessageDigest md = HashUtil.getSHA256();
-                    md.update(request.getSession().getId().getBytes("UTF-8"));
-                    md.update(art.getEtag().getBytes("UTF-8"));
-                    try {
-                        md.update(imead.getLocal(HtmlCss.PAGE_CSS_KEY, Local.resolveLocales(request)).getBytes("UTF-8"));
-                    } catch (UnsupportedEncodingException enc) {
-                    }
-                    etag = Base64.getEncoder().encodeToString(md.digest());
-                    cache.setEtag(etagTag, etag);
-                } catch (UnsupportedEncodingException enc) {
-                    throw new JVMNotSupportedError(enc);
-                }
-            }
-            etag = "\"" + etag + (spamSuspected ? "s" : "h") + "\"";
+        response.setHeader(HttpHeaders.CACHE_CONTROL, spamSuspected ? "no-cache" : "private, must-revalidate, max-age=600");
+        String ifNoneMatch = request.getHeader(HttpHeaders.IF_NONE_MATCH);
+        try {
+            MessageDigest md = HashUtil.getSHA256();
+            md.update(request.getRequestURI().getBytes("UTF-8"));
+            md.update(Local.getLocaleString(request, imead).getBytes("UTF-8"));
+            md.update(imead.getLocalizedHash().getBytes("UTF-8"));
+            md.update(request.getSession().getId().getBytes("UTF-8"));
+            md.update(art.getEtag().getBytes("UTF-8"));
+            md.update(spamSuspected ? "s".getBytes("UTF-8") : "h".getBytes("UTF-8"));
+            String etag = "\"" + Base64.getEncoder().encodeToString(md.digest()) + "\"";
             response.setHeader(HttpHeaders.ETAG, etag);
+            request.setAttribute(HttpHeaders.ETAG, etag);
             if (etag.equals(ifNoneMatch)) {
                 request.setAttribute(Article.class.getCanonicalName(), null);
                 response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
-                return;
             }
-        } else {
-            response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
+        } catch (UnsupportedEncodingException enc) {
+            throw new JVMNotSupportedError(enc);
         }
-        response.setDateHeader("Date", spamSuspected ? art.getModified().getTime() - 10000 : art.getModified().getTime());
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        asyncFiles(request);
         doHead(request, response);
-        HtmlMeta.addTag(request, "robots", "noindex");
+        HtmlMeta.addNameTag(request, "robots", "noindex");
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null != art) {
             request.setAttribute("art", art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            request.setAttribute("commentIframe", imead.getValue(GuardRepo.CANONICAL_URL) + "comments/" + art.getArticleid() + (null == request.getParameter("iframe") ? "" : "?iframe"));
+            request.setAttribute("commentForm", imead.getValue(SecurityRepo.CANONICAL_URL) + "comments/" + art.getArticleid() + (null == request.getParameter("iframe") ? "" : "?iframe"));
             request.getServletContext().getRequestDispatcher(null == request.getParameter("iframe") ? COMMENT_JSP : IFRAME_JSP).forward(request, response);
         }
     }
@@ -126,7 +114,7 @@ public class CommentServlet extends ToiletServlet {
                 String postText = AbstractInput.getParameter(request, "text");
                 if (null == postText || postText.isEmpty()
                         || null == postName || postName.isEmpty()) {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                    response.sendError(422, "Unprocessable Entity");
                     return;
                 }
                 postName = postName.trim();
@@ -153,11 +141,11 @@ public class CommentServlet extends ToiletServlet {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST);
                     return;
                 }
-
                 Article art = cache.getArticleFromURI(request.getRequestURI());
+                // prevent posting from old page
                 String postRequest = AbstractInput.getParameter(request, "original-request-time");
                 if (null != postRequest) {
-                    Date postRequestDate = new Date(Long.valueOf(postRequest));
+                    Date postRequestDate = new Date(Long.valueOf(postRequest) + 100);
                     for (Comment existingComment : art.getCommentCollection()) {
                         if ((existingComment.getPostedname().equals(newComment.getPostedname())) && existingComment.getPosted().after(postRequestDate)
                                 || existingComment.getPostedhtml().equals(newComment.getPostedhtml())) {
@@ -173,7 +161,10 @@ public class CommentServlet extends ToiletServlet {
                 comms.upsert(Arrays.asList(newComment));
                 util.resetCommentFeed();
                 request.getSession().setAttribute("LastPostedName", postName);
-                cache.clearEtags();
+                exec.submit(() -> {
+                    PageCache global = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
+                    global.removeAll(global.searchLookups("/" + art.getArticleid().toString() + "/"));
+                });
                 doGet(request, response);
                 break;
             default:

@@ -2,7 +2,7 @@ package toilet;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,14 +12,14 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.Markdowner;
+import libWebsiteTools.db.Repository;
 import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.file.FileServlet;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.db.Article;
-import toilet.servlet.ArticleServlet;
 import toilet.tag.ArticleUrl;
 
 /**
@@ -39,11 +39,11 @@ public class ArticleProcessor implements Callable<Article> {
     // !?\["?(.+?)"?\]\(\S+?(?:\s"?(.+?)"?)?\)
     private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[\"?(.+?)\"?\\]\\(\\S+?(?:\\s\"?(.+?)\"?)?\\)");
 
-    public FileRepo file;
+    public Repository<Fileupload> file;
     public Article art;
     public IMEADHolder imead;
 
-    public ArticleProcessor(Article art, IMEADHolder imead, FileRepo file) {
+    public ArticleProcessor(Article art, IMEADHolder imead, Repository<Fileupload> file) {
         this.art = art;
         this.file = file;
         this.imead = imead;
@@ -107,68 +107,65 @@ public class ArticleProcessor implements Callable<Article> {
         String ampHtml = html;
         Matcher imgAttribMatcher = IMG_ATTRIB_PATTERN.matcher(html);
         art.setSummary(null);
+        art.setImageurl(null);
         while (imgAttribMatcher.find()) {
-            HashMap<String, String> attribs = new HashMap<>();
+            HashMap<String, String> origAttribs = new HashMap<>();
             Matcher attribMatcher = ATTRIB_PATTERN.matcher(imgAttribMatcher.group(1));
             while (attribMatcher.find()) {
-                attribs.put(attribMatcher.group(1), attribMatcher.group(2));
+                origAttribs.put(attribMatcher.group(1), attribMatcher.group(2));
             }
-            HashMap<String, String> ampAttribs = new HashMap<>(attribs);
-            String imgName = attribs.get("src");
-            ampAttribs.put("src", imgName);
-            BufferedImage image;
+            String imageURL = origAttribs.get("src");
+            Map<String, String> baseAttribs = getImageInfo(imageURL, new HashMap<>(origAttribs));
+            Map<String, String> doubleAttribs = null;
+            Map<String, String> avifAttribs = null;
             try {
-                Matcher doubleMatcher = IMG_X2.matcher(imgName);
-                Fileupload img = null;
+                Matcher doubleMatcher = IMG_X2.matcher(imageURL);
                 if (doubleMatcher.find()) {
-                    imgName = URLDecoder.decode(doubleMatcher.group(1) + "×2" + doubleMatcher.group(2), "UTF-8");
-                    img = file.get(FileServlet.getNameFromURL(imgName));
+                    doubleAttribs = getImageInfo(URLDecoder.decode(doubleMatcher.group(1) + "×2" + doubleMatcher.group(2), "UTF-8"), new HashMap<>(origAttribs));
+                    avifAttribs = getImageInfo(URLDecoder.decode(doubleMatcher.group(1) + "×2.avif", "UTF-8"), new HashMap<>(origAttribs));
                 }
-                if (null == img) {
-                    imgName = URLDecoder.decode(attribs.get("src"), "UTF-8");
-                    img = file.get(FileServlet.getNameFromURL(imgName));
-                }
-                image = ImageIO.read(new ByteArrayInputStream(img.getFiledata()));
-                ampAttribs.put("width", Integer.toString(image.getWidth()));
-                ampAttribs.put("height", Integer.toString(image.getHeight()));
-                ampAttribs.put("src", FileServlet.getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), img));
-                if (!imgName.equals(attribs.get("src"))) {
-                    img = file.get(FileServlet.getNameFromURL(attribs.get("src")));
-                    image = ImageIO.read(new ByteArrayInputStream(img.getFiledata()));
-                }
-                attribs.put("width", Integer.toString(image.getWidth()));
-                attribs.put("height", Integer.toString(image.getHeight()));
-                art.setImageurl(FileServlet.getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), img));
-                attribs.put("src", art.getImageurl());
-            } catch (IOException | NullPointerException ex) {
-                Logger.getLogger(ArticleServlet.class
-                        .getName()).log(Level.SEVERE, null, ex);
-                continue;
+            } catch (UnsupportedEncodingException | NullPointerException ex) {
             }
-            StringBuilder imgTagAttribs = new StringBuilder(imgAttribMatcher.group().length());
-            for (Map.Entry<String, String> attribute : attribs.entrySet()) {
-                imgTagAttribs.append(" ").append(attribute.getKey());
-                if (null != attribute.getValue()) {
-                    imgTagAttribs.append("=\"").append(attribute.getValue()).append("\"");
-                }
+            Map<String, String> ampAttribs = new HashMap<>(null != doubleAttribs ? doubleAttribs : baseAttribs);
+
+            StringBuilder pictureTag = new StringBuilder(500).append("<picture>");
+            if (null != avifAttribs) {
+                String srcset = avifAttribs.remove("src");
+                String type = avifAttribs.remove("type");
+                avifAttribs = new HashMap<>();
+                avifAttribs.put("srcset", srcset);
+                avifAttribs.put("type", type);
+                pictureTag.append(createTag("source", avifAttribs).append("/>"));
             }
-            StringBuilder ampImgTagAttribs = new StringBuilder(imgAttribMatcher.group().length());
-            for (Map.Entry<String, String> attribute : ampAttribs.entrySet()) {
-                ampImgTagAttribs.append(" ").append(attribute.getKey());
-                if (null != attribute.getValue()) {
-                    ampImgTagAttribs.append("=\"").append(attribute.getValue()).append("\"");
+            {
+                Map<String, String> baseset = new HashMap<>();
+                baseset.put("type", baseAttribs.get("type"));
+                String srcset = baseAttribs.get("src") + " 1x";
+                if (null != doubleAttribs) {
+                    srcset += ", " + doubleAttribs.get("src") + " 2x";
+                    baseset.put("data-highres", doubleAttribs.get("src"));
                 }
+                baseset.put("srcset", srcset);
+                pictureTag.append(createTag("source", baseset).append("/>"));
             }
-            StringBuilder imgTag = new StringBuilder(imgTagAttribs.length() + 10).append("<img").append(imgTagAttribs).append("/>");
-            StringBuilder replacement = new StringBuilder(ampImgTagAttribs.length() * 2 + 100)
-                    .append("<amp-img layout=\"responsive\"").append(ampImgTagAttribs)
-                    .append("><noscript><img").append(ampImgTagAttribs).append("></noscript></amp-img>");
-            html = html.replace(imgAttribMatcher.group(0), imgTag);
-            ampHtml = ampHtml.replace(imgAttribMatcher.group(0), replacement);
-            if (null == art.getSummary() && image.getWidth() >= 600 && image.getHeight() >= 300) {
-                art.setSummary(String.format(
-                        "<article class=\"article%s\"><a class=\"withFigure\" href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
-                        art.getArticleid(), ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art), imgTag, art.getArticletitle(), paragraph
+
+            baseAttribs.remove("type");
+            String imgTag = createTag("img", baseAttribs).append("/>").toString();
+            pictureTag.append(imgTag).append("</picture>");
+            String pictureString = pictureTag.toString();
+
+            ampAttribs.remove("type");
+            ampAttribs.put("layout", "responsive");
+            String ampTag = createTag("amp-img", ampAttribs).append("><noscript>").append(imgTag).append("></noscript></amp-img>").toString();
+            ampHtml = ampHtml.replace(imgAttribMatcher.group(0), ampTag);
+
+            html = html.replace(imgAttribMatcher.group(0), pictureString);
+            if (null == art.getSummary() && Integer.parseInt(baseAttribs.get("width")) >= 600 && Integer.parseInt(baseAttribs.get("height")) >= 300) {
+                if (null == art.getImageurl()) {
+                    art.setImageurl(baseAttribs.get("src"));
+                }
+                art.setSummary(String.format("<article class=\"article%s\"><a class=\"withFigure\" href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
+                        art.getArticleid(), ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null, null), pictureString, art.getArticletitle(), paragraph
                 ));
             }
         }
@@ -176,106 +173,36 @@ public class ArticleProcessor implements Callable<Article> {
         art.setPostedamp(ampHtml);
         if (null == art.getSummary()) {
             art.setSummary(String.format("<article class=\"article%s\"><header><a href=\"%s\"><h1>%s</h1></a></header>%s</article>",
-                    art.getArticleid(), ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art), art.getArticletitle(), paragraph));
+                    art.getArticleid(), ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null, null), art.getArticletitle(), paragraph));
         }
         return art;
     }
 
-    /*public Article processArticle() {
-        if (null == art) {
-            throw new IllegalArgumentException("Can't process an article when YOU DON'T PASS IT!");
+    @SuppressWarnings("UseSpecificCatch")
+    private Map<String, String> getImageInfo(String url, Map<String, String> attribs) {
+        if (null == attribs) {
+            attribs = new HashMap<>();
         }
-        if (null == art.getPostedhtml() || null == art.getPostedmarkdown()) {
-            convert(art);
+        Fileupload fileUpload = file.get(FileServlet.getNameFromURL(url));
+        attribs.put("src", FileServlet.getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), fileUpload));
+        attribs.put("type", fileUpload.getMimetype());
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileUpload.getFiledata()));
+            attribs.put("width", Integer.toString(image.getWidth()));
+            attribs.put("height", Integer.toString(image.getHeight()));
+        } catch (Exception e) {
         }
-        if (null == imead) {
-            imead = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class);
-        }
-        if (null == file) {
-            file = UtilStatic.getBean(FileRepo.LOCAL_NAME, FileRepo.class);
-        }
-        String html = art.getPostedhtml();
-        String paragraph = "";
-        Matcher paraMatcher = PARA_PATTERN.matcher(html);
-        while (paraMatcher.find()) {
-            if (!paraMatcher.group(1).startsWith("<p><img ")) {
-                paragraph = paraMatcher.group(1);
-                break;
+        return attribs;
+    }
+
+    private StringBuilder createTag(String tagname, Map<String, String> attribs) {
+        StringBuilder tag = new StringBuilder(200).append("<").append(tagname);
+        for (Map.Entry<String, String> attribute : attribs.entrySet()) {
+            tag.append(" ").append(attribute.getKey());
+            if (null != attribute.getValue()) {
+                tag.append("=\"").append(attribute.getValue()).append("\"");
             }
         }
-        String ampHtml = html;
-        Matcher imgAttribMatcher = IMG_ATTRIB_PATTERN.matcher(html);
-        art.setSummary(null);
-        while (imgAttribMatcher.find()) {
-            HashMap<String, String> imgTagAttribsMap = new HashMap<>();
-            Matcher attribMatcher = ATTRIB_PATTERN.matcher(imgAttribMatcher.group(1));
-            while (attribMatcher.find()) {
-                imgTagAttribsMap.put(attribMatcher.group(1), attribMatcher.group(2));
-            }
-            String imgName = imgTagAttribsMap.get("src");
-            BufferedImage image;
-            ArrayList<Fileupload> sources = new ArrayList<>();
-            try {
-                Fileupload img = file.getFile(FileServlet.getNameFromURL(imgName));
-                image = ImageIO.read(new ByteArrayInputStream(img.getFiledata()));
-                imgTagAttribsMap.put("width", Integer.toString(image.getWidth()));
-                imgTagAttribsMap.put("height", Integer.toString(image.getHeight()));
-                art.setImageurl(FileServlet.getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), new Filemetadata(img.getFilename(), img.getAtime())));
-                imgTagAttribsMap.put("src", art.getImageurl());
-            } catch (IOException | NullPointerException ex) {
-                Logger.getLogger(ArticleServlet.class
-                        .getName()).log(Level.SEVERE, null, ex);
-                continue;
-            }
-            Matcher doubleMatcher = IMG_X2.matcher(imgName);
-            if (doubleMatcher.find()) {
-                Fileupload img = file.getFile(FileServlet.getNameFromURL(doubleMatcher.group(1) + "×2" + doubleMatcher.group(2)));
-                if (null != img) {
-                    sources.add(img);
-                }
-                img = file.getFile(FileServlet.getNameFromURL(doubleMatcher.group(1) + "×2.avif"));
-                if (null != img) {
-                    sources.add(img);
-                }
-            }
-            StringBuilder imgTagAttribs = new StringBuilder(imgAttribMatcher.group().length());
-            for (Map.Entry<String, String> attribute : imgTagAttribsMap.entrySet()) {
-                imgTagAttribs.append(" ").append(attribute.getKey());
-                if (null != attribute.getValue()) {
-                    imgTagAttribs.append("=\"").append(attribute.getValue()).append("\"");
-                }
-            }
-            StringBuilder imgTag = new StringBuilder(imgTagAttribs.length() + 10).append("<img").append(imgTagAttribs).append("/>");
-            if (sources.size() > 0) {
-                String origImgTag = imgTag.toString();
-                imgTag = new StringBuilder(1000).append("<picture>");
-                Collections.reverse(sources);
-                for (Fileupload imageSource : sources) {
-                    imgTag.append("<source srcset=\"").append(imageSource.getUrl()).
-                            append("\" type=\"").append(imageSource.getMimetype()).
-                            //append("\" media=\"(min-width: ").append(Integer.toString(new Float(image.getWidth() * 1.2).intValue())).append("px)\"/>");
-                            append("\" media=\"(min-resolution: 1.2 dppx)\"/>");
-                }
-                imgTag.append(origImgTag).append("</picture>");
-            }
-            StringBuilder replacement = new StringBuilder(imgTagAttribs.length() * 2 + 100)
-                    .append("<amp-img layout=\"responsive\"").append(imgTagAttribs)
-                    .append("><noscript><img").append(imgTagAttribs).append("></noscript></amp-img>");
-            html = html.replace(imgAttribMatcher.group(0), imgTag);
-            ampHtml = ampHtml.replace(imgAttribMatcher.group(0), replacement);
-            if (null == art.getSummary() && image.getWidth() >= 600 && image.getHeight() >= 300) {
-                art.setSummary(String.format(
-                        "<article class=\"article%s\"><a class=\"withFigure\" href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
-                        art.getArticleid(), ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art), imgTag, art.getArticletitle(), paragraph
-                ));
-            }
-        }
-        art.setPostedhtml(html);
-        art.setPostedamp(ampHtml);
-        if (null == art.getSummary()) {
-            art.setSummary(String.format("<article class=\"article%s\"><header><a href=\"%s\"><h1>%s</h1></a></header>%s</article>",
-                    art.getArticleid(), ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), art), art.getArticletitle(), paragraph));
-        }
-        return art;
-    }*/
+        return tag;
+    }
 }

@@ -32,8 +32,9 @@ import javax.validation.constraints.Size;
 @Table(name = "article", schema = "toilet")
 @NamedQueries({
     @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.findSummaries", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary) FROM Article a ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.findSummariesBySection", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary) FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findSummaries", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary, a.imageurl) FROM Article a ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findSummariesBySection", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary, a.imageurl) FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findBySection", query = "SELECT a FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
     @NamedQuery(name = "Article.count", query = "SELECT COUNT(a) FROM Article a"),
     @NamedQuery(name = "Article.countBySection", query = "SELECT COUNT(a) FROM Article a WHERE a.sectionid.name=:section")})
 public class Article implements Serializable, Comparable<Article> {
@@ -110,13 +111,14 @@ public class Article implements Serializable, Comparable<Article> {
         this.articleid = articleid;
     }
 
-    public Article(Integer articleid, String articletitle, String etag, Date posted, Date modified, String summary) {
+    public Article(Integer articleid, String articletitle, String etag, Date posted, Date modified, String summary, String imageurl) {
         this.articleid = articleid;
         this.articletitle = articletitle;
         this.etag = etag;
         this.posted = posted;
         this.modified = modified;
         this.summary = summary;
+        this.imageurl = imageurl;
     }
 
     public Integer getArticleid() {

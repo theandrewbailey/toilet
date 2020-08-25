@@ -95,12 +95,20 @@ public class FeedBucket implements Repository<iFeed> {
     /**
      * returns a feed object by name
      *
-     * @param feed name
+     * @param name name
      * @return iFeed
      */
     @Override
     public iFeed get(Object name) {
-        return feeds.get(name.toString());
+        if (feeds.containsKey(name)) {
+            return feeds.get(name);
+        }
+        for (iFeed feed : feeds.values()) {
+            if (feed instanceof iDynamicFeed && ((iDynamicFeed) feed).willHandle(name.toString())) {
+                return feed;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -119,7 +127,7 @@ public class FeedBucket implements Repository<iFeed> {
 
     @Override
     public Long count() {
-        return new Long(feeds.size());
+        return Integer.valueOf(feeds.size()).longValue();
     }
 
     /**

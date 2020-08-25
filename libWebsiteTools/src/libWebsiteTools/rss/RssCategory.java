@@ -1,7 +1,6 @@
 package libWebsiteTools.rss;
 
 import java.io.Serializable;
-import libWebsiteTools.rss.iPublishable;
 import org.w3c.dom.Element;
 
 /**
@@ -11,7 +10,7 @@ import org.w3c.dom.Element;
  */
 public class RssCategory implements Serializable, iPublishable {
 
-    private String name = "Replace Me";
+    private String name = "Replace this name";
     private String domain;
 
     /**

@@ -1,22 +1,13 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="fmt" uri="http://java.sun.com/jstl/fmt_rt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="h" uri="uri:libwebsitetools:htmlTools" %>
 <%@ taglib prefix="t" uri="uri:toilet" %><!DOCTYPE html>
 <html lang="${$_LIBIMEAD_PRIMARY_LOCALE.toLanguageTag()}"><head>
-    <meta charset="UTF-8"/>
-    <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1,user-scalable=yes">
-    <c:if test="${null!=asyncFiles && asyncFiles.get()}"></c:if>
-    <h:css/>
-    <base href="<h:local key="security_baseURL" locale=""/>"/>
     <h:meta/>
+    <base href="<h:local key="security_baseURL" locale=""/>"/>
     <h:localVar key="page_title"/><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
-    <link rel="shortcut icon" href="<h:local key="page_favicon" locale=""/>"/>
-    <link rel="alternate" href="<h:local key="security_baseURL" locale=""/>rss/Articles.rss" title="Articles" type="application/rss+xml"/>
-    <link rel="alternate" href="<h:local key="security_baseURL" locale=""/>rss/Comments.rss" title="Comments" type="application/rss+xml"/>
-    <link rel="alternate" href="<h:local key="security_baseURL" locale=""/>rss/Spruce.rss" title="Spruce" type="application/rss+xml"/>
 </head><body>
-<header><h1><a title="Home" href="<h:local key="security_baseURL" locale=""/>">${page_title}</a></h1><c:if test="${index != null and index}">
+<header><h1><a title="Home" href="<h:local key="security_baseURL"/>">${page_title}</a></h1><c:if test="${index != null and index}">
     <h2 class="noPrint"><h:local key="page_tagline"/></h2></c:if>
+    <noscript><h:local key="page_noscript"/></noscript>
 </header>

@@ -7,12 +7,15 @@ import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.file.FileServlet;
 import libWebsiteTools.file.Fileupload;
 
 @WebServlet(name = "ContentServlet", description = "Handles uploading files, and serves files through inherited class", urlPatterns = {"/content", "/content/*", "/contentImmutable/*"})
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1024) // 1 gigabyte
 public class ContentServlet extends FileServlet {
+
+    public static final String DEFAULT_TYPE = "text/html;charset=UTF-8";
 
     @Override
     @SuppressWarnings("unchecked")
@@ -33,17 +36,20 @@ public class ContentServlet extends FileServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.setStatus(HttpServletResponse.SC_OK);
-        response.setContentType("text/html;charset=UTF-8");
+        response.setContentType(DEFAULT_TYPE);
         super.doGet(request, response);
         if (HttpServletResponse.SC_OK != response.getStatus()) {
-            response.sendError(response.getStatus());
+            String accept = request.getHeader(HttpHeaders.ACCEPT);
+            if (null != accept && accept.contains("text/html")) {
+                response.setContentType(DEFAULT_TYPE);
+                response.sendError(response.getStatus());
+            }
         }
     }
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.setContentType("text/html;charset=UTF-8");
+        response.setContentType(DEFAULT_TYPE);
         super.doHead(request, response);
     }
 }

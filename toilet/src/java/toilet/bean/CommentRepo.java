@@ -9,12 +9,13 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.LocalBean;
+import javax.ejb.Startup;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.db.Repository;
 import toilet.db.Article;
 import toilet.db.Comment;
@@ -23,6 +24,7 @@ import toilet.db.Comment;
  *
  * @author alpha
  */
+@Startup
 @Stateless
 @LocalBean
 public class CommentRepo implements Repository<Comment> {
@@ -74,7 +76,7 @@ public class CommentRepo implements Repository<Comment> {
     public Comment get(Object commentId) {
         EntityManager em = toiletPU.createEntityManager();
         try {
-            return em.find(Comment.class, commentId, GuardRepo.USE_CACHE_HINT);
+            return em.find(Comment.class, commentId, SecurityRepo.USE_CACHE_HINT);
         } finally {
             em.close();
         }

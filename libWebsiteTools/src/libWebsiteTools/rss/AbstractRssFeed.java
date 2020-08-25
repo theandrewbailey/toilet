@@ -1,8 +1,6 @@
 package libWebsiteTools.rss;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
@@ -11,97 +9,45 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 /**
- * a complete implementation of an RSS feed (includes DOM)
- *
- * extend this class to quickly create your own feeds, and use @Feed
+ * extend this class to easily create your own feeds, and use @Feed
  *
  * to have a feed automatically add to the feed manager, register this as a
  * servlet listener, like by adding @WebListener to your classes.
  *
  * @author alpha
- * @see libWebsiteTools.rss.Feed
  */
 public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
 
     @EJB
     protected FeedBucket feeds;
-    protected final Collection<RssChannel> channels = new ArrayList<>();
     private static final Logger LOG = Logger.getLogger(AbstractRssFeed.class.getName());
-
-    /**
-     *
-     * @param chan
-     */
-    public void addChannel(RssChannel chan) {
-        channels.add(chan);
-    }
-
-    /**
-     * builds the entire DOM behind this RSS feed with all built-in channels,
-     * controlled by addChannel and removeChannel
-     *
-     * @return XML document
-     */
-    public Document refreshFeed() {
-        return refreshFeed(channels);
-    }
-
-    /**
-     * rebuild the XML DOM behind this RSS feed, with the given channel
-     *
-     * @param channel
-     * @return RSS XML output
-     */
-    public Document refreshFeed(RssChannel channel) {
-        return refreshFeed(Arrays.asList(channel));
-    }
-
-    /**
-     * rebuild the DOM behind this RSS feed, with the given channels
-     *
-     * @param channels
-     * @return RSS XML output
-     */
-    public Document refreshFeed(Collection<RssChannel> channels) {
-        Document XML = null;
-        try {
-            XML = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-            Element root = XML.createElement("rss");
-            XML.appendChild(root);
-            root.setAttribute("version", "2.0");
-            for (RssChannel chan : channels) {
-                chan.publish(root);
-            }
-        } catch (ParserConfigurationException | DOMException x) {
-            throw new RuntimeException(x.getMessage(), x);
-        }
-        return XML;
-    }
 
     @Override
     public String getName() {
-        return this.getClass().getAnnotation(Feed.class).value();
-    }
-
-    @Override
-    public long getLastModified() {
-        return -1;
+        return this.getClass().getSimpleName() + ".rss";
     }
 
     /**
-     * @param req
-     * @return result of refreshFeed() (the no param override)
+     * RSS types are the only ones implemented at this time.
+     *
+     * @return MimeType.RSS
      */
     @Override
+    public MimeType getMimeType() {
+        return MimeType.RSS;
+    }
+
+    @Override
+    public long getLastModified(HttpServletRequest req) {
+        return -1;
+    }
+
+    @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        return refreshFeed();
+        return null;
     }
 
     @Override

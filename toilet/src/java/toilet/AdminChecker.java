@@ -21,7 +21,7 @@ import toilet.servlet.AdminLoginServlet;
  * @author alpha
  */
 @WebFilter(filterName = "AdminChecker", description = "makes sure that you are logged in to do admin duties",
-        dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.INCLUDE}, urlPatterns = {"/adminLogin", "/adminContent", "/adminPost", "/adminSession", "/import"})
+        dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.INCLUDE}, urlPatterns = {"/adminLogin", "/adminContent", "/adminArticle", "/adminSession", "/import"})
 public class AdminChecker implements Filter {
 
     @Override
@@ -37,7 +37,7 @@ public class AdminChecker implements Filter {
         if ((req.getRequestURI().endsWith("/adminLogin") && "GET".equalsIgnoreCase(req.getMethod()))
                 || FirstTimeDetector.FIRST_TIME_SETUP.equals(request.getServletContext().getAttribute(FirstTimeDetector.FIRST_TIME_SETUP))) {
             // the exception
-        } else if (req.getSession().getAttribute(AdminLoginServlet.PERMISSION) == null && AbstractInput.getParameter(req, "answer") == null) {
+        } else if (null != req.getSession(false) && req.getSession().getAttribute(AdminLoginServlet.PERMISSION) == null && AbstractInput.getParameter(req, "answer") == null) {
             res.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }

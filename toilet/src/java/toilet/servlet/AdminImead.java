@@ -15,8 +15,8 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import libWebsiteTools.HashUtil;
-import libWebsiteTools.JspFilter;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.cache.JspFilter;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.file.FileServlet;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
@@ -33,8 +33,8 @@ import toilet.UtilStatic;
 @WebServlet(name = "AdminImead", description = "Edit IMEAD properties", urlPatterns = {"/adminImead"})
 public class AdminImead extends ToiletServlet {
 
-    public static final String MAN_IMEAD = "WEB-INF/manImead.jsp";
-    private static final String CSP_TEMPLATE = "default-src data: %s; script-src %s; object-src 'none'; frame-ancestors 'self';";
+    public static final String ADMIN_IMEAD = "WEB-INF/adminImead.jsp";
+    private static final String CSP_TEMPLATE = "default-src data: 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; report-uri %s/report";
     private static final String ACCEPTABLE_DOMAIN_TEMPLATE = "%s\n^https?://(?:10\\.[0-9]{1,3}\\.|192\\.168\\.)[0-9]{1,3}\\.[0-9]{1,3}(?::[0-9]{1,5})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?google(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?googleusercontent(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?feedly\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?slack\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?bing\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yandex(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://images\\.rambler\\.ru(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yahoo(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?duckduckgo\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?baidu\\.com(?:$|/.*)";
 
     @Override
@@ -42,20 +42,23 @@ public class AdminImead extends ToiletServlet {
         //Object ssl = request.getAttribute("javax.servlet.request.ssl_session_mgr");
         if (FirstTimeDetector.isFirstTime(imead)) {
             request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.IMEAD);
-            if (null == imead.getValue(GuardRepo.CANONICAL_URL)) {
+            if (null == imead.getValue(SecurityRepo.CANONICAL_URL)) {
                 String canonicalRoot = AbstractInput.getTokenURL(request);
-                Matcher originMatcher = GuardRepo.ORIGIN_PATTERN.matcher(canonicalRoot);
+                if (!canonicalRoot.endsWith("/")) {
+                    canonicalRoot += "/";
+                }
+                Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(canonicalRoot);
                 ArrayList<Localization> locals = new ArrayList<>();
                 if (originMatcher.matches()) {
                     String currentReg = originMatcher.group(2).replace(".", "\\.");
-                    locals.add(new Localization("", GuardRepo.ACCEPTABLE_CONTENT_DOMAINS, String.format(ACCEPTABLE_DOMAIN_TEMPLATE, currentReg)));
+                    locals.add(new Localization("", SecurityRepo.ACCEPTABLE_CONTENT_DOMAINS, String.format(ACCEPTABLE_DOMAIN_TEMPLATE, currentReg)));
                     //locals.add(new Localization("", OdysseyFilter.CERTIFICATE_NAME, ""));
                     locals.add(new Localization("", JspFilter.CONTENT_SECURITY_POLICY, String.format(CSP_TEMPLATE, originMatcher.group(1), originMatcher.group(1))));
-                    locals.add(new Localization("", GuardRepo.CANONICAL_URL, canonicalRoot));
+                    locals.add(new Localization("", SecurityRepo.CANONICAL_URL, canonicalRoot));
                 }
                 imead.upsert(locals);
                 file.processArchive((fileupload) -> {
-                    fileupload.setUrl(FileServlet.getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), fileupload));
+                    fileupload.setUrl(FileServlet.getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), fileupload));
                 }, true);
             }
             showProperties(request, response, imead);
@@ -83,11 +86,11 @@ public class AdminImead extends ToiletServlet {
                     String previousValue = imead.getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode());
                     if (!HashUtil.ARGON2_ENCODING_PATTERN.matcher(previousValue).matches() && previousValue.equals(l.getValue())) {
                         errors.add(l.getLocalizationPK());
-                        request.setAttribute("ERROR_MESSAGE", imead.getLocal("error_adminadmin", Local.resolveLocales(request)));
+                        request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, imead.getLocal("error_adminadmin", Local.resolveLocales(request, imead)));
                     }
                     l.setValue(HashUtil.getArgon2Hash(l.getValue()));
                 }
-                if (!imead.getSupportedLocales().contains(l.getLocalizationPK().getKey())
+                if (!imead.getLocaleStrings().contains(l.getLocalizationPK().getKey())
                         || !l.getValue().equals(imead.getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode()))) {
                     if (l.getLocalizationPK().getKey().startsWith("error_") || l.getLocalizationPK().getKey().startsWith("page_")) {
                         l.setValue(UtilStatic.htmlFormat(l.getValue(), true, false));
@@ -101,12 +104,12 @@ public class AdminImead extends ToiletServlet {
             }
         } else if (action.startsWith("delete")) {
             String[] params = action.split("\\|");
-            imead.delete(new LocalizationPK(params[2],params[1]));
+            imead.delete(new LocalizationPK(params[2], params[1]));
         }
         showProperties(request, response, imead);
     }
 
-    class LocalizationRetriever implements Iterable<Localization>, Iterator<Localization> {
+    private static class LocalizationRetriever implements Iterable<Localization>, Iterator<Localization> {
 
         private final HttpServletRequest req;
         private int current = -1;
@@ -162,7 +165,7 @@ public class AdminImead extends ToiletServlet {
         }
         request.setAttribute("security", security);
         request.setAttribute("imeadProperties", imeadProperties);
-        request.setAttribute("locales", imead.getSupportedLocales());
-        request.getRequestDispatcher(MAN_IMEAD).forward(request, response);
+        request.setAttribute("locales", imead.getLocaleStrings());
+        request.getRequestDispatcher(ADMIN_IMEAD).forward(request, response);
     }
 }

@@ -40,7 +40,7 @@ public class FirstTimeDetector implements ServletContextListener {
     @EJB
     private FileRepo file;
     @EJB
-    private ArticleRepo entry;
+    private ArticleRepo arts;
 
     public static boolean isFirstTime(IMEADHolder imead) {
         return null == imead.getValue(AdminLoginServlet.IMEAD)
@@ -59,14 +59,20 @@ public class FirstTimeDetector implements ServletContextListener {
         }
         if (isFirstTime(imead)) {
             sce.getServletContext().setAttribute(FIRST_TIME_SETUP, FIRST_TIME_SETUP);
-            entry.refreshSearch();
+            arts.refreshSearch();
             // load and save default files
             try {
                 loadFile(sce.getServletContext(), "/WEB-INF/toiletwave.css", "text/css");
                 loadFile(sce.getServletContext(), "/WEB-INF/toiletwave.js", "text/javascript");
-                locals.add(new Localization("", "page_css", "toiletwave.css"));
-                locals.add(new Localization("", "page_cssamp", "toiletwave.css"));
-                locals.add(new Localization("", "page_javascript", "toiletwave.js"));
+                if (null == imead.getLocal("site_css", Locale.ROOT)) {
+                    locals.add(new Localization("", "site_css", "toiletwave.css"));
+                }
+                if (null == imead.getLocal("site_cssamp", Locale.ROOT)) {
+                    locals.add(new Localization("", "site_cssamp", "toiletwave.css"));
+                }
+                if (null == imead.getLocal("site_javascript", Locale.ROOT)) {
+                    locals.add(new Localization("", "site_javascript", "toiletwave.js"));
+                }
             } catch (IOException ex) {
                 LOG.log(Level.SEVERE, null, ex);
             }
@@ -88,9 +94,9 @@ public class FirstTimeDetector implements ServletContextListener {
     private List<Localization> getNewLocalizations(ServletContext c, String filename, Locale locale) throws IOException {
         List<Localization> locals = new ArrayList<>();
         Properties IMEAD = getProperties(c.getResourceAsStream(filename));
-        for (Map.Entry<Object, Object> propEntry : IMEAD.entrySet()) {
-            if (null == imead.getLocal(propEntry.getKey().toString(), locale)) {
-                locals.add(new Localization(locale.toString(), propEntry.getKey().toString(), propEntry.getValue().toString()));
+        for (Map.Entry<Object, Object> property : IMEAD.entrySet()) {
+            if (null == imead.getLocal(property.getKey().toString(), locale)) {
+                locals.add(new Localization(locale.toString(), property.getKey().toString(), property.getValue().toString()));
             }
         }
         return locals;
@@ -111,12 +117,13 @@ public class FirstTimeDetector implements ServletContextListener {
     }
 
     private void loadFile(ServletContext c, String filename, String type) throws IOException {
-        if (null == file.get(filename.substring("/WEB-INF/".length()))) {
+        String servedName = filename.substring("/WEB-INF/".length());
+        if (null == file.get(servedName)) {
             Fileupload cssFile = new Fileupload();
             cssFile.setAtime(new Date());
             cssFile.setFiledata(FileUtil.getByteArray(c.getResourceAsStream(filename)));
             cssFile.setEtag(HashUtil.getSHA256Hash(cssFile.getFiledata()));
-            cssFile.setFilename(filename.substring("/WEB-INF/".length()));
+            cssFile.setFilename(servedName);
             cssFile.setMimetype(type);
             file.upsert(Arrays.asList(cssFile));
         }

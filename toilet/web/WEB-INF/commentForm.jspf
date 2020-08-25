@@ -1,0 +1,16 @@
+<%@ page trimDirectiveWhitespaces="true" %>
+<c:choose><c:when test="${art.comments && spamSuspected}">
+    <form action="${commentForm}" class="commentForm noPrint" method="get" accept-charset="UTF-8">
+        <c:if test="${null!=$_LIBIMEAD_OVERRIDE_LOCALE}"><input type="hidden" name="lang" value="${$_LIBIMEAD_OVERRIDE_LOCALE}" /></c:if>
+        <h:localVar key="page_message_open" /><input type="submit" name="iframe" value="${page_message_open}"/>
+    </form>
+</c:when><c:when test="${art.comments && !spamSuspected}">
+<form action="${commentForm}" class="commentForm noPrint" method="post" accept-charset="UTF-8"><fieldset>
+    <legend><h:local key="page_message_legend" /></legend><h:localVar key="page_patternMismatch" var="patternMismatch" /><h:localVar key="page_valueMissing" var="valueMissing" />
+    <h:localVar key="page_message_name" /><h:textbox id="name" label="${page_message_name}" maxLength="30" value="${sessionScope.LastPostedName}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" inputMode="latin-name" autocomplete="name" /><br/>
+    <h:localVar key="page_message_text" /><h:textarea id="text" label="${page_message_text}" styleClass="comment" height="10" value="${commentText}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" /><br/>
+    <h:localVar key="page_message_submit" /><input type="submit" value="${page_message_submit}"/>
+    <h:hidden id="submit-type" value="comment" />
+    <h:hidden id="original-request-time" value="${$_LIBWEBSITETOOLS_REQUEST_START_TIME.getTime()}" />
+</fieldset></form><br/></c:when>
+<c:when test="${!art.comments}"><h:local key="page_commentDisabled" /></c:when></c:choose>

@@ -5,10 +5,11 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * This object defines CRUD (and other) operations over a data Entity. Intended
+ * This object defines CRUD (and other) operations over a data Entity.Intended
  * to be used in conjunction with databases, but not necessarily.
  *
  * @author alpha
+ * @param <Entity> the entities that this repository operates on
  */
 public interface Repository<Entity> {
 

@@ -11,7 +11,7 @@ import toilet.UtilStatic;
  *
  * @author alpha
  */
-@WebServlet(name = "WellKnownServlet", description = "Servlet for well known files", urlPatterns = {"/robots.txt", "/favicon.ico"})
+@WebServlet(name = "WellKnownServlet", description = "Servlet for well known files", urlPatterns = {"/robots.txt", "/favicon.ico", "/browserconfig.xml", "/.well-known/*"})
 public class WellKnownServlet extends ToiletServlet {
 
     @Override
@@ -23,14 +23,18 @@ public class WellKnownServlet extends ToiletServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String URL = request.getRequestURI().replaceFirst(request.getServletContext().getContextPath(), "");
         switch (URL) {
-            case "/robots.txt":
-                request.getServletContext().getRequestDispatcher("/content/robots.txt").forward(request, response);
-                break;
             case "/favicon.ico":
-                UtilStatic.permaMove(response, imead.getValue("page_favicon"));
+                UtilStatic.permaMove(response, imead.getValue("site_favicon"));
                 break;
             default:
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                if (URL.contains("/.well-known/")) {
+                    request.getServletContext().getRequestDispatcher(URL.replaceFirst("/.well-known/", "/content/")).forward(request, response);
+                } else if (null != file.get(URL.substring(1))) {
+                    String next = "/content" + URL;
+                    request.getServletContext().getRequestDispatcher(next).forward(request, response);
+                } else {
+                    response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                }
                 break;
         }
     }

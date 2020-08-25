@@ -13,7 +13,7 @@ import javax.servlet.jsp.tagext.SimpleTagSupport;
 public class HtmlTime extends SimpleTagSupport {
 
     public static final String FORMAT_VAR = "$_LIBWEBSITETOOLS_DATETIME_FORMAT";
-    public static final String DATE_FORMAT_LONG = "date_format_long";
+    public static final String SITE_DATEFORMAT_LONG = "site_dateFormat_long";
     private String pattern;
     private Date datetime;
     private Boolean pubdate = false;

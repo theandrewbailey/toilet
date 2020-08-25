@@ -23,7 +23,7 @@ public class SitemapProvider extends AbstractPageSource {
     public void contextInitialized(ServletContextEvent sce) {
         urlMap = new ArrayList<>();
         try {
-            String baseUrl = imead.getValue(libWebsiteTools.bean.GuardRepo.CANONICAL_URL);
+            String baseUrl = imead.getValue(libWebsiteTools.bean.SecurityRepo.CANONICAL_URL);
             urlMap.add(new UrlMap(baseUrl, null, ChangeFreq.daily, "0.7"));
             if (spruce.shouldBeReady()) {
                 urlMap.add(new UrlMap(baseUrl + "spruce", null, ChangeFreq.always, "0.1"));

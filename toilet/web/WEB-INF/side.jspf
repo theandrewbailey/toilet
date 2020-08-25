@@ -1,3 +1,4 @@
+<%@ page session="false" trimDirectiveWhitespaces="true" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <aside class="noPrint">
     <div class="side_top"><h:local key="page_side_top"/></div>
@@ -5,15 +6,15 @@
         <li><c:choose><c:when test="${_cate_group == curGroup}">${_cate_group}</c:when><c:otherwise><a href="${_cate_url}">${_cate_group}</a></c:otherwise></c:choose></li></t:categorizer>
     </ul></nav>
     <h:localVar key="page_patternMismatch" var="patternMismatch"/><h:localVar key="page_valueMissing" var="valueMissing"/>
-    <form class="search" action="<h:local key="security_baseURL" locale=""/>search" method="GET" accept-charset="UTF-8">
+    <form class="search" action='<h:local key="security_baseURL" locale=""/>search' method="GET" accept-charset="UTF-8">
         <input type="search" id="searchTerm" name="searchTerm" size="20" required="required" data-valuemissing="${valueMissing}" data-patternmismatch="${patternMismatch}" aria-label="Search"/>
         <input type="submit" value="Search"/>
     </form>
 
-    <t:sentence><div id="spruceBox"><a href="<h:local key="security_baseURL" locale=""/>spruce"><span id="spruceQuote">${spruce_sentence}</span>
-    <div id="spruceName"><h:local key="spruce_name" locale=""/></div>
-    <p><h:local key="page_spruce_link"/></p></a>
-    </div></t:sentence>
+    <t:sentence><a href='<h:local key="security_baseURL" locale=""/>spruce' class="spruceBox"><span class="spruceQuote">${spruce_sentence}</span>
+    <div class="spruceName"><h:local key="spruce_name" locale=""/></div>
+    <h:local key="page_spruce_link"/></a>
+    </t:sentence>
     <%@ include file="/WEB-INF/recent.jspf" %>
     <div class="side_bottom"><h:local key="page_side_bottom"/></div>
 </aside>

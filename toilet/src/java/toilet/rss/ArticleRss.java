@@ -1,81 +1,87 @@
 package toilet.rss;
 
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.ejb.EJB;
 import javax.servlet.annotation.WebListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.HttpHeaders;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.AbstractRssFeed;
 import libWebsiteTools.rss.RssChannel;
+import libWebsiteTools.rss.RssServlet;
+import libWebsiteTools.rss.SimpleRssFeed;
+import libWebsiteTools.rss.iDynamicFeed;
 import libWebsiteTools.rss.iFeed;
 import org.w3c.dom.Document;
 import toilet.UtilStatic;
 import toilet.bean.ArticleRepo;
+import toilet.bean.StateCache;
 import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.tag.ArticleUrl;
 
 @WebListener("The RSS feed for articles, autoadded")
-@Feed(ArticleRss.NAME)
-public class ArticleRss extends AbstractRssFeed {
+public class ArticleRss extends AbstractRssFeed implements iDynamicFeed {
 
     public static final String NAME = "Articles.rss";
     private static final String ARTICLE_COUNT = "rss_articleCount";
     private static final Logger LOG = Logger.getLogger(Article.class.getName());
+    private static final Pattern NAME_PATTERN = Pattern.compile("(.*?)Articles\\.rss");
+    private Map<String, String> URLs = new LinkedHashMap<>();
     @EJB
-    private ArticleRepo entry;
+    private ArticleRepo arts;
+    @EJB
+    private StateCache cache;
     @EJB
     private IMEADHolder imead;
-    private Document XML;
-    private Date lastUpdated = new Date(0);
-    private String etag = "";
 
     public ArticleRss() {
     }
 
-    public Document createFeed(Integer numEntries) {
+    public Document createFeed(Integer numEntries, String category) {
+        LOG.entering("ArticleRss", "createFeed");
         // if instantiated manually
-        if (entry == null && imead == null) {
-            entry = UtilStatic.getBean(ArticleRepo.LOCAL_NAME, ArticleRepo.class);
+        if (arts == null && imead == null) {
+            arts = UtilStatic.getBean(ArticleRepo.LOCAL_NAME, ArticleRepo.class);
             imead = UtilStatic.getBean(UtilBean.IMEAD_LOCAL_NAME, IMEADHolder.class);
         }
 
-        lastUpdated = new Date(0);
-        RssChannel entries = new RssChannel(imead.getLocal(UtilBean.SITE_TITLE, "en"), imead.getValue(GuardRepo.CANONICAL_URL), imead.getLocal(UtilBean.TAGLINE, "en"));
+        RssChannel entries = new RssChannel(null == category
+                ? imead.getLocal(UtilBean.SITE_TITLE, "en")
+                : imead.getLocal(UtilBean.SITE_TITLE, "en") + " - " + category,
+                imead.getValue(SecurityRepo.CANONICAL_URL), imead.getLocal(UtilBean.TAGLINE, "en"));
         entries.setWebMaster(imead.getValue(UtilBean.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
         entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
         entries.setCopyright(imead.getValue(UtilBean.COPYRIGHT));
 
-        Collection<Article> lEntry = entry.getAll(numEntries);
+        Collection<Article> articles = arts.getSection(category, 1, numEntries);
 
-        for (Article e : lEntry) {
+        for (Article e : articles) {
             String text = e.getPostedhtml();
             ToiletRssItem i = new ToiletRssItem(text);
             entries.addItem(i);
             i.setTitle(e.getArticletitle());
-            if (!e.getSectionid().getName().equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
-                i.addCategory(e.getSectionid().getName(), imead.getValue(GuardRepo.CANONICAL_URL) + "index/" + e.getSectionid().getName());
-                String prefix = e.getSectionid().getName() + ": ";
-                if (!e.getArticletitle().startsWith(prefix)) {
-                    i.setTitle(prefix + e.getArticletitle());
-                }
-            }
             i.setAuthor(entries.getWebMaster());
-            i.setLink(ArticleUrl.getUrl(imead.getValue(GuardRepo.CANONICAL_URL), e));
+            i.setLink(ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), e, null, null));
             i.setGuid(i.getLink());
             i.setGuidPermaLink(true);
             i.setPubDate(e.getPosted());
@@ -85,46 +91,85 @@ public class ArticleRss extends AbstractRssFeed {
             if (e.getComments()) {
                 i.setComments(i.getLink() + "#comments");
             }
-            if (i.getPubDate().after(lastUpdated)) {
-                lastUpdated = i.getPubDate();
-            }
         }
-        return refreshFeed(entries);
+        LOG.exiting("ArticleRss", "createFeed");
+        return SimpleRssFeed.refreshFeed(Arrays.asList(entries));
+    }
+
+    @Override
+    public String getName() {
+        return NAME;
+    }
+
+    /**
+     *
+     * @param req
+     * @return (category)Articles.rss
+     */
+    @Override
+    public Map<String, String> getFeedURLs(HttpServletRequest req) {
+        return URLs;
+    }
+
+    /**
+     *
+     * @param name
+     * @return if name matches (.*?)Articles\\.rss
+     */
+    @Override
+    public boolean willHandle(String name) {
+        return NAME_PATTERN.matcher(name).matches();
     }
 
     @Override
     public iFeed preAdd() {
         try {
-            XML = createFeed(Integer.valueOf(imead.getValue(ARTICLE_COUNT)));
-            DOMSource DOMsrc = new DOMSource(XML);
-            StringWriter holder = new StringWriter(20000);
-            StreamResult str = new StreamResult(holder);
-            Transformer trans = TransformerFactory.newInstance().newTransformer();
-            trans.transform(DOMsrc, str);
-            etag = "\"" + HashUtil.getSHA256Hash(holder.toString()) + "\"";
-        } catch (TransformerException ex) {
-            LOG.log(Level.SEVERE, "Article feed will not be available due to an XML transformation error.", ex);
-            return null;
+            createFeed(Integer.valueOf(imead.getValue(ARTICLE_COUNT)), null);
+            Map<String, String> temp = new LinkedHashMap<>();
+            temp.put(getName(), "All articles");
+            for (String cat : cache.getArticleCategories()) {
+                temp.put(cat + getName(), cat + " articles");
+            }
+            URLs = Collections.unmodifiableMap(temp);
         } catch (NumberFormatException n) {
-            LOG.log(Level.SEVERE, "Article feed will not be available due to an invalid parameter.");
+            LOG.log(Level.SEVERE, "Comment feed will not be available due to an invalid parameter.");
             return null;
         }
         return this;
     }
 
     @Override
-    public long getLastModified() {
-        return lastUpdated.getTime();
-    }
-
-    @Override
     public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
-        res.setHeader("Cache-Control", "public, max-age=" + 10000);
-        res.setDateHeader("Last-Modified", lastUpdated.getTime());
-        res.setDateHeader("Expires", new Date().getTime() + 10000000);
-        res.setHeader("ETag", etag);
-        if (etag.equals(req.getHeader("If-None-Match"))) {
-            res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+        if (null == req.getAttribute(NAME)) {
+            Object name = req.getAttribute(RssServlet.class.getSimpleName());
+            Matcher regex = NAME_PATTERN.matcher(name.toString());
+            regex.find();
+            String category = (regex.group(1) != null && !regex.group(1).isEmpty())
+                    ? regex.group(1) : null;
+            try {
+                Document XML = createFeed(Integer.valueOf(imead.getValue(ARTICLE_COUNT)), category);
+                DOMSource DOMsrc = new DOMSource(XML);
+                StringWriter holder = new StringWriter(100000);
+                StreamResult str = new StreamResult(holder);
+                Transformer trans = TransformerFactory.newInstance().newTransformer();
+                trans.transform(DOMsrc, str);
+                String etag = "\"" + HashUtil.getSHA256Hash(holder.toString()) + "\"";
+                res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + 10000);
+                res.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + 10000000);
+                res.setHeader(HttpHeaders.ETAG, etag);
+                req.setAttribute(HttpHeaders.ETAG, etag);
+                req.setAttribute(NAME, XML);
+                if (etag.equals(req.getHeader(HttpHeaders.IF_NONE_MATCH))) {
+                    res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+                }
+            } catch (NumberFormatException n) {
+                LOG.log(Level.SEVERE, "Article feed will not be available due to an invalid parameter.");
+                return null;
+            } catch (TransformerException ex) {
+                LOG.log(Level.SEVERE, "Article feed will not be available due to an XML transformation error.", ex);
+                res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                return null;
+            }
         }
         return this;
     }
@@ -132,6 +177,6 @@ public class ArticleRss extends AbstractRssFeed {
     @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
         doHead(req, res);
-        return HttpServletResponse.SC_OK == res.getStatus() ? XML : null;
+        return HttpServletResponse.SC_OK == res.getStatus() ? (Document) req.getAttribute(NAME) : null;
     }
 }

@@ -175,13 +175,7 @@
         </attribute>
     </tag>
     <tag>
-        <description>will link all css files described in imead.localization page_css value</description>
-        <name>css</name>
-        <tag-class>libWebsiteTools.tag.HtmlCss</tag-class>
-        <body-content>empty</body-content>
-    </tag>
-    <tag>
-        <description>will link all javascript files described in imead.localization page_javascript value</description>
+        <description>will link all javascript files described in imead.localization site_javascript value</description>
         <name>javascript</name>
         <tag-class>libWebsiteTools.tag.HtmlScript</tag-class>
         <body-content>empty</body-content>
@@ -189,7 +183,15 @@
     <tag>
         <name>meta</name>
         <tag-class>libWebsiteTools.tag.HtmlMeta</tag-class>
-        <body-content>empty</body-content>
+        <body-content>empty</body-content>        
+        <attribute>
+            <name>showCss</name>
+            <description>will link all css files described in imead.localization site_css value, default true.</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>Boolean</type>
+        </attribute>
+
     </tag>
     <tag>
         <name>time</name>

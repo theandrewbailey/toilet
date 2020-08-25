@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
@@ -14,6 +15,7 @@ import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.ejb.EJBException;
 import javax.enterprise.concurrent.ManagedExecutorService;
+import javax.inject.Inject;
 import javax.persistence.NoResultException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -21,12 +23,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.OdysseyFilter;
+import libWebsiteTools.GuardFilter;
 import libWebsiteTools.tag.ResponseTag;
 import libWebsiteTools.bean.ExceptionRepo;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.JspFilter;
+import libWebsiteTools.cache.CachedContent;
+import libWebsiteTools.cache.CachedPage;
+import libWebsiteTools.cache.PageCache;
+import libWebsiteTools.cache.PageCacheProvider;
+import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 
@@ -48,9 +54,12 @@ public class FileServlet extends HttpServlet {
     @EJB
     protected ExceptionRepo error;
     @EJB
-    protected GuardRepo guard;
+    protected SecurityRepo guard;
     @Resource
     protected ManagedExecutorService exec;
+    @Inject
+    private PageCacheProvider pageCacheProvider;
+    protected PageCache globalCache;
 
     public static String getNameFromURL(CharSequence URL) {
         try {
@@ -92,6 +101,25 @@ public class FileServlet extends HttpServlet {
         return getImmutableURL(canonicalURL, new Filemetadata(f.getFilename(), f.getAtime()));
     }
 
+    public static List<String> getCompression(HttpServletRequest req) {
+        List<String> output = new ArrayList<>();
+        String encoding = req.getHeader(HttpHeaders.ACCEPT_ENCODING);
+        if (null != encoding) {
+            if (BR_PATTERN.matcher(encoding).find()) {
+                output.add("br");
+            }
+            if (GZIP_PATTERN.matcher(encoding).find()) {
+                output.add("gzip");
+            }
+        }
+        return output;
+    }
+
+    @Override
+    public void init() {
+        globalCache = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
+    }
+
     @Override
     protected long getLastModified(HttpServletRequest request) {
         Fileupload c;
@@ -107,14 +135,14 @@ public class FileServlet extends HttpServlet {
 
     @Override
     protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Matcher originMatcher = GuardRepo.ORIGIN_PATTERN.matcher(request.getHeader("Origin"));
+        Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getHeader("Origin"));
         if (null == request.getHeader("Origin")
                 || (null == request.getHeader("Access-Control-Request-Method")
                 && null == request.getHeader("Access-Control-Request-Headers"))) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
-        if (GuardRepo.matchesAny(request.getHeader("Origin"), guard.getAcceptableDomains()) && originMatcher.matches()) {
+        if (SecurityRepo.matchesAny(request.getHeader("Origin"), guard.getAcceptableDomains()) && originMatcher.matches()) {
             response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
         } else {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -141,33 +169,25 @@ public class FileServlet extends HttpServlet {
             } catch (FileNotFoundException ex) {
                 response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + MAX_AGE_SECONDS);
                 response.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + MAX_AGE_MILLISECONDS);
-                if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(request)) {
-                    request.setAttribute(OdysseyFilter.HANDLED_ERROR, true);
+                if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(guard.getAcceptableDomains(), request)) {
+                    request.setAttribute(GuardFilter.HANDLED_ERROR, true);
                 }
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
         }
 
-        if (c.getMimetype().startsWith("image") || c.getMimetype().startsWith("audio") || c.getMimetype().startsWith("video")) {
-            try {
-                if (!fromApprovedDomain(request)) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    error.add(request, null, imead.getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(request)), null);
-                    request.setAttribute(OdysseyFilter.HANDLED_ERROR, true);
-                    return;
-                }
-            } catch (NullPointerException n) {
-                // lucky
-            }
+        if (!isAuthorized(c.getMimetype(), guard.getAcceptableDomains(), request)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            error.add(request, null, imead.getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(request, imead)), null);
+            request.setAttribute(GuardFilter.HANDLED_ERROR, true);
+            return;
         }
 
-        String etag = "\"" + c.getEtag() + "\"";
-        response.setHeader(HttpHeaders.ETAG, etag);
         if (null != request.getHeader("Referer")) {
-            Matcher originMatcher = GuardRepo.ORIGIN_PATTERN.matcher(request.getHeader("Referer"));
+            Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getHeader("Referer"));
             if (null != guard.getAcceptableDomains()
-                    && GuardRepo.matchesAny(request.getHeader("Referer"), guard.getAcceptableDomains()) && originMatcher.matches()) {
+                    && SecurityRepo.matchesAny(request.getHeader("Referer"), guard.getAcceptableDomains()) && originMatcher.matches()) {
                 response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
             } else if (null != guard.getCanonicalOrigin()) {
                 response.setHeader("Access-Control-Allow-Origin", guard.getCanonicalOrigin());
@@ -187,47 +207,61 @@ public class FileServlet extends HttpServlet {
         if (!c.getMimetype().startsWith("text")) {
             response.setCharacterEncoding(null);
         }
-        String encoding = request.getHeader(HttpHeaders.ACCEPT_ENCODING);
-        response.setHeader(HttpHeaders.VARY, JspFilter.VARY_HEADER);
-        response.setContentLength(c.getFilemetadata().getDatasize());
-        if (null != encoding && GZIP_PATTERN.matcher(encoding).find() && null != c.getGzipdata()) {
-            response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
-        }
-        if (null != encoding && BR_PATTERN.matcher(encoding).find() && null != c.getBrdata()) {
-            if ("gzip".equals(response.getHeader(HttpHeaders.CONTENT_ENCODING)) && c.getGzipdata().length < c.getBrdata().length) {
-                // don't do anything; gzip is smaller
+        String etag;
+        List<String> compressions = getCompression(request);
+        if (compressions.contains("br") && null != c.getBrdata()) {
+            if ((compressions.contains("gzip") && null != c.getGzipdata()
+                    && c.getGzipdata().length < c.getBrdata().length)) {
+                response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
                 response.setContentLength(c.getFilemetadata().getGzipsize());
+                etag = "\"" + c.getEtag() + "g\"";
             } else {
                 response.setHeader(HttpHeaders.CONTENT_ENCODING, "br");
                 response.setContentLength(c.getFilemetadata().getBrsize());
+                etag = "\"" + c.getEtag() + "b\"";
             }
+        } else if (compressions.contains("gzip") && null != c.getGzipdata()) {
+            response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
+            response.setContentLength(c.getFilemetadata().getGzipsize());
+            etag = "\"" + c.getEtag() + "g\"";
+        } else {
+            response.setContentLength(c.getFilemetadata().getDatasize());
+            etag = "\"" + c.getEtag() + "\"";
         }
+        response.setHeader(HttpHeaders.ETAG, etag);
         if (etag.equals(request.getHeader(HttpHeaders.IF_NONE_MATCH))) {
             response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
         }
+        response.setHeader("Accept-Ranges", "none");
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         doHead(request, response);
         Fileupload c = (Fileupload) request.getAttribute(FileServlet.class.getCanonicalName());
-        if (null != c) {
+        byte[] responseBytes;
+        if (HttpServletResponse.SC_OK == response.getStatus() && null != c) {
             try {
                 switch (response.getHeader(HttpHeaders.CONTENT_ENCODING)) {
                     case "br":
-                        response.getOutputStream().write(c.getBrdata());
+                        responseBytes = c.getBrdata();
                         break;
                     case "gzip":
-                        response.getOutputStream().write(c.getGzipdata());
+                        responseBytes = c.getGzipdata();
                         break;
                     default:
-                        response.getOutputStream().write(c.getFiledata());
+                        responseBytes = c.getFiledata();
                         break;
                 }
             } catch (NullPointerException n) {
-                response.getOutputStream().write(c.getFiledata());
+                responseBytes = c.getFiledata();
             }
-            request.setAttribute(ResponseTag.RENDER_TIME_PARAM, new Date().getTime() - ((Date) request.getAttribute(OdysseyFilter.TIME_PARAM)).getTime());
+            response.getOutputStream().write(responseBytes);
+            PageCache cache = globalCache.getCache(request, response);
+            if (null != cache) {
+                cache.put(PageCache.getLookup(request, imead), new CachedContent(response, responseBytes, guard.getAcceptableDomains()));
+            }
+            request.setAttribute(ResponseTag.RENDER_TIME_PARAM, new Date().getTime() - ((Date) request.getAttribute(GuardFilter.TIME_PARAM)).getTime());
         }
     }
 
@@ -240,7 +274,7 @@ public class FileServlet extends HttpServlet {
                     request.setAttribute("ERROR_MESSAGE", "File exists: " + uploadedfile.getFilename());
                     return;
                 }
-                uploadedfile.setUrl(getImmutableURL(imead.getValue(GuardRepo.CANONICAL_URL), uploadedfile));
+                uploadedfile.setUrl(getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), uploadedfile));
             }
             file.upsert(uploadedfiles);
             request.setAttribute("uploadedfiles", uploadedfiles);
@@ -255,10 +289,26 @@ public class FileServlet extends HttpServlet {
         }
     }
 
-    private boolean fromApprovedDomain(HttpServletRequest req) {
+    public static boolean isAuthorized(String mimetype, List<Pattern> acceptableDomains, HttpServletRequest req) {
+        if (null == mimetype) {
+            throw new IllegalArgumentException("No mimetype.");
+        }
+        if (mimetype.startsWith("image") || mimetype.startsWith("audio") || mimetype.startsWith("video")) {
+            try {
+                if (!fromApprovedDomain(acceptableDomains, req)) {
+                    return false;
+                }
+            } catch (NullPointerException n) {
+                // lucky
+            }
+        }
+        return true;
+    }
+
+    public static boolean fromApprovedDomain(List<Pattern> acceptableDomains, HttpServletRequest req) {
         String referrer = req.getHeader("referer");
         if (null != referrer) {
-            return GuardRepo.matchesAny(referrer, guard.getAcceptableDomains());
+            return SecurityRepo.matchesAny(referrer, acceptableDomains);
         }
         return true;
     }

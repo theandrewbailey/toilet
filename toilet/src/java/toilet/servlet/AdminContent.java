@@ -27,7 +27,6 @@ public class AdminContent extends ToiletServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        asyncFiles(request);
         String del = AbstractInput.getParameter(request, "action");
         String answer = AbstractInput.getParameter(request, "answer");
         if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.CONTENT), answer)) {
@@ -66,7 +65,7 @@ public class AdminContent extends ToiletServlet {
         if (null == request.getAttribute("opened_dir")) {
             request.setAttribute("opened_dir", "");
         }
-        request.getRequestDispatcher(AdminLoginServlet.MAN_CONTENT).forward(request, response);
+        request.getRequestDispatcher(AdminLoginServlet.ADMIN_CONTENT).forward(request, response);
     }
 
     public static String[] splitDirectoryAndName(String filename) {

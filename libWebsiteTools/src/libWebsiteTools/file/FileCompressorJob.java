@@ -11,6 +11,9 @@ import libWebsiteTools.imead.IMEADHolder;
  */
 public abstract class FileCompressorJob implements Callable<Boolean>, Comparable<FileCompressorJob> {
 
+    /**
+     * use this to synchronize access to database entities
+     */
     public static final String POTATO = "POTATO";
     final Fileupload file;
     final FileRepo fileRepo = getBean(FileRepo.LOCAL_NAME, FileRepo.class);

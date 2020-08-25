@@ -20,9 +20,9 @@ import libWebsiteTools.imead.Local;
  */
 public class HtmlScript extends SimpleTagSupport {
 
-    public static final String PAGE_JAVASCRIPT_KEY = "page_javascript";
-    private static final String INTEGRITY_TEMPLATE = "<script type=\"%s\" src=\"%s\" async=\"true\" integrity=\"%s-%s\"></script>";
-    private static final String TEMPLATE = "<script type=\"%s\" src=\"%s\" async=\"true\"></script>";
+    public static final String SITE_JAVASCRIPT_KEY = "site_javascript";
+    private static final String INTEGRITY_TEMPLATE = "<script type=\"%s\" src=\"%s\" async=\"async\" integrity=\"%s-%s\"></script>";
+    private static final String TEMPLATE = "<script type=\"%s\" src=\"%s\" async=\"async\"></script>";
     @EJB
     private FileRepo file;
     @EJB
@@ -31,7 +31,7 @@ public class HtmlScript extends SimpleTagSupport {
     @SuppressWarnings("unchecked")
     public static List<Filemetadata> getJavascriptFiles(HttpServletRequest req, IMEADHolder imead, FileRepo file) {
         try {
-            List files = (List) req.getAttribute(PAGE_JAVASCRIPT_KEY);
+            List files = (List) req.getAttribute(SITE_JAVASCRIPT_KEY);
             if (files != null) {
                 return files;
             }
@@ -40,7 +40,7 @@ public class HtmlScript extends SimpleTagSupport {
         try {
             List<String> filenames = new ArrayList<>();
             List<Filemetadata> files = new ArrayList<>();
-            for (String filename : imead.getLocal(PAGE_JAVASCRIPT_KEY, Local.resolveLocales(req)).split("\n")) {
+            for (String filename : imead.getLocal(SITE_JAVASCRIPT_KEY, Local.resolveLocales(req, imead)).split("\n")) {
                 List<Filemetadata> f = file.getFileMetadata(Arrays.asList(filename));
                 if (null != f && !f.isEmpty()) {
                     files.addAll(f);
@@ -49,7 +49,7 @@ public class HtmlScript extends SimpleTagSupport {
                 }
             }
             files.addAll(file.getFileMetadata(filenames));
-            req.setAttribute(PAGE_JAVASCRIPT_KEY, files);
+            req.setAttribute(SITE_JAVASCRIPT_KEY, files);
             return files;
         } catch (Exception x) {
             return new ArrayList<>();

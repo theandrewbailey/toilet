@@ -10,8 +10,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import libWebsiteTools.rss.iFeed;
-import libWebsiteTools.rss.iPublishable;
 import org.w3c.dom.DOMException;
 
 /**
@@ -205,7 +203,7 @@ public abstract class AtomFeed extends AtomCommonAttribs implements iFeed, iPubl
     }
 
     @Override
-    public long getLastModified() {
+    public long getLastModified(HttpServletRequest req) {
         return -1;
     }
 

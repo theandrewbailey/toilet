@@ -37,17 +37,6 @@ public final class UtilStatic {
         }
     }
 
-    public static <K, V> LinkedHashMap<K, V> reverse(Map<K, V> input) {
-        ArrayList<Map.Entry<K, V>> keys = new ArrayList<>(input.entrySet());
-        ListIterator<Map.Entry<K, V>> li = keys.listIterator(keys.size());
-        LinkedHashMap<K, V> output = new LinkedHashMap<>(input.size());
-        while (li.hasPrevious()) {
-            Map.Entry<K, V> entry = li.previous();
-            output.put(entry.getKey(), entry.getValue());
-        }
-        return output;
-    }
-
     public static Collection<Future> finish(Collection<Future> these) {
         for (Future task : these) {
             try {

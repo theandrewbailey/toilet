@@ -1,5 +1,5 @@
-<footer id="downContent" class="noPrint"><h:local key="page_foot"/>
-<p><h:responseTag><h:local key="page_footFormat">
+<%@ page trimDirectiveWhitespaces="true" %><footer id="downContent" class="noPrint"><h:local key="page_footer"/>
+<p><h:responseTag><h:local key="page_footerFormat">
     <h:param><h:time datetime="${requestTime}"/></h:param>
     <h:param object="${renderMillis}"/>
 </h:local></h:responseTag></p>

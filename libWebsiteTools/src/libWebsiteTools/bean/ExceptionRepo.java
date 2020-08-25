@@ -12,6 +12,7 @@ import javax.annotation.Resource;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
+import javax.ejb.Schedule;
 import javax.ejb.Singleton;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.persistence.EntityManager;
@@ -34,20 +35,21 @@ public class ExceptionRepo {
     public static final String LOCAL_NAME = "java:module/ExceptionRepo";
     public static final String NEWLINE = "<br/>";
     private static final Logger LOG = Logger.getLogger(ExceptionRepo.class.getName());
-    private static final Long SIX_MONTHS = 86400000L * 182L;
+    private static final Long EVENT_HORIZON = 86400000L * 90L;
     @Resource
     private ManagedExecutorService exec;
     @PersistenceUnit
     private EntityManagerFactory PU;
 
     @PostConstruct
+    @Schedule(hour = "1")
     public void init() {
         exec.submit(() -> {
             EntityManager em = PU.createEntityManager();
             try {
                 em.getTransaction().begin();
                 TypedQuery<Exceptionevent> oldErrors = em.createQuery("SELECT e FROM Exceptionevent e WHERE e.atime < :past ORDER BY e.atime DESC", Exceptionevent.class);
-                oldErrors.setParameter("past", new Date(new Date().getTime() - SIX_MONTHS));
+                oldErrors.setParameter("past", new Date(new Date().getTime() - EVENT_HORIZON));
                 for (Exceptionevent e : oldErrors.getResultList()) {
                     em.remove(e);
                 }

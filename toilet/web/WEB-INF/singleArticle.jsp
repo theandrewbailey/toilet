@@ -1,5 +1,7 @@
+<%@ page session="false" trimDirectiveWhitespaces="true" %>
 <%@ include file="/WEB-INF/head.jspf" %>
-<div><main role="main" id="leftContent">
+<div><main class="singleArticle" id="leftContent">
+<%@ include file="/WEB-INF/searchSuggestion.jspf" %>
 <%@ include file="/WEB-INF/article.jspf" %>
 </main>
 <%@ include file="/WEB-INF/side.jspf" %>

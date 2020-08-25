@@ -20,10 +20,6 @@ html,body,blockquote,div,span,article,section,header,figure,figcaption,footer,h1
   overflow-x: scroll;
 }body>header{
   text-transform: full-width;
-}h1{
-  font-size: 200%;
-}h2{
-  font-size: 120%;
 }body>header{
   text-align: center;
 }body>header>h1>a:after{
@@ -79,9 +75,7 @@ html,body,blockquote,div,span,article,section,header,figure,figcaption,footer,h1
 }.entryform,legend{
   padding: 0.0em;
 }input,textarea,select,input[type="submit"],button{
-  font-family: "SimSun", "NSimSun";
-  letter-spacing: 0.07em;
-  font-size: 80%;
+  font-family: "Microsoft Sans Serif", sans-serif;
   resize: none;
   background-color: #fff;
   border-width: 2px;
@@ -94,7 +88,7 @@ html,body,blockquote,div,span,article,section,header,figure,figcaption,footer,h1
   border-color: #d3d3d3 #808080 #808080 #d3d3d3;
   background: #c0c0c0;
   color: black;
-  padding:  0.2em 0.5em 0.2em 0.5em;
+  padding:  0.2em 1.0em 0.2em 1.0em;
   min-width: 7em;
 }input[type="submit"]:active:hover,button:active:hover{
   border-style: inset;
@@ -124,14 +118,12 @@ html,body,blockquote,div,span,article,section,header,figure,figcaption,footer,h1
   white-space: nowrap;
 }p.error{
   font-size: 150%;
-}nav>h1,#recentEntries>h1,#recentCategoryEntries>h1,.side_bottom>h1{
-  font-size: 130%;
 }aside>*{
   font-size: 80%;
   padding: 0.3em 0.3em 0.0em 0.3em;
 }aside li{
   line-height: 1.6em;
-}nav>ul>li>a,#recentEntries>ul>li>a,#recentCategoryEntries>ul>li>a{
+}nav>ul>li>a,#recentArticles>ul>li>a,#recentCategoryArticles>ul>li>a{
   display: block;
 }body>footer{
   clear: both;
@@ -175,4 +167,6 @@ html,body,blockquote,div,span,article,section,header,figure,figcaption,footer,h1
     width: calc(200px - 0.2em);
   }.pagenation{
     float: right;
+}}@media screen and (max-width: 900px){body>header{
+  text-transform: unset;
 }}

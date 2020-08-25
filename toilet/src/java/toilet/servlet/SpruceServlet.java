@@ -20,11 +20,10 @@ public class SpruceServlet extends ToiletServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String[] parts = request.getRequestURI().split("/spruce/", 2);
         if (parts.length == 1 || parts[1] == null || parts[1].isEmpty()) {
-            asyncFiles(request);
             request.getServletContext().getRequestDispatcher(SPRUCE_JSP).forward(request, response);
         } else {
             try {
-                short number = new Short(parts[1]);
+                short number = Short.parseShort(parts[1]);
                 response.setContentType("text/plain");
                 PrintWriter pw = response.getWriter();
                 for (int x = 0; x < number; x++) {

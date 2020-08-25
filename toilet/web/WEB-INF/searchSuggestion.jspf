@@ -1,0 +1,1 @@
+<c:if test="${null != searchSuggestion}"><a href="${searchURL}" class="searchSuggestion"><h:local key="page_search_suggestion"/>&nbsp;&quot;${searchSuggestion}&quot;?</a></c:if>

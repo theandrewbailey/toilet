@@ -3,17 +3,18 @@ package libWebsiteTools.imead;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.EJBException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.JspContext;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
+import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.NullWriter;
 
 /**
@@ -43,81 +44,59 @@ public class Local extends SimpleTagSupport {
     private String locale;
 
     /**
-     * retrieves locales off request, and sets them on either the session (if
-     * created), or the request. returned list can have (in order):
+     * retrieves locales off request, and sets them on the request.returned list
+     * can have (in order):
      *
-     * session overridden locale (see OVERRIDE_LOCALE_PARAM) user agent
-     * (browser) set locales (see LOCALE_PARAM) server default locale
-     * (locale.getDefault()) (will always be present)
+     * session locale (see OVERRIDE_LOCALE_PARAM) user agent (browser) set
+     * locales (see LOCALE_PARAM) server default locale (locale.getDefault())
+     * (will always be present)
      *
      * @param req
+     * @param imead
      * @return locales
      * @see OVERRIDE_LOCALE_PARAM
      * @see LOCALE_PARAM
      */
     @SuppressWarnings("unchecked")
-    public static List<Locale> resolveLocales(HttpServletRequest req) {
-        List<Locale> out;
-        try {
-            if (null != req.getSession(false)) {
-                out = (List<Locale>) req.getSession().getAttribute(LOCALE_PARAM);
-                if (null != out) {
-                    return out;
+    public static List<Locale> resolveLocales(HttpServletRequest req, IMEADHolder imead) {
+        List<Locale> out = (List<Locale>) req.getAttribute(LOCALE_PARAM);
+        if (null == out) {
+            LinkedHashSet<Locale> lset = new LinkedHashSet<>();
+            Locale override = (Locale) req.getAttribute(OVERRIDE_LOCALE_PARAM);
+            if (override != null && !lset.contains(override)) {
+                lset.add(override);
+            }
+            Collection<Locale> locales = imead.getLocales();
+            String header = req.getHeader(HttpHeaders.ACCEPT_LANGUAGE);
+            if (null != header) {
+                List<Locale.LanguageRange> ranges = Locale.LanguageRange.parse(header);
+                for (Locale l : Locale.filter(ranges, locales)) {
+                    if (locales.contains(l)) {
+                        lset.add(l);
+                    }
                 }
             }
-            out = (List<Locale>) req.getAttribute(LOCALE_PARAM);
-            if (null != out) {
-                return out;
+            if (lset.isEmpty()) {
+                if (locales.contains(Locale.getDefault()) && !lset.contains(Locale.getDefault())) {
+                    lset.add(Locale.getDefault());
+                }
+                Locale generic = Locale.forLanguageTag(Locale.getDefault().getLanguage());
+                if (locales.contains(generic) && !generic.equals(Locale.getDefault()) && !lset.contains(generic)) {
+                    lset.add(generic);
+                }
             }
-        } catch (ClassCastException cce) {
-            LOG.severe("Some unexpected object is occupying attribute " + LOCALE_PARAM + " in the session or request.");
-            throw cce;
-        }
-        out = Collections.list(req.getLocales());
-        if (null != req.getSession(false)) {
-            Locale override = (Locale) req.getSession().getAttribute(OVERRIDE_LOCALE_PARAM);
-            if (override != null && !out.contains(override)) {
-                out.add(0, override);
+            if (!lset.contains(Locale.ROOT)) {
+                lset.add(Locale.ROOT);
             }
-        }
-        if (!out.contains(Locale.getDefault())) {
-            out.add(Locale.getDefault());
-        }
-        Locale generic = IMEADHolder.getLanguageOnly(Locale.getDefault());
-        if (!generic.equals(Locale.getDefault()) && !out.contains(generic)) {
-            out.add(generic);
-        }
-        if (!out.contains(Locale.ROOT)) {
-            out.add(Locale.ROOT);
-        }
-        if (null != req.getSession(false)) {
-            req.getSession().setAttribute(LOCALE_PARAM, out);
-        } else {
+            out = new ArrayList<>(lset);
             req.setAttribute(LOCALE_PARAM, out);
         }
         return out;
     }
 
-    /**
-     * convenience method for the other resolveLocales()
-     *
-     * @param jspc
-     * @return
-     */
-    public static List<Locale> resolveLocales(JspContext jspc) {
-        return resolveLocales((HttpServletRequest) ((PageContext) jspc).getRequest());
-    }
-
-    public static void resetLocales(HttpServletRequest req) {
-        if (null != req.getSession(false)) {
-            req.getSession().removeAttribute(LOCALE_PARAM);
-            req.getSession().removeAttribute(OVERRIDE_LOCALE_PARAM);
-        }
-    }
-
-    public static String getLocaleString(HttpServletRequest req) {
+    public static String getLocaleString(HttpServletRequest req, IMEADHolder imead) {
         ArrayList<String> langTags = new ArrayList<>();
-        for (Locale l : resolveLocales(req)) {
+        for (Locale l : resolveLocales(req, imead)) {
             langTags.add(l.toLanguageTag());
         }
         return String.join(", ", langTags);
@@ -133,7 +112,7 @@ public class Local extends SimpleTagSupport {
             if (locale != null) {
                 return MessageFormat.format(imead.getLocal(getKey(), locale), getParams().toArray());
             }
-            return MessageFormat.format(imead.getLocal(getKey(), resolveLocales(getJspContext())), getParams().toArray());
+            return MessageFormat.format(imead.getLocal(getKey(), resolveLocales((HttpServletRequest) ((PageContext) getJspContext()).getRequest(), imead)), getParams().toArray());
         } catch (EJBException e) {
             if (!(e.getCause() instanceof LocalizedStringNotFoundException)) {
                 throw e;
@@ -147,7 +126,7 @@ public class Local extends SimpleTagSupport {
     public void doTag() throws JspException, IOException {
         try {
             getJspContext().getOut().print(getValue());
-        } catch (Exception x) {
+        } catch (IOException x) {
             // don't do anything
         }
     }

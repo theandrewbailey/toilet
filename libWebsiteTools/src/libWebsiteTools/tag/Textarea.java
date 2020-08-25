@@ -50,7 +50,7 @@ public class Textarea extends AbstractInput {
         }
         out.append("\">");
         if (getValue() != null) {
-            out.append(getValue());
+            out.append(getValue().replace("&", "&amp;"));
         }
         out.append("</textarea>");
 

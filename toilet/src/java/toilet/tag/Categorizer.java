@@ -3,12 +3,16 @@ package toilet.tag;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.Locale;
 import javax.ejb.EJB;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.jsp.JspException;
+import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libWebsiteTools.bean.GuardRepo;
+import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.imead.Local;
 import toilet.bean.StateCache;
 
 /**
@@ -22,6 +26,7 @@ public class Categorizer extends SimpleTagSupport {
     @EJB
     private IMEADHolder imead;
     private String category;
+    private Integer page;
 
     @Override
     public void doTag() throws JspException, IOException {
@@ -29,28 +34,36 @@ public class Categorizer extends SimpleTagSupport {
             execute(category);
             return;
         }
-        for (String o : cache.getArticleCategories()) {
-            execute(o);
+        for (String catName : cache.getArticleCategories()) {
+            execute(catName);
         }
     }
 
-    private void execute(String o) throws JspException, IOException {
-        getJspContext().setAttribute("_cate_url", getUrl(imead.getValue(GuardRepo.CANONICAL_URL), o, 1));
-        getJspContext().setAttribute("_cate_group", o);
+    private void execute(String catName) throws JspException, IOException {
+        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
+        Locale locale = (Locale) req.getAttribute(Local.OVERRIDE_LOCALE_PARAM);
+        getJspContext().setAttribute("_cate_url", getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), catName, page, locale));
+        getJspContext().setAttribute("_cate_group", catName);
         getJspBody().invoke(null);
     }
 
-    public static String getUrl(String thisURL, String category, Integer page) {
-        StringBuilder out = new StringBuilder(70).append(thisURL).append("index/");
-        if (null != category) {
+    public static String getUrl(String thisURL, String category, Integer page, Locale lang) {
+        StringBuilder url = new StringBuilder(70).append(thisURL).append("index/");
+        if (null != category && !category.isEmpty()) {
             try {
                 String title = URLEncoder.encode(category, "UTF-8");
-                out.append(title).append('/');
+                url.append(title).append('/');
             } catch (UnsupportedEncodingException ex) {
                 throw new JVMNotSupportedError(ex);
             }
         }
-        return null == page ? out.toString() : out.append(page).toString();
+        if (null != page) {
+            url.append(page);
+        }
+        if (null != lang) {
+            url.append("?lang=").append(lang.toLanguageTag());
+        }
+        return url.toString();
     }
 
     /**
@@ -58,5 +71,12 @@ public class Categorizer extends SimpleTagSupport {
      */
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    /**
+     * @param page the page to set
+     */
+    public void setPage(Integer page) {
+        this.page = page;
     }
 }

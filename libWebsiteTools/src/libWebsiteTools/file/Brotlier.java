@@ -26,11 +26,11 @@ public class Brotlier extends FileCompressorJob {
             return false;
         }
         String command = imead.getValue(COMMAND_KEY);
+        if (null == command) {
+            LOG.finest("Brotli command not set.");
+            return false;
+        }
         try {
-            if (null == command) {
-                LOG.finest("Brotli command not set.");
-                return false;
-            }
             byte[] compressedData = FileUtil.runProcess(command, file.getFiledata(), file.getFiledata().length * 2);
             if (null != compressedData && compressedData.length + SIZE_DIFFERENCE < file.getFiledata().length) {
                 synchronized (FileCompressorJob.POTATO) {

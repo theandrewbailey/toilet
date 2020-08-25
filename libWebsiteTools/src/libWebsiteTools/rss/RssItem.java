@@ -4,8 +4,6 @@ import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import libWebsiteTools.rss.FeedBucket;
-import libWebsiteTools.rss.iPublishable;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -18,7 +16,7 @@ public class RssItem implements Serializable, iPublishable {
 
     private String title;           // standard RSS parameters
     private String link;
-    private String description = "Replace Me";
+    private String description = "Replace this description";
     private String author;
     private String comments;
     private String guid;

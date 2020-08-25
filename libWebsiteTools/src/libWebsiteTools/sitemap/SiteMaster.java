@@ -96,7 +96,7 @@ public class SiteMaster {
             urlnode.appendChild(n);
         }
         if (url.getPriority() != null) {
-            if (new Float(url.getPriority()) < renderLevel / 100f) {
+            if (Float.valueOf(url.getPriority()) < renderLevel / 100f) {
                 return null;
             }
             count += 21 + url.getPriority().length();
