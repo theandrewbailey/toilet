@@ -27,12 +27,12 @@
 </article>
 
 <aside class="noPrint">
-    <div class="side_top"><h:local key="page_side_top"/></div>
+    <div class="side_top"><h:local key="page_sideTop"/></div>
     <nav><h1><h:local key="page_topics" /></h1><ul><t:categorizer>
         <li><c:choose><c:when test="${_cate_group == curGroup}">${_cate_group}</c:when><c:otherwise><a href="${_cate_url}">${_cate_group}</a></c:otherwise></c:choose></li></t:categorizer>
     </ul></nav>
     <%@ include file="/WEB-INF/recent.jspf" %>
-    <div class="side_bottom"><h:local key="page_side_bottom"/></div>
+    <div class="side_bottom"><h:local key="page_sideBottom"/></div>
 </aside>
 <footer id="downContent" class="noPrint">
 <p><h:responseTag><h:local key="page_footerFormat">

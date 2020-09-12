@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * This object defines CRUD (and other) operations over a data Entity.Intended
- * to be used in conjunction with databases, but not necessarily.
+ * This object defines CRUD (and other) operations over a data Entity. Intended
+ * to be used with databases, but not necessarily.
  *
  * @author alpha
  * @param <Entity> the entities that this repository operates on
@@ -19,7 +19,7 @@ public interface Repository<Entity> {
      * @param entities
      * @return the newly stored entities
      */
-    public List<Entity> upsert(Collection<Entity> entities);
+    public Collection<Entity> upsert(Collection<Entity> entities);
 
     /**
      * Retrieve a single entity.

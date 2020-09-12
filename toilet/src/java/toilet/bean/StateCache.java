@@ -14,27 +14,32 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
 import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCacheProvider;
 import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.sitemap.ChangeFreq;
 import libWebsiteTools.sitemap.SiteMaster;
 import libWebsiteTools.sitemap.UrlMap;
 import toilet.db.Article;
+import toilet.rss.ArticleRss;
+import toilet.servlet.ToiletServlet;
 import toilet.tag.ArticleUrl;
 
 /**
@@ -52,18 +57,22 @@ public class StateCache implements Iterable<UrlMap> {
     public static final String PAGES_AROUND_CURRENT = "pagenation_around_current";
     public static final Pattern INDEX_PATTERN = Pattern.compile(".*?/index(?:/(\\D*?))?(?:/([0-9]*)(?:\\?.*)?)?$");
     public static final Pattern ARTICLE_PATTERN = Pattern.compile(".*?/(?:(?:article)|(?:comments)|(?:amp))/([0-9]*)(?:/[\\w\\-\\.\\(\\)\\[\\]\\{\\}\\+,%_]*/?)?(?:\\?.*)?(?:#.*)?$");
-    private int pagesAroundCurrent = 3;
-    private int postsPerPage = 5;
     private volatile List<String> categories;
     private final AtomicReference<List<UrlMap>> urlMap = new AtomicReference<>();
     @PersistenceUnit
     private EntityManagerFactory toiletPU;
+    @EJB
+    private SecurityRepo guard;
+    @EJB
+    private FeedBucket feeds;
     @EJB
     private SiteMaster siteMaster;
     @EJB
     private IMEADHolder imead;
     @EJB
     private ArticleRepo arts;
+    @Resource
+    private ManagedExecutorService exec;
     @Inject
     private PageCacheProvider pageCacheProvider;
     private PageCache globalCache;
@@ -118,16 +127,9 @@ public class StateCache implements Iterable<UrlMap> {
 
     @SuppressWarnings("unchecked")
     public synchronized void reset() {
+        toiletPU.getCache().evictAll();
+        imead.evict();
         arts.evict();
-        globalCache.clear();
-        urlMap.set(null);
-        // pagination params
-        if (imead.getValue(POSTS_PER_PAGE) != null) {
-            postsPerPage = Integer.parseInt(imead.getValue(POSTS_PER_PAGE));
-        }
-        if (imead.getValue(PAGES_AROUND_CURRENT) != null) {
-            pagesAroundCurrent = Integer.parseInt(imead.getValue(PAGES_AROUND_CURRENT));
-        }
         EntityManager em = toiletPU.createEntityManager();
         try {
             List<Object[]> sectionsByArticlesPosted = em.createNamedQuery("Section.byArticlesPosted").getResultList();
@@ -148,6 +150,15 @@ public class StateCache implements Iterable<UrlMap> {
         } finally {
             em.close();
         }
+        exec.submit(() -> {
+            {
+                globalCache.clear();
+                urlMap.set(null);
+                guard.evict();
+                feeds.get(ArticleRss.NAME).preAdd();
+                return true;
+            }
+        });
     }
 
     /**
@@ -193,7 +204,7 @@ public class StateCache implements Iterable<UrlMap> {
                             freq = ChangeFreq.yearly;
                         }
                     }
-                    tempUrlMap.add(new UrlMap(ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), e, null, null), e.getModified(), freq, String.format("%.1f", difference)));
+                    tempUrlMap.add(new UrlMap(ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), e, null, null), e.getModified(), freq, String.format("%.1f", difference)));
                 }
                 for (String c : cates) {
                     IndexFetcher f = new IndexFetcher(this, "/index/" + c);
@@ -209,7 +220,7 @@ public class StateCache implements Iterable<UrlMap> {
                         if (difference < 0.1f) {
                             difference = 0.1f;
                         }
-                        tempUrlMap.add(new UrlMap(imead.getValue(SecurityRepo.CANONICAL_URL) + "index/" + c + x, null, ChangeFreq.weekly, String.format("%.1f", difference)));
+                        tempUrlMap.add(new UrlMap(imead.getValue(SecurityRepo.BASE_URL) + "index/" + c + x, null, ChangeFreq.weekly, String.format("%.1f", difference)));
                     }
                 }
             }
@@ -217,8 +228,8 @@ public class StateCache implements Iterable<UrlMap> {
         return urlMap.get().iterator();
     }
 
-    public IndexFetcher getIndexFetcher(String inURI) {
-        return new IndexFetcher(this, inURI);
+    public IndexFetcher getIndexFetcher(String URI) {
+        return new IndexFetcher(this, URI);
     }
 
     /**
@@ -238,34 +249,36 @@ public class StateCache implements Iterable<UrlMap> {
                 }
             }
         }
-        if ("/".equals(URI) || URI.isEmpty()) {
+        if ("/".equals(URI) || URI.isEmpty() || "/index".equals(URI)) {
             return imead.getValue(ArticleRepo.DEFAULT_CATEGORY);
         }
         throw new IllegalArgumentException("Invalid category URL: " + URI);
     }
 
-    @SuppressWarnings("FieldMayBeFinal")
     public static class IndexFetcher implements Serializable {
 
         private int page = 1;
         private String section = null;
         private int count = 0;
         private int first = 1;
-        private int pagesAroundCurrent;
-        private String siteTitle;
-        private String siteTagline;
+        private final int pagesAroundCurrent;
+        private final String siteTitle;
+        private final String siteTagline;
         @SuppressWarnings("unchecked")
         private List<Article> articles = Collections.EMPTY_LIST;
 
-        private IndexFetcher(StateCache cache, String inURI) {
-            String URI = inURI;
+        private IndexFetcher(StateCache cache, String URI) {
+            int ppp = Integer.parseInt(cache.imead.getValue(POSTS_PER_PAGE));
+            pagesAroundCurrent = Integer.parseInt(cache.imead.getValue(PAGES_AROUND_CURRENT));
             try {
                 String pagenum = getPageNumber(URI);
                 if (null != pagenum) {
                     page = pagenum.isEmpty() ? 1 : Integer.valueOf(pagenum);
                 }
                 section = cache.getCategoryFromURI(URI);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
+                siteTitle = null;
+                siteTagline = null;
                 return;
             }
             try {
@@ -279,21 +292,20 @@ public class StateCache implements Iterable<UrlMap> {
             // get total of all, to display number of pages limit
             if (count == 0) {
                 double counted = cache.arts.count(section);
-                count = (int) Math.ceil(counted / cache.postsPerPage);
+                count = (int) Math.ceil(counted / ppp);
             }
             // wierd algoritim to determine how many pagination links to other pages on this page
-            if (page + cache.pagesAroundCurrent > count) {
-                first = count - cache.pagesAroundCurrent * 2;
-            } else if (page - cache.pagesAroundCurrent > 0) {
-                first = page - cache.pagesAroundCurrent;
+            if (page + pagesAroundCurrent > count) {
+                first = count - pagesAroundCurrent * 2;
+            } else if (page - pagesAroundCurrent > 0) {
+                first = page - pagesAroundCurrent;
             }
             if (first < 1) {
                 first = 1;
             }
-            pagesAroundCurrent = cache.pagesAroundCurrent;
-            siteTitle = cache.imead.getLocal(UtilBean.SITE_TITLE, "en");
-            siteTagline = cache.imead.getLocal(UtilBean.TAGLINE, "en");
-            articles = cache.arts.getSection(section, page, cache.postsPerPage);
+            siteTitle = cache.imead.getLocal(ToiletServlet.SITE_TITLE, "en");
+            siteTagline = cache.imead.getLocal(ToiletServlet.TAGLINE, "en");
+            articles = cache.arts.getSection(section, page, ppp);
         }
 
         public List<Article> getArticles() {
@@ -318,7 +330,7 @@ public class StateCache implements Iterable<UrlMap> {
                 d.append(", all categories, page ").append(page);
             } else if (null != section) {
                 d.append(", ").append(section).append(" category, page ").append(page);
-            }else{
+            } else {
                 d.append(", ").append(siteTagline);
             }
             return d.toString();

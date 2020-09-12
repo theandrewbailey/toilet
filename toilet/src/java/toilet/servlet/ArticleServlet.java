@@ -19,7 +19,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
@@ -28,10 +28,10 @@ import libWebsiteTools.tag.HtmlTime;
 import toilet.ArticleProcessor;
 import toilet.UtilStatic;
 import toilet.bean.ArticleRepo;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Section;
+import toilet.rss.ArticleRss;
 import toilet.tag.ArticleUrl;
 
 @WebServlet(name = "ArticleServlet", description = "Gets a single article from the DB with comments", urlPatterns = {"/article/*"})
@@ -70,11 +70,11 @@ public class ArticleServlet extends ToiletServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        String properUrl = ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null, null);
-        String actual = request.getRequestURI();
-        if (!properUrl.endsWith(actual) && null == request.getAttribute("searchSuggestion")) {
+        String properUrl = ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null);
+        String actual = request.getAttribute(AbstractInput.ORIGINAL_REQUEST_URL).toString();
+        if (!actual.contains(properUrl) && null == request.getAttribute("searchSuggestion")) {
             request.setAttribute(Article.class.getCanonicalName(), null);
-            UtilStatic.permaMove(response, properUrl);
+            ToiletServlet.permaMove(response, properUrl);
             return;
         }
         response.setDateHeader(HttpHeaders.DATE, art.getModified().getTime());
@@ -101,7 +101,7 @@ public class ArticleServlet extends ToiletServlet {
             request.setAttribute("seeAlso", getArticleSuggestions(arts, art));
 
             if (art.getComments()) {
-                request.setAttribute("commentForm", getcommentFormUrl(art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
+                request.setAttribute("commentForm", getCommentFormUrl(art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
                 SimpleDateFormat timeFormat = new SimpleDateFormat(imead.getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(request, imead)));
                 String footer = MessageFormat.format(imead.getLocal("page_articleFooter", Local.resolveLocales(request, imead)),
                         new Object[]{timeFormat.format(art.getPosted()), art.getSectionid().getName()})
@@ -111,21 +111,21 @@ public class ArticleServlet extends ToiletServlet {
             HtmlMeta.addNameTag(request, "description", art.getDescription());
             HtmlMeta.addNameTag(request, "author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:title", art.getArticletitle());
-            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
             if (null != art.getImageurl()) {
                 HtmlMeta.addPropertyTag(request, "og:image", art.getImageurl());
             }
             if (null != art.getDescription()) {
                 HtmlMeta.addPropertyTag(request, "og:description", art.getDescription());
             }
-            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(UtilBean.SITE_TITLE, "en"));
+            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
             HtmlMeta.addPropertyTag(request, "og:type", "article");
             HtmlMeta.addPropertyTag(request, "og:article:published_time", htmlFormat.format(art.getPosted()));
             HtmlMeta.addPropertyTag(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
             HtmlMeta.addPropertyTag(request, "og:article:author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:article:section", art.getSectionid().getName());
-            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
-            HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
+            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+            HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(imead.getValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
     }
@@ -177,17 +177,17 @@ public class ArticleServlet extends ToiletServlet {
         return null;
     }
 
-    public String getcommentFormUrl(Article art, Locale lang) {
-        StringBuilder url = new StringBuilder(imead.getValue(SecurityRepo.CANONICAL_URL)).append("comments/").append(art.getArticleid()).append("?iframe");
-        if (null != lang) {
-            url.append("&lang=").append(lang.toLanguageTag());
-        }
+    public String getCommentFormUrl(Article art, Locale lang) {
+        StringBuilder url = new StringBuilder("comments/").append(art.getArticleid()).append("?iframe");
+//        if (null != lang) {
+//            url.append("&lang=").append(lang.toLanguageTag());
+//        }
         return url.toString();
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Matcher validator = UtilStatic.GENERAL_VALIDATION.matcher("");
+        Matcher validator = AbstractInput.GENERAL_VALIDATION.matcher("");
         switch (AbstractInput.getParameter(request, "submit-type")) {
             case "comment":     // submitted comment
                 if (AbstractInput.getParameter(request, "text") == null || AbstractInput.getParameter(request, "text").isEmpty()
@@ -201,7 +201,6 @@ public class ArticleServlet extends ToiletServlet {
                     return;
                 }
                 String rawin = AbstractInput.getParameter(request, "text");
-
                 String totest = rawin.toLowerCase();
                 String[] spamwords = imead.getValue(SPAM_WORDS).split("\n");
                 for (String ua : spamwords) {
@@ -210,7 +209,6 @@ public class ArticleServlet extends ToiletServlet {
                         return;
                     }
                 }
-
                 Comment c = new Comment();
                 c.setPostedhtml(UtilStatic.htmlFormat(UtilStatic.removeSpaces(rawin), false, true));
                 String postName = AbstractInput.getParameter(request, "name");
@@ -222,17 +220,15 @@ public class ArticleServlet extends ToiletServlet {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST);
                     return;
                 }
-
                 Integer id = cache.getArticleFromURI(request.getRequestURI()).getArticleid();
                 c.setArticleid(new Article(id));
                 comms.upsert(Arrays.asList(c));
-                util.resetCommentFeed();
                 request.getSession().setAttribute("LastPostedName", postName);
                 doGet(request, response);
                 break;
             case "article":     // created or edited article
-                if (!AdminLoginServlet.ADDARTICLE.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
-                        && !AdminLoginServlet.EDITPOSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+                if (!AdminLoginServlet.ADD_ARTICLE.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
+                        && !AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
                     break;
                 }
@@ -250,10 +246,11 @@ public class ArticleServlet extends ToiletServlet {
                     return;
                 }
                 art = arts.upsert(Arrays.asList(art)).get(0);
-                response.sendRedirect(ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+                response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
                 request.getSession().removeAttribute(AdminArticle.LAST_ARTICLE_EDITED);
                 exec.submit(() -> {
-                    util.resetArticleFeed();
+                    backup.backup();
+                    feeds.get(ArticleRss.NAME).preAdd();
                     arts.refreshSearch();
                 });
                 break;

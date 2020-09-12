@@ -9,7 +9,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.file.FileRepo;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
@@ -45,7 +45,7 @@ public class HtmlScript extends SimpleTagSupport {
                 if (null != f && !f.isEmpty()) {
                     files.addAll(f);
                 } else {
-                    filenames.add(FileServlet.getNameFromURL(filename));
+                    filenames.add(BaseFileServlet.getNameFromURL(filename));
                 }
             }
             files.addAll(file.getFileMetadata(filenames));

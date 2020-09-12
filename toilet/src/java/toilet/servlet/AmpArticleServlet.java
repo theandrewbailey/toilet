@@ -9,11 +9,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.cache.JspFilter;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
-import toilet.UtilStatic;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.tag.ArticleUrl;
 
@@ -38,11 +36,11 @@ public class AmpArticleServlet extends ArticleServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        String properUrl = ArticleUrl.getAmpUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null);
+        String properUrl = ArticleUrl.getAmpUrl(imead.getValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM));
         String actual = request.getRequestURI();
         if (!properUrl.endsWith(actual)) {
             request.setAttribute(Article.class.getCanonicalName(), null);
-            UtilStatic.permaMove(response, properUrl);
+            ToiletServlet.permaMove(response, properUrl);
             return;
         }
         response.setDateHeader(HttpHeaders.DATE, art.getModified().getTime());
@@ -65,25 +63,25 @@ public class AmpArticleServlet extends ArticleServlet {
             request.setAttribute("art", art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            request.setAttribute("canonical", ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null, null));
+            request.setAttribute("canonical", ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), art, null, null));
             request.setAttribute("css", new String(file.get(imead.getLocal("site_cssamp", Local.resolveLocales(request, imead))).getFiledata(), "UTF-8"));
             HtmlMeta.addNameTag(request, "description", art.getDescription());
             HtmlMeta.addNameTag(request, "author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:title", art.getArticletitle());
-            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
             if (null != art.getImageurl()) {
                 HtmlMeta.addPropertyTag(request, "og:image", art.getImageurl());
             }
             if (null != art.getDescription()) {
                 HtmlMeta.addPropertyTag(request, "og:description", art.getDescription());
             }
-            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(UtilBean.SITE_TITLE, "en"));
+            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
             HtmlMeta.addPropertyTag(request, "og:type", "article");
             HtmlMeta.addPropertyTag(request, "og:article:published_time", htmlFormat.format(art.getPosted()));
             HtmlMeta.addPropertyTag(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
             HtmlMeta.addPropertyTag(request, "og:article:author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:article:section", art.getSectionid().getName());
-            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null, null));
+            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), art, null, null));
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
     }

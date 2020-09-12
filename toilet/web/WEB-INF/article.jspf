@@ -19,7 +19,7 @@
 </c:when></c:choose>
 
 <!-- ${seeAlsoTerm} -->
-<c:if test="${null != seeAlso}"><nav><h2><h:local key="page_might_like"/></h2><ul class="seeAlso">
+<c:if test="${null != seeAlso}"><nav class="seeAlso"><h1><h:local key="page_mightLike"/></h1><ul>
 <c:forEach items="${seeAlso}" var="art"><c:choose>
     <c:when test="${null == art.imageurl}"><li class="noFigure"><article class="article${art.articleid}"><a href="<t:articleUrl article="${art}" link="${false}"/>"><h1>${art.articletitle}</h1></a></article></li></c:when>
     <c:otherwise><li class="withFigure">${art.summary}</li></c:otherwise>

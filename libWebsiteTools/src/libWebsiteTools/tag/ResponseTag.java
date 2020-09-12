@@ -5,7 +5,7 @@ import java.util.Date;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libWebsiteTools.GuardFilter;
+import libWebsiteTools.security.GuardFilter;
 
 /**
  *

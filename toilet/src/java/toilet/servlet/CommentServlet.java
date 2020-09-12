@@ -13,9 +13,9 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCaches;
@@ -100,14 +100,14 @@ public class CommentServlet extends ToiletServlet {
             request.setAttribute("art", art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            request.setAttribute("commentForm", imead.getValue(SecurityRepo.CANONICAL_URL) + "comments/" + art.getArticleid() + (null == request.getParameter("iframe") ? "" : "?iframe"));
+            request.setAttribute("commentForm", request.getAttribute(SecurityRepo.BASE_URL).toString() + "comments/" + art.getArticleid() + (null == request.getParameter("iframe") ? "" : "?iframe"));
             request.getServletContext().getRequestDispatcher(null == request.getParameter("iframe") ? COMMENT_JSP : IFRAME_JSP).forward(request, response);
         }
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Matcher validator = UtilStatic.GENERAL_VALIDATION.matcher("");
+        Matcher validator = AbstractInput.GENERAL_VALIDATION.matcher("");
         switch (AbstractInput.getParameter(request, "submit-type")) {
             case "comment":     // submitted comment
                 String postName = AbstractInput.getParameter(request, "name");
@@ -159,7 +159,6 @@ public class CommentServlet extends ToiletServlet {
                 }
                 newComment.setArticleid(art);
                 comms.upsert(Arrays.asList(newComment));
-                util.resetCommentFeed();
                 request.getSession().setAttribute("LastPostedName", postName);
                 exec.submit(() -> {
                     PageCache global = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);

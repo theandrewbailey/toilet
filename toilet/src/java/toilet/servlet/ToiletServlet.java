@@ -9,15 +9,16 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.bean.ExceptionRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.cache.PageCacheProvider;
 import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.rss.FeedBucket;
 import toilet.bean.ArticleRepo;
+import toilet.bean.BackupDaemon;
 import toilet.bean.CommentRepo;
 import toilet.bean.StateCache;
-import toilet.bean.UtilBean;
 
 /**
  *
@@ -29,10 +30,12 @@ public abstract class ToiletServlet extends HttpServlet {
     public static final String ERROR_MESSAGE_PARAM = "ERROR_MESSAGE";
     public static final String ERROR_JSP = "/WEB-INF/error.jsp";
     public static final String ERROR_IFRAME_JSP = "/WEB-INF/errorIframe.jsp";
+    public static final String SITE_TITLE = "page_title";
+    public static final String TAGLINE = "page_tagline";
     @Resource
     protected ManagedExecutorService exec;
     @EJB
-    protected ExceptionRepo error;
+    protected SecurityRepo error;
     @EJB
     protected FileRepo file;
     @EJB
@@ -44,9 +47,23 @@ public abstract class ToiletServlet extends HttpServlet {
     @EJB
     protected IMEADHolder imead;
     @EJB
-    protected UtilBean util;
+    protected FeedBucket feeds;
+    @EJB
+    protected BackupDaemon backup;
     @Inject
     protected PageCacheProvider pageCacheProvider;
+
+    /**
+     * tells the client to go to a new location. WHY is this not included in the
+     * standard servlet API????
+     *
+     * @param res
+     * @param newLocation
+     */
+    public static void permaMove(HttpServletResponse res, String newLocation) {
+        res.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
+        res.setHeader("Location", newLocation);
+    }
 
     protected void showError(HttpServletRequest req, HttpServletResponse res, String errorMessage) {
         req.setAttribute(ERROR_MESSAGE_PARAM, errorMessage);

@@ -30,7 +30,7 @@ import javax.validation.constraints.Size;
 @NamedQueries({
     @NamedQuery(name = "Honeypot.findByIp", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip"),
     @NamedQuery(name = "Honeypot.findByIpBeforeNow", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip AND h.expiresatatime > CURRENT_TIMESTAMP"),
-    @NamedQuery(name = "Honeypot.cleanHoneypot", query = "DELETE FROM Honeypot h WHERE h.expiresatatime < CURRENT_TIMESTAMP")})
+    @NamedQuery(name = "Honeypot.clean", query = "DELETE FROM Honeypot h WHERE h.expiresatatime < CURRENT_TIMESTAMP")})
 public class Honeypot implements Serializable {
 
     private static final long serialVersionUID = 1L;

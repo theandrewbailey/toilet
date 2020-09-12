@@ -1,26 +1,17 @@
 package toilet;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.ListIterator;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.bean.ExceptionRepo;
+import libWebsiteTools.security.SecurityRepo;
 
 public final class UtilStatic {
 
     private static final Logger LOG = Logger.getLogger(UtilStatic.class.getName());
-    public static final Date EPOCH = new Date(0);
-    public static final Pattern GENERAL_VALIDATION = Pattern.compile("^[\\x0A\\x0D\\x20-\\x7E\\u00A1-\\u052F]*$");
 
     public UtilStatic() {
         throw new UnsupportedOperationException("You cannot instantiate this class");
@@ -43,7 +34,7 @@ public final class UtilStatic {
                 task.get();
             } catch (InterruptedException | ExecutionException ex) {
                 LOG.log(Level.SEVERE, "Tried to finish a bunch of jobs, but couldn't.", ex);
-                getBean(ExceptionRepo.LOCAL_NAME, ExceptionRepo.class).add(null, "Multithread Exception", "Tried to finish a bunch of jobs, but couldn't.", ex);
+                getBean(SecurityRepo.LOCAL_NAME, SecurityRepo.class).logException(null, "Multithread Exception", "Tried to finish a bunch of jobs, but couldn't.", ex);
                 throw new RuntimeException(ex);
             }
         }
@@ -159,17 +150,4 @@ public final class UtilStatic {
         out = link ? out : out.replace("&lt;", "<").replace("&gt;", ">");
         return out;
     }
-
-    /**
-     * tells the client to go to a new location. WHY is this not included in the
-     * standard servlet API????
-     *
-     * @param res
-     * @param newLocation
-     */
-    public static void permaMove(HttpServletResponse res, String newLocation) {
-        res.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
-        res.setHeader("Location", newLocation);
-    }
-
 }

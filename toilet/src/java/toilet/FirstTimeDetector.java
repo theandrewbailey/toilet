@@ -16,12 +16,13 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Localization;
+import libWebsiteTools.imead.LocalizedStringNotFoundException;
 import toilet.bean.ArticleRepo;
 import toilet.servlet.AdminLoginServlet;
 
@@ -64,13 +65,13 @@ public class FirstTimeDetector implements ServletContextListener {
             try {
                 loadFile(sce.getServletContext(), "/WEB-INF/toiletwave.css", "text/css");
                 loadFile(sce.getServletContext(), "/WEB-INF/toiletwave.js", "text/javascript");
-                if (null == imead.getLocal("site_css", Locale.ROOT)) {
+                if (null == imead.getValue("site_css")) {
                     locals.add(new Localization("", "site_css", "toiletwave.css"));
                 }
-                if (null == imead.getLocal("site_cssamp", Locale.ROOT)) {
+                if (null == imead.getValue("site_cssamp")) {
                     locals.add(new Localization("", "site_cssamp", "toiletwave.css"));
                 }
-                if (null == imead.getLocal("site_javascript", Locale.ROOT)) {
+                if (null == imead.getValue("site_javascript")) {
                     locals.add(new Localization("", "site_javascript", "toiletwave.js"));
                 }
             } catch (IOException ex) {
@@ -95,7 +96,9 @@ public class FirstTimeDetector implements ServletContextListener {
         List<Localization> locals = new ArrayList<>();
         Properties IMEAD = getProperties(c.getResourceAsStream(filename));
         for (Map.Entry<Object, Object> property : IMEAD.entrySet()) {
-            if (null == imead.getLocal(property.getKey().toString(), locale)) {
+            try {
+                imead.getLocal(property.getKey().toString(), locale.toLanguageTag());
+            } catch (RuntimeException r) {
                 locals.add(new Localization(locale.toString(), property.getKey().toString(), property.getValue().toString()));
             }
         }

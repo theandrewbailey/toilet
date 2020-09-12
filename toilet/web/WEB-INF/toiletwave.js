@@ -1,16 +1,14 @@
 "use strict";
-// bling.js, because I want the $ of jQuery without the jQuery
+// bling.js, because I want the $ of jQuery without jQuery
 if(undefined===window.$){window.$=document.querySelectorAll.bind(document);
-	[EventTarget.prototype,window,XMLHttpRequest.prototype].forEach(function setOn(p){
-		Object.defineProperty(p,"on",{get(){return function onElement(t,f){this.addEventListener(t,f);return this;};}});});
+	[EventTarget.prototype,window,XMLHttpRequest.prototype].forEach(function setOnOff(p){
+		Object.defineProperty(p,"on",{get(){return function onElement(t,f){this.addEventListener(t,f);return this;};}})
+		Object.defineProperty(p,"off",{get(){return function offElement(t,f){this.removeEventListener(t,f);return this;};}});});
 	[NodeList.prototype,HTMLCollection.prototype].forEach(function setOnArray(p){Object.setPrototypeOf(p,Array.prototype);
 		Object.defineProperty(p,"on",{get(){return function onArray(t,f){this.forEach(function onEach(e){e.addEventListener(t,f);});return this;};}});
+		Object.defineProperty(p,"off",{get(){return function offArray(t,f){this.forEach(function offEach(e){e.removeEventListener(t,f);});return this;};}});
 });}
-var toilet=new (function toilet(){
-	function forceLoad(e){
-		document.location.href=e.target.href;
-		document.location.reload(true);
-	};
+const toilet=new (function toilet(){
 	function checkInputValidity(e){
 		e.target.checkValidity();
 	};
@@ -21,8 +19,7 @@ var toilet=new (function toilet(){
 			e.target.setCustomValidity(e.target.dataset["valuemissing"]);
 		}else if(!e.target.validity.patternMismatch&&!e.target.validity.valueMissing){
 			e.target.setCustomValidity("");
-		}
-	};
+	}};
 	function testTextarea(ta,regex){
 		if(undefined!==regex&&undefined!==ta.dataset["patternmismatch"]&&!regex.test(ta.value)){
 			ta.setCustomValidity(ta.dataset["patternmismatch"]);
@@ -45,37 +42,62 @@ var toilet=new (function toilet(){
 			if(!testTextarea(ta,new RegExp(ta.dataset["pattern"],"u"))){
 				e.preventDefault();
 				return false;
-			}
-		}
+		}}
 		return true;
 	};
 	function sizeIframe(iFrame){
-		iFrame.style.setProperty("height",iFrame.contentWindow.document.body.scrollHeight+'px');
+		iFrame.style.setProperty("width",'auto');
+		const p=iFrame.parentElement.querySelector("article:not(:last-child)>p:last-of-type");
+		if(undefined!==p){
+			iFrame.style.setProperty("width",(p.clientWidth-1)+'px');
+		}
+		iFrame.style.setProperty("height",iFrame.contentWindow.document.body.scrollHeight+50+'px');
 		return iFrame;
 	};
-	function isLoaded(doc){return doc&&("complete"===doc.readyState||"interactive"===doc.readyState);}
+	function isLoaded(doc){return doc&&("complete"===doc.readyState);}
+	function inIframe(){try{return window.self!==window.top;}catch(e){return true;}}
+	function asideCollide(){
+		if(900<$("html")[0].clientWidth){
+			const aside=$("aside")[0];
+			const asiderect=aside.getBoundingClientRect();
+			const style=window.getComputedStyle(aside);
+			$("aside+article li img").forEach(function checkImg(i){
+				const rect=i.getBoundingClientRect();
+				if(asiderect.bottom+Math.ceil(parseFloat(style.marginTop))+Math.ceil(parseFloat(style.marginBottom))+1>=rect.top){
+					i.classList.add("asideCollide");
+				}
+			});
+		}
+	}
 	this.flush=function flush(ready=false){
+		if(0===$(".errorPage,.indexPage").length){
+			const lc=$("#leftContent")[0];
+			const aside=$("body>div>aside")[0];
+			if(undefined!==lc&&undefined!==aside){
+				const ref=$("#leftContent>*:not(.searchSuggestion)")[0];
+				lc.insertBefore(aside,ref);
+				if(0<$("aside+article li img").length){
+					window.on("resize",asideCollide);
+					window.requestAnimationFrame(asideCollide);
+				}
+		}}
 		const commentElement=$("#comments");
-		$("button.refreshLink,a.refreshLink").forEach(function refreshComments(elem){
-			elem.href=document.location.protocol+"//"+document.location.host+document.location.pathname;
-			if(undefined!==commentElement&&null!==commentElement){
-				elem.href+="#commentSubmission";
-			}
-			elem.on("click",forceLoad);
+		$("button[data-check]").on("click",function checkBoxes(e){
+			e.preventDefault();
+			e.target.closest("fieldset,form").querySelectorAll("."+e.target.dataset.check).forEach(function check(c){
+				c.checked=true;
+			});
 		});
-		$("input,select").forEach(function checkFieldValidity(elem){
-			elem.on("input",checkInputValidity).on("invalid",displayValidityMessage);
+		$("input,select").forEach(function checkInputValidity(i){
+			i.on("input",checkInputValidity).on("invalid",displayValidityMessage);
 		});
 		$("textarea").forEach(setTextareaEvents);
-		$("form").forEach(function testFormPresubmit(elem){
-			elem.on("submit",testFormTextareas);
+		$("form").forEach(function testFormPresubmit(f){
+			f.on("submit",testFormTextareas);
 		});
-		$("iframe").forEach(function sizeIframeInitially(iFrame){
-			isLoaded(iFrame.contentDocument.documentElement)?sizeIframe(iFrame):iFrame.on("load",function sizeIframeOnLoad(){sizeIframe(iFrame)});
-		});
-		window.on("resize",function sizeIframeOnResize(){
+		window.on("resize",function onResize(){
 			$("iframe").forEach(sizeIframe);
 		});
 	};
-	isLoaded(document)?this.flush():document.on('DOMContentLoaded',this.flush);
+	isLoaded(document)||inIframe()?this.flush(true):window.on('load',this.flush);
 })();

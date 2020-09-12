@@ -16,7 +16,7 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCacheProvider;

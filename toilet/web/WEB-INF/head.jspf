@@ -4,10 +4,9 @@
 <%@ taglib prefix="t" uri="uri:toilet" %><!DOCTYPE html>
 <html lang="${$_LIBIMEAD_PRIMARY_LOCALE.toLanguageTag()}"><head>
     <h:meta/>
-    <base href="<h:local key="security_baseURL" locale=""/>"/>
     <h:localVar key="page_title"/><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
 </head><body>
-<header><h1><a title="Home" href="<h:local key="security_baseURL"/>">${page_title}</a></h1><c:if test="${index != null and index}">
+<header><h1><a title="Home" href="${security_baseURL}">${page_title}</a></h1><c:if test="${index != null and index}">
     <h2 class="noPrint"><h:local key="page_tagline"/></h2></c:if>
     <noscript><h:local key="page_noscript"/></noscript>
 </header>

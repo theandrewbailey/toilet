@@ -22,8 +22,8 @@ import javax.persistence.PersistenceUnit;
 import javax.persistence.Query;
 import javax.persistence.StoredProcedureQuery;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.bean.SecurityRepo;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.SecurityRepo;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.db.Repository;
 import libWebsiteTools.imead.IMEADHolder;
@@ -48,8 +48,6 @@ public class ArticleRepo implements Repository<Article> {
     private EntityManagerFactory toiletPU;
     @EJB
     private IMEADHolder imead;
-    @EJB
-    private CommentRepo comment;
     @EJB
     private StateCache cache;
 
@@ -150,45 +148,41 @@ public class ArticleRepo implements Repository<Article> {
         try {
             em.getTransaction().begin();
             for (Article art : articles) {
-                try {
-                    String sect = art.getSectionid().getName();
-                    boolean getnew = art.getArticleid() == null;
-                    dbArt = getnew ? new Article() : em.find(Article.class, art.getArticleid());
+                String sect = art.getSectionid().getName();
+                boolean getnew = art.getArticleid() == null;
+                dbArt = getnew ? new Article() : em.find(Article.class, art.getArticleid());
 
-                    dbArt.setPosted(art.getPosted() == null ? dbArt.getModified() : art.getPosted());
-                    dbArt.setComments(art.getComments());
-                    dbArt.setCommentCollection(art.getComments() ? dbArt.getCommentCollection() : null);
-                    dbArt.setArticletitle(art.getArticletitle());
-                    dbArt.setPostedhtml(art.getPostedhtml());
-                    dbArt.setPostedmarkdown(art.getPostedmarkdown());
-                    dbArt.setPostedamp(art.getPostedamp());
-                    dbArt.setPostedname(art.getPostedname());
-                    dbArt.setDescription(art.getDescription());
-                    dbArt.setSummary(art.getSummary());
-                    dbArt.setImageurl(art.getImageurl());
-                    dbArt.setModified(new Date(new Date().getTime() / 1000 * 1000));
+                dbArt.setPosted(art.getPosted() == null ? dbArt.getModified() : art.getPosted());
+                dbArt.setComments(art.getComments());
+                dbArt.setCommentCollection(art.getComments() ? dbArt.getCommentCollection() : null);
+                dbArt.setArticletitle(art.getArticletitle());
+                dbArt.setPostedhtml(art.getPostedhtml());
+                dbArt.setPostedmarkdown(art.getPostedmarkdown());
+                dbArt.setPostedamp(art.getPostedamp());
+                dbArt.setPostedname(art.getPostedname());
+                dbArt.setDescription(art.getDescription());
+                dbArt.setSummary(art.getSummary());
+                dbArt.setImageurl(art.getImageurl());
+                dbArt.setModified(new Date(new Date().getTime() / 1000 * 1000));
 
-                    if (dbArt.getSectionid() == null || !dbArt.getSectionid().getName().equals(sect)) {
-                        Section esec;
-                        TypedQuery<Section> q = em.createNamedQuery("Section.findByName", Section.class).setParameter("name", sect);
-                        try {
-                            esec = q.getSingleResult();
-                        } catch (NoResultException ex) {
-                            esec = new Section();
-                            esec.setName(sect);
-                            em.persist(esec);
-                        }
-                        dbArt.setSectionid(esec);
+                if (dbArt.getSectionid() == null || !dbArt.getSectionid().getName().equals(sect)) {
+                    Section esec;
+                    TypedQuery<Section> q = em.createNamedQuery("Section.findByName", Section.class).setParameter("name", sect);
+                    try {
+                        esec = q.getSingleResult();
+                    } catch (NoResultException ex) {
+                        esec = new Section();
+                        esec.setName(sect);
+                        em.persist(esec);
                     }
-                    dbArt.setEtag(HashUtil.getSHA256Hash(hashArticle(dbArt, dbArt.getCommentCollection(), sect)));
-                    if (getnew) {
-                        em.persist(dbArt);
-                    }
-                    out.add(dbArt);
-                    LOG.log(Level.INFO, "Article added {0}, section {1}", new Object[]{art.getArticletitle(), sect});
-                } catch (Throwable x) {
-                    LOG.throwing(ArticleRepo.class.getCanonicalName(), "addArticles", x);
+                    dbArt.setSectionid(esec);
                 }
+                dbArt.setEtag(HashUtil.getSHA256Hash(hashArticle(dbArt, dbArt.getCommentCollection(), sect)));
+                if (getnew) {
+                    em.persist(dbArt);
+                }
+                out.add(dbArt);
+                LOG.log(Level.INFO, "Article added {0}, section {1}", new Object[]{art.getArticletitle(), sect});
             }
             em.getTransaction().commit();
             cache.reset();
@@ -233,49 +227,39 @@ public class ArticleRepo implements Repository<Article> {
         }
     }
 
-    @Deprecated
     @Override
     public Article delete(Object articleId) {
         EntityManager em = toiletPU.createEntityManager();
         try {
-            Article e = em.find(Article.class, articleId);
-            em.getTransaction().begin();
-
-            if (e.getSectionid().getArticleCollection().size() == 1) {
-                em.remove(e);
-                em.remove(e.getSectionid());
+            if (null == articleId) {
+                em.getTransaction().begin();
+                for (Comment c : em.createNamedQuery("Comment.findAll", Comment.class).getResultList()) {
+                    em.remove(c);
+                }
+                for (Article a : em.createNamedQuery("Article.findAll", Article.class).getResultList()) {
+                    em.remove(a);
+                }
+                for (Section s : em.createNamedQuery("Section.findAll", Section.class).getResultList()) {
+                    em.remove(s);
+                }
+                em.createNativeQuery("ALTER SEQUENCE toilet.comment_commentid_seq RESTART; ALTER SEQUENCE toilet.article_articleid_seq RESTART;").executeUpdate();
+                em.createStoredProcedureQuery("toilet.refresh_articlesearch").execute();
+                em.getTransaction().commit();
+                LOG.info("All articles and comments deleted");
+                return null;
             } else {
-                em.remove(e);
-            }
-            //em.createNativeQuery(REINDEX_TRIGRAM_QUERY).executeUpdate();
-            em.getTransaction().commit();
-            LOG.info("Article deleted");
-            return e;
-        } finally {
-            em.close();
-        }
-    }
-
-    public void deleteEverything() {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
-            em.getTransaction().begin();
-            for (Comment c : comment.getAll(null)) {
-                em.remove(em.find(Comment.class, c.getCommentid()));
-            }
-            for (Article a : getAll(null)) {
-                Article e = em.find(Article.class, a.getArticleid());
+                Article e = em.find(Article.class, articleId);
+                em.getTransaction().begin();
                 if (e.getSectionid().getArticleCollection().size() == 1) {
                     em.remove(e);
                     em.remove(e.getSectionid());
                 } else {
                     em.remove(e);
                 }
+                em.getTransaction().commit();
+                LOG.info("Article deleted");
+                return e;
             }
-            em.createNativeQuery("ALTER SEQUENCE toilet.comment_commentid_seq RESTART; ALTER SEQUENCE toilet.article_articleid_seq RESTART;").executeUpdate();
-            em.createStoredProcedureQuery("toilet.refresh_articlesearch").execute();
-            em.getTransaction().commit();
-            LOG.info("All articles and comments deleted");
         } finally {
             em.close();
         }

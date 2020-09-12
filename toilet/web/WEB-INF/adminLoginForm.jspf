@@ -1,5 +1,5 @@
-<form class="adminform" action='<h:local key="security_baseURL" locale=""/>adminLogin' method="post" accept-charset="UTF-8">
-    <fieldset><c:if test="${autofocus != true}"><legend><h:local key="page_footerLogin_legend"/></legend></c:if>
+<form class="adminform" action='adminLogin' method="post" accept-charset="UTF-8">
+    <fieldset><c:if test="${autofocus != true}"><legend><h:local key="page_footerLoginLegend"/></legend></c:if>
     <h:localVar key="page_door" /><h:localVar key="page_valueMissing" var="valueMissing" />
     <h:password id="answer" label="${page_door}" size="40" autofocus="${autofocus}" valueMissing="${valueMissing}" required="true" labelNextLine="true"/>
     </fieldset>

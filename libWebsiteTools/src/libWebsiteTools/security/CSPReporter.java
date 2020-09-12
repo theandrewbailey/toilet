@@ -1,4 +1,4 @@
-package libWebsiteTools;
+package libWebsiteTools.security;
 
 import java.io.IOException;
 import java.util.Map;
@@ -12,7 +12,6 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.bean.ExceptionRepo;
 import libWebsiteTools.imead.IMEADHolder;
 
 /**
@@ -23,7 +22,7 @@ import libWebsiteTools.imead.IMEADHolder;
 public class CSPReporter extends HttpServlet {
 
     @EJB
-    protected ExceptionRepo error;
+    protected SecurityRepo error;
     @EJB
     protected IMEADHolder imead;
 
@@ -33,9 +32,9 @@ public class CSPReporter extends HttpServlet {
         JsonReader read = Json.createReader(request.getInputStream());
         JsonObject reportObject = read.readObject().getJsonObject("csp-report");
         for (Map.Entry<String, JsonValue> field : reportObject.entrySet()) {
-            report.append(ExceptionRepo.htmlFormat(field.getKey())).append(": ").append(ExceptionRepo.htmlFormat(field.getValue().toString())).append("<br/>");
+            report.append(SecurityRepo.htmlFormat(field.getKey())).append(": ").append(SecurityRepo.htmlFormat(field.getValue().toString())).append("<br/>");
         }
-        error.add(null, "Content Security Policy violation", report.toString(), null);
+        error.logException(null, "Content Security Policy violation", report.toString(), null);
     }
 
     @Override

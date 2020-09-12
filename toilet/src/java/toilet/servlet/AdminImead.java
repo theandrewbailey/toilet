@@ -14,10 +14,10 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.cache.JspFilter;
-import libWebsiteTools.bean.SecurityRepo;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.security.SecurityRepo;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.Localization;
@@ -34,15 +34,15 @@ import toilet.UtilStatic;
 public class AdminImead extends ToiletServlet {
 
     public static final String ADMIN_IMEAD = "WEB-INF/adminImead.jsp";
-    private static final String CSP_TEMPLATE = "default-src data: 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; report-uri %s/report";
-    private static final String ACCEPTABLE_DOMAIN_TEMPLATE = "%s\n^https?://(?:10\\.[0-9]{1,3}\\.|192\\.168\\.)[0-9]{1,3}\\.[0-9]{1,3}(?::[0-9]{1,5})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?google(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?googleusercontent(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?feedly\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?slack\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?bing\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yandex(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://images\\.rambler\\.ru(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yahoo(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?duckduckgo\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?baidu\\.com(?:$|/.*)";
+    private static final String CSP_TEMPLATE = "default-src data: 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; report-uri %sreport";
+    private static final String ALLOWED_ORIGINS_TEMPLATE = "%s\n^https?://(?:10\\.[0-9]{1,3}\\.|192\\.168\\.)[0-9]{1,3}\\.[0-9]{1,3}(?::[0-9]{1,5})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?google(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?googleusercontent(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?feedly\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?slack\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?bing\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yandex(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://images\\.rambler\\.ru(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yahoo(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?duckduckgo\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?baidu\\.com(?:$|/.*)";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         //Object ssl = request.getAttribute("javax.servlet.request.ssl_session_mgr");
         if (FirstTimeDetector.isFirstTime(imead)) {
             request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.IMEAD);
-            if (null == imead.getValue(SecurityRepo.CANONICAL_URL)) {
+            if (null == imead.getValue(SecurityRepo.BASE_URL)) {
                 String canonicalRoot = AbstractInput.getTokenURL(request);
                 if (!canonicalRoot.endsWith("/")) {
                     canonicalRoot += "/";
@@ -51,14 +51,15 @@ public class AdminImead extends ToiletServlet {
                 ArrayList<Localization> locals = new ArrayList<>();
                 if (originMatcher.matches()) {
                     String currentReg = originMatcher.group(2).replace(".", "\\.");
-                    locals.add(new Localization("", SecurityRepo.ACCEPTABLE_CONTENT_DOMAINS, String.format(ACCEPTABLE_DOMAIN_TEMPLATE, currentReg)));
+                    locals.add(new Localization("", SecurityRepo.ALLOWED_ORIGINS, String.format(ALLOWED_ORIGINS_TEMPLATE, currentReg)));
                     //locals.add(new Localization("", OdysseyFilter.CERTIFICATE_NAME, ""));
-                    locals.add(new Localization("", JspFilter.CONTENT_SECURITY_POLICY, String.format(CSP_TEMPLATE, originMatcher.group(1), originMatcher.group(1))));
-                    locals.add(new Localization("", SecurityRepo.CANONICAL_URL, canonicalRoot));
+                    locals.add(new Localization("", JspFilter.CONTENT_SECURITY_POLICY, String.format(CSP_TEMPLATE, canonicalRoot)));
+                    locals.add(new Localization("", SecurityRepo.BASE_URL, canonicalRoot));
                 }
                 imead.upsert(locals);
+                request.setAttribute(SecurityRepo.BASE_URL, canonicalRoot);
                 file.processArchive((fileupload) -> {
-                    fileupload.setUrl(FileServlet.getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), fileupload));
+                    fileupload.setUrl(BaseFileServlet.getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), fileupload));
                 }, true);
             }
             showProperties(request, response, imead);

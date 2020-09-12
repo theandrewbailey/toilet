@@ -16,9 +16,9 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.HashUtil;
-import libWebsiteTools.bean.SecurityRepo;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.security.HashUtil;
+import libWebsiteTools.security.SecurityRepo;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
@@ -49,9 +49,9 @@ public class AdminArticle extends ToiletServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String answer = request.getParameter("answer");
-        if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.EDITPOSTS), answer)) {
+        if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.EDIT_POSTS), answer)) {
             showList(request, response, arts.getAll(null));
-        } else if (AdminLoginServlet.EDITPOSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        } else if (AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             if (request.getParameter("deletecomment") != null) {      // delete comment
                 comms.delete(Integer.parseInt(request.getParameter("deletecomment")));
                 src.get(CommentRss.NAME).preAdd();
@@ -69,16 +69,11 @@ public class AdminArticle extends ToiletServlet {
                     articles.add(art);
                 }
                 arts.upsert(articles);
-                util.resetEverything();
-                response.sendRedirect(imead.getValue(SecurityRepo.CANONICAL_URL));
-                exec.submit(() -> {
-                    util.resetArticleFeed();
-                    arts.refreshSearch();
-                });
+                response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                 return;
             } else if (request.getParameter("rewrite") != null) {
                 file.processArchive((fileupload) -> {
-                    fileupload.setUrl(FileServlet.getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), fileupload));
+                    fileupload.setUrl(BaseFileServlet.getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), fileupload));
                 }, true);
                 Queue<Future<Article>> articleTasks = new ConcurrentLinkedQueue<>();
                 for (String id : request.getParameterValues(AbstractInput.getIncomingHash(request, "selectedArticle"))) {
@@ -104,20 +99,15 @@ public class AdminArticle extends ToiletServlet {
                     }
                 }
                 arts.upsert(articles);
-                util.resetEverything();
-                response.sendRedirect(imead.getValue(SecurityRepo.CANONICAL_URL));
-                exec.submit(() -> {
-                    util.resetArticleFeed();
-                    arts.refreshSearch();
-                });
+                response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                 return;
             }
-            request.getRequestDispatcher("adminLogin?answer=" + imead.getValue(AdminLoginServlet.EDITPOSTS)).forward(request, response);
+            request.getRequestDispatcher("adminLogin?answer=" + imead.getValue(AdminLoginServlet.EDIT_POSTS)).forward(request, response);
         }
     }
 
     public static void showList(HttpServletRequest request, HttpServletResponse response, Collection<Article> articles) throws ServletException, IOException {
-        request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.EDITPOSTS);
+        request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.EDIT_POSTS);
         request.setAttribute("title", "Posts");
         request.setAttribute("articles", articles);
         request.getRequestDispatcher(AdminLoginServlet.ADMIN_EDIT_POSTS).forward(request, response);

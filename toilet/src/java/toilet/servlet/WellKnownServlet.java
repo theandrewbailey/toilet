@@ -5,7 +5,6 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import toilet.UtilStatic;
 
 /**
  *
@@ -24,13 +23,13 @@ public class WellKnownServlet extends ToiletServlet {
         String URL = request.getRequestURI().replaceFirst(request.getServletContext().getContextPath(), "");
         switch (URL) {
             case "/favicon.ico":
-                UtilStatic.permaMove(response, imead.getValue("site_favicon"));
+                ToiletServlet.permaMove(response, imead.getValue("site_favicon"));
                 break;
             default:
                 if (URL.contains("/.well-known/")) {
                     request.getServletContext().getRequestDispatcher(URL.replaceFirst("/.well-known/", "/content/")).forward(request, response);
                 } else if (null != file.get(URL.substring(1))) {
-                    String next = "/content" + URL;
+                    String next = "/file" + URL;
                     request.getServletContext().getRequestDispatcher(next).forward(request, response);
                 } else {
                     response.sendError(HttpServletResponse.SC_NOT_FOUND);

@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.BaseFileServlet;
 
 /**
  *
@@ -21,6 +21,6 @@ public class CachedContent extends CachedPage {
 
     @Override
     public boolean isApplicable(HttpServletRequest req) {
-        return FileServlet.isAuthorized(getContentType(), acceptableDomains, req);
+        return BaseFileServlet.isAuthorized(getContentType(), acceptableDomains, req);
     }
 }

@@ -8,7 +8,7 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.tag.AbstractInput;
@@ -17,8 +17,8 @@ import libWebsiteTools.tag.AbstractInput;
  *
  * @author alpha
  */
-@WebServlet(name = "adminContent", description = "Performs admin duties on uploads", urlPatterns = {"/adminContent"})
-public class AdminContent extends ToiletServlet {
+@WebServlet(name = "adminFile", description = "Performs admin stuff on file uploads", urlPatterns = {"/adminFile"})
+public class AdminFile extends ToiletServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -29,9 +29,9 @@ public class AdminContent extends ToiletServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String del = AbstractInput.getParameter(request, "action");
         String answer = AbstractInput.getParameter(request, "answer");
-        if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.CONTENT), answer)) {
+        if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.FILES), answer)) {
             showFileList(request, response, file.getFileMetadata(null));
-        } else if (AdminLoginServlet.CONTENT.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION)) && del != null) {
+        } else if (AdminLoginServlet.FILES.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION)) && del != null) {
             Fileupload deleted = file.delete(del.split("\\|")[1]);
             String[] split = splitDirectoryAndName(deleted.getFilename());
             request.setAttribute("opened_dir", split[0]);
@@ -40,7 +40,7 @@ public class AdminContent extends ToiletServlet {
     }
 
     public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Filemetadata> uploads) throws ServletException, IOException {
-        request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.CONTENT);
+        request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
         LinkedHashMap<String, List<Filemetadata>> content = new LinkedHashMap<>(uploads.size() * 2);
         List<String> directories = new ArrayList<>();
 

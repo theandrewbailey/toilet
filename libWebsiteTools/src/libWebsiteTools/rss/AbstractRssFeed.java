@@ -21,6 +21,9 @@ import org.w3c.dom.Document;
  */
 public abstract class AbstractRssFeed implements iFeed, ServletContextListener {
 
+    public static final String COPYRIGHT = "rss_copyright";
+    public static final String LANGUAGE = "rss_language";
+    public static final String MASTER = "rss_master";
     @EJB
     protected FeedBucket feeds;
     private static final Logger LOG = Logger.getLogger(AbstractRssFeed.class.getName());

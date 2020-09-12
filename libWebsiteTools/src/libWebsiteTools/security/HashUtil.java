@@ -1,4 +1,4 @@
-package libWebsiteTools;
+package libWebsiteTools.security;
 
 import at.gadermaier.argon2.Argon2;
 import java.io.UnsupportedEncodingException;
@@ -10,6 +10,7 @@ import java.util.Base64;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import libWebsiteTools.JVMNotSupportedError;
 
 /**
  *

@@ -23,10 +23,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.GuardFilter;
+import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.tag.ResponseTag;
-import libWebsiteTools.bean.ExceptionRepo;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.cache.CachedContent;
 import libWebsiteTools.cache.CachedPage;
@@ -36,7 +35,7 @@ import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 
-public class FileServlet extends HttpServlet {
+public abstract class BaseFileServlet extends HttpServlet {
 
     // 0b1111111111111111111111100000000 == 0x7fffff00 == 2,147,483,392 ms == 24 days, 20 hours 31 minutes 23.392 seconds exactly
     public static final long MAX_AGE_MILLISECONDS = 0b1111111111111111111111100000000;
@@ -46,13 +45,13 @@ public class FileServlet extends HttpServlet {
     public static final Pattern BR_PATTERN = Pattern.compile("(?:.*? )?br(?:,.*)?");
     private static final String CROSS_SITE_REQUEST = "error_cross_site_request";
     // [ origin, timestamp for immutable requests (guaranteed null if not immutable), file path, query string ]
-    private static final Pattern FILE_URL = Pattern.compile("^(.*?)/content(?:Immutable/([^/]+))?/([^\\?]+)\\??(.*)?");
+    private static final Pattern FILE_URL = Pattern.compile("^(.*?)file(?:Immutable/([^/]+))?/([^\\?]+)\\??(.*)?");
     @EJB
     protected FileRepo file;
     @EJB
     protected IMEADHolder imead;
     @EJB
-    protected ExceptionRepo error;
+    protected SecurityRepo error;
     @EJB
     protected SecurityRepo guard;
     @Resource
@@ -65,7 +64,7 @@ public class FileServlet extends HttpServlet {
         try {
             Matcher m = FILE_URL.matcher(URLDecoder.decode(URL.toString(), "UTF-8"));
             if (!m.matches() || m.groupCount() < 3) {
-                throw new NoResultException("Unable to get content filename from " + URL);
+                throw new NoResultException("Unable to get filename from " + URL);
             }
             return m.group(3);
         } catch (UnsupportedEncodingException ex) {
@@ -82,9 +81,9 @@ public class FileServlet extends HttpServlet {
         }
     }
 
-    public static String getImmutableURL(String canonicalURL, Filemetadata f) {
-        if (null == canonicalURL || "".equals(canonicalURL)) {
-            throw new IllegalArgumentException("canonical URL empty!");
+    public static String getImmutableURL(String baseURL, Filemetadata f) {
+        if (null == baseURL) {
+            throw new IllegalArgumentException("base URL empty!");
         } else if (null == f) {
             throw new IllegalArgumentException("no file metadata!");
         } else if (null == f.getFilename() || "".equals(f.getFilename())) {
@@ -92,13 +91,13 @@ public class FileServlet extends HttpServlet {
         } else if (null == f.getAtime()) {
             throw new IllegalArgumentException("no modified time for " + f.getFilename());
         }
-        return new StringBuilder(300).append(canonicalURL).append("contentImmutable/")
+        return new StringBuilder(300).append(baseURL).append("fileImmutable/")
                 .append(Base64.getUrlEncoder().encodeToString(BigInteger.valueOf(f.getAtime().getTime()).toByteArray()))
                 .append("/").append(f.getFilename()).toString();
     }
 
-    public static String getImmutableURL(String canonicalURL, Fileupload f) {
-        return getImmutableURL(canonicalURL, new Filemetadata(f.getFilename(), f.getAtime()));
+    public static String getImmutableURL(String baseURL, Fileupload f) {
+        return getImmutableURL(baseURL, new Filemetadata(f.getFilename(), f.getAtime()));
     }
 
     public static List<String> getCompression(HttpServletRequest req) {
@@ -126,7 +125,7 @@ public class FileServlet extends HttpServlet {
         try {
             c = file.get(getNameFromURL(request.getRequestURL()));
             c.getAtime();
-            request.setAttribute(FileServlet.class.getCanonicalName(), c);
+            request.setAttribute(BaseFileServlet.class.getCanonicalName(), c);
         } catch (Exception ex) {
             return -1;
         }
@@ -142,7 +141,7 @@ public class FileServlet extends HttpServlet {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
-        if (SecurityRepo.matchesAny(request.getHeader("Origin"), guard.getAcceptableDomains()) && originMatcher.matches()) {
+        if (IMEADHolder.matchesAny(request.getHeader("Origin"), imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS)) && originMatcher.matches()) {
             response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
         } else {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -157,7 +156,7 @@ public class FileServlet extends HttpServlet {
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Fileupload c = (Fileupload) request.getAttribute(FileServlet.class.getCanonicalName());
+        Fileupload c = (Fileupload) request.getAttribute(BaseFileServlet.class.getCanonicalName());
         if (null == c) {
             try {
                 String name = getNameFromURL(request.getRequestURL());
@@ -165,11 +164,11 @@ public class FileServlet extends HttpServlet {
                 if (null == c) {
                     throw new FileNotFoundException(name);
                 }
-                request.setAttribute(FileServlet.class.getCanonicalName(), c);
+                request.setAttribute(BaseFileServlet.class.getCanonicalName(), c);
             } catch (FileNotFoundException ex) {
                 response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + MAX_AGE_SECONDS);
                 response.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + MAX_AGE_MILLISECONDS);
-                if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(guard.getAcceptableDomains(), request)) {
+                if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS), request)) {
                     request.setAttribute(GuardFilter.HANDLED_ERROR, true);
                 }
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -177,24 +176,26 @@ public class FileServlet extends HttpServlet {
             }
         }
 
-        if (!isAuthorized(c.getMimetype(), guard.getAcceptableDomains(), request)) {
+        if (!isAuthorized(c.getMimetype(), imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS), request)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            error.add(request, null, imead.getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(request, imead)), null);
+            error.logException(request, null, imead.getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(request, imead)), null);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             return;
         }
 
-        if (null != request.getHeader("Referer")) {
-            Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getHeader("Referer"));
-            if (null != guard.getAcceptableDomains()
-                    && SecurityRepo.matchesAny(request.getHeader("Referer"), guard.getAcceptableDomains()) && originMatcher.matches()) {
-                response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
-            } else if (null != guard.getCanonicalOrigin()) {
-                response.setHeader("Access-Control-Allow-Origin", guard.getCanonicalOrigin());
-            }
-        } else {
-            response.setHeader("Access-Control-Allow-Origin", guard.getCanonicalOrigin());
-        }
+//        if (null != request.getHeader("Referer")) {
+//            Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getHeader("Referer"));
+//            if (null != imead.getPatterns(SecurityRepo.ACCEPTABLE_CONTENT_DOMAINS)
+//                    && SecurityRepo.matchesAny(request.getHeader("Referer"), imead.getPatterns(SecurityRepo.ACCEPTABLE_CONTENT_DOMAINS)) && originMatcher.matches()) {
+//                response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
+//            } else if (null != guard.getCanonicalOrigin()) {
+//                response.setHeader("Access-Control-Allow-Origin", guard.getCanonicalOrigin());
+//            }
+//        } else {
+        Matcher canonicalMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getAttribute(SecurityRepo.BASE_URL).toString());
+        canonicalMatcher.matches();
+        response.setHeader("Access-Control-Allow-Origin", canonicalMatcher.group(1));
+//        }
         if (isImmutableURL(request.getRequestURL())) {
             response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + YEAR_SECONDS + ", immutable");
             response.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + (YEAR_SECONDS * 1000));
@@ -238,7 +239,7 @@ public class FileServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         doHead(request, response);
-        Fileupload c = (Fileupload) request.getAttribute(FileServlet.class.getCanonicalName());
+        Fileupload c = (Fileupload) request.getAttribute(BaseFileServlet.class.getCanonicalName());
         byte[] responseBytes;
         if (HttpServletResponse.SC_OK == response.getStatus() && null != c) {
             try {
@@ -259,7 +260,7 @@ public class FileServlet extends HttpServlet {
             response.getOutputStream().write(responseBytes);
             PageCache cache = globalCache.getCache(request, response);
             if (null != cache) {
-                cache.put(PageCache.getLookup(request, imead), new CachedContent(response, responseBytes, guard.getAcceptableDomains()));
+                cache.put(PageCache.getLookup(request, imead), new CachedContent(response, responseBytes, imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS)));
             }
             request.setAttribute(ResponseTag.RENDER_TIME_PARAM, new Date().getTime() - ((Date) request.getAttribute(GuardFilter.TIME_PARAM)).getTime());
         }
@@ -274,7 +275,7 @@ public class FileServlet extends HttpServlet {
                     request.setAttribute("ERROR_MESSAGE", "File exists: " + uploadedfile.getFilename());
                     return;
                 }
-                uploadedfile.setUrl(getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), uploadedfile));
+                uploadedfile.setUrl(getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), uploadedfile));
             }
             file.upsert(uploadedfiles);
             request.setAttribute("uploadedfiles", uploadedfiles);
@@ -308,7 +309,7 @@ public class FileServlet extends HttpServlet {
     public static boolean fromApprovedDomain(List<Pattern> acceptableDomains, HttpServletRequest req) {
         String referrer = req.getHeader("referer");
         if (null != referrer) {
-            return SecurityRepo.matchesAny(referrer, acceptableDomains);
+            return IMEADHolder.matchesAny(referrer, acceptableDomains);
         }
         return true;
     }

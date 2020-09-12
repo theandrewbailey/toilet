@@ -21,10 +21,10 @@ import javax.ejb.Startup;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.bean.ExceptionRepo;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.rss.AbstractRssFeed;
 import libWebsiteTools.rss.RssChannel;
 import libWebsiteTools.rss.RssItem;
 import libWebsiteTools.rss.SimpleRssFeed;
@@ -50,7 +50,11 @@ public class SpruceGenerator extends SimpleRssFeed implements iDynamicFeed {
     private final RssChannel entries = new RssChannel("Spruce", LINK, "Some wisdom from Spruce");
     private Date lastEntry = new Date();
     private boolean changed = true;
-    private static final Map<String, String> URLs;
+    private static final Map<String, String> URL = Collections.unmodifiableMap(new HashMap<String, String>() {
+        {
+            put(SPRUCE_FEED_NAME, "Spruce");
+        }
+    });
 //    private ScriptEngine py;
     private PythonInterpreter py;
     @EJB
@@ -59,12 +63,6 @@ public class SpruceGenerator extends SimpleRssFeed implements iDynamicFeed {
     private IMEADHolder imead;
     @Resource
     private ManagedExecutorService exec;
-
-    static {
-        HashMap<String, String> temp = new HashMap<>();
-        temp.put(SPRUCE_FEED_NAME, "Spruce");
-        URLs = Collections.unmodifiableMap(temp);
-    }
 
     @PostConstruct
     public void setup() {
@@ -128,7 +126,7 @@ public class SpruceGenerator extends SimpleRssFeed implements iDynamicFeed {
 
     @Override
     public Map<String, String> getFeedURLs(HttpServletRequest req) {
-        return URLs;
+        return URL;
     }
 
     @Override
@@ -169,7 +167,7 @@ public class SpruceGenerator extends SimpleRssFeed implements iDynamicFeed {
                         PrintWriter p = new PrintWriter(w, false);
                         ex.printStackTrace(p);
                         p.flush();
-                        RssItem i = new RssItem(w.toString().replace("\n\tat ", ExceptionRepo.NEWLINE + " at "));
+                        RssItem i = new RssItem(w.toString().replace("\n\tat ", SecurityRepo.NEWLINE + " at "));
                         i.setTitle(ERROR);
                         i.setLink(entries.getLink());
                         i.setPubDate(lastEntry);
@@ -180,11 +178,11 @@ public class SpruceGenerator extends SimpleRssFeed implements iDynamicFeed {
         });
 
         entries.clearFeed();
-        entries.setLink(imead.getValue(SecurityRepo.CANONICAL_URL) + LINK);
-        entries.setWebMaster(imead.getValue(UtilBean.MASTER));
+        entries.setLink(imead.getValue(SecurityRepo.BASE_URL) + LINK);
+        entries.setWebMaster(imead.getValue(AbstractRssFeed.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
-        entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
-        entries.setCopyright(imead.getValue(UtilBean.COPYRIGHT));
+        entries.setLanguage(imead.getValue(AbstractRssFeed.LANGUAGE));
+        entries.setCopyright(imead.getValue(AbstractRssFeed.COPYRIGHT));
         entries.setLimit(Integer.valueOf(imead.getValue(SPRUCE_COUNT)));
         entries.setTtl(60);
 

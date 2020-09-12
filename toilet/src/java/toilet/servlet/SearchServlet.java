@@ -9,10 +9,8 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.bean.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
 import toilet.tag.ArticleUrl;
 
@@ -42,7 +40,7 @@ public class SearchServlet extends ToiletServlet {
         try {
             String suggestion = arts.searchSuggestion(searchTerm);
             request.setAttribute("searchSuggestion", suggestion);
-            request.setAttribute("searchURL", imead.getValue(SecurityRepo.CANONICAL_URL) + "search?searchTerm=" + URLEncoder.encode(suggestion, "UTF-8"));
+            request.setAttribute("searchURL", "search?searchTerm=" + URLEncoder.encode(suggestion, "UTF-8"));
         } catch (NullPointerException n) {
         }
         if (results.isEmpty()) {
@@ -66,7 +64,7 @@ public class SearchServlet extends ToiletServlet {
                 break;
             }
         }
-        HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(UtilBean.SITE_TITLE, "en"));
+        HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
         HtmlMeta.addPropertyTag(request, "og:type", "website");
         HtmlMeta.addPropertyTag(request, "og:description", "Search results");
         HtmlMeta.addNameTag(request, "description", "Search results");

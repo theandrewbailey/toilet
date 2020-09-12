@@ -1,6 +1,7 @@
 package libWebsiteTools.cache;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Locale;
 import javax.ejb.EJB;
 import javax.inject.Inject;
@@ -16,7 +17,8 @@ import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.BaseFileServlet;
+import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
@@ -29,12 +31,14 @@ import libWebsiteTools.tag.HtmlTime;
 @WebFilter(description = "Adds security headers and potentially adds to cache.", filterName = "JspFilter", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD}, urlPatterns = {"*.jsp"})
 public class JspFilter implements Filter {
 
-    public static final String CONTENT_SECURITY_POLICY = "security_content_security_policy";
-    public static final String FEATURE_POLICY = "security_feature_policy";
-    public static final String REFERRER_POLICY = "security_referrer_policy";
+    public static final String CONTENT_SECURITY_POLICY = "security_csp";
+    public static final String FEATURE_POLICY = "security_features";
+    public static final String REFERRER_POLICY = "security_referrer";
     public static final String PRIMARY_LOCALE_PARAM = "$_LIBIMEAD_PRIMARY_LOCALE";
     @EJB
     private IMEADHolder imead;
+    @EJB
+    private FileRepo file;
     @Inject
     private PageCacheProvider pageCacheProvider;
     private PageCache globalCache;
@@ -52,7 +56,13 @@ public class JspFilter implements Filter {
         request.setAttribute(PRIMARY_LOCALE_PARAM, primaryLocale);
         HtmlMeta.addNameTag(req, "viewport", imead.getValue("site_viewport"));
         HtmlMeta.addLink(req, "shortcut icon", imead.getValue("site_favicon"));
-        HtmlMeta.addLink(req, "apple-touch-icon", imead.getValue("site_apple-touch-icon"));
+        try {
+            String icon = imead.getValue("site_apple-touch-icon");
+            if (null != icon) {
+                HtmlMeta.addLink(req, "apple-touch-icon", file.getFileMetadata(Arrays.asList(icon)).get(0).getUrl());
+            }
+        } catch (Exception x) {
+        }
         Object csp = request.getAttribute(CONTENT_SECURITY_POLICY);
         res.setHeader("Accept-Ranges", "none");
         res.addHeader(HttpHeaders.CONTENT_LANGUAGE, primaryLocale.toLanguageTag());
@@ -117,7 +127,7 @@ public class JspFilter implements Filter {
     public static String getCompression(HttpServletRequest req) {
         String encoding = req.getHeader(HttpHeaders.ACCEPT_ENCODING);
         if (null != encoding) {
-            if (FileServlet.GZIP_PATTERN.matcher(encoding).find()) {
+            if (BaseFileServlet.GZIP_PATTERN.matcher(encoding).find()) {
                 return "gzip";
                 //} else if (BR_PATTERN.matcher(encoding).find()) {
                 //  return "br";

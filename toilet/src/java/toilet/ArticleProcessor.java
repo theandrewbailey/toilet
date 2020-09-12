@@ -12,11 +12,11 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.Markdowner;
 import libWebsiteTools.db.Repository;
 import libWebsiteTools.file.FileRepo;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.db.Article;
@@ -165,7 +165,7 @@ public class ArticleProcessor implements Callable<Article> {
                     art.setImageurl(baseAttribs.get("src"));
                 }
                 art.setSummary(String.format("<article class=\"article%s\"><a class=\"withFigure\" href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
-                        art.getArticleid(), ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null, null), pictureString, art.getArticletitle(), paragraph
+                        art.getArticleid(), ArticleUrl.getUrl("", art, null, null), pictureString, art.getArticletitle(), paragraph
                 ));
             }
         }
@@ -173,7 +173,7 @@ public class ArticleProcessor implements Callable<Article> {
         art.setPostedamp(ampHtml);
         if (null == art.getSummary()) {
             art.setSummary(String.format("<article class=\"article%s\"><header><a href=\"%s\"><h1>%s</h1></a></header>%s</article>",
-                    art.getArticleid(), ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), art, null, null), art.getArticletitle(), paragraph));
+                    art.getArticleid(), ArticleUrl.getUrl("", art, null, null), art.getArticletitle(), paragraph));
         }
         return art;
     }
@@ -183,8 +183,8 @@ public class ArticleProcessor implements Callable<Article> {
         if (null == attribs) {
             attribs = new HashMap<>();
         }
-        Fileupload fileUpload = file.get(FileServlet.getNameFromURL(url));
-        attribs.put("src", FileServlet.getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), fileUpload));
+        Fileupload fileUpload = file.get(BaseFileServlet.getNameFromURL(url));
+        attribs.put("src", BaseFileServlet.getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), fileUpload));
         attribs.put("type", fileUpload.getMimetype());
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileUpload.getFiledata()));

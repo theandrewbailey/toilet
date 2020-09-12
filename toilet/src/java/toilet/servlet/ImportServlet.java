@@ -4,16 +4,15 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.zip.ZipInputStream;
-import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.MultipartConfig;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.HashUtil;
-import libWebsiteTools.GuardFilter;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.HashUtil;
+import libWebsiteTools.security.GuardFilter;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.FirstTimeDetector;
 import toilet.bean.BackupDaemon;
@@ -22,12 +21,9 @@ import toilet.bean.BackupDaemon;
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1000) // 1000 megabytes
 public class ImportServlet extends ToiletServlet {
 
-    @EJB
-    private BackupDaemon backup;
-
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminLoginServlet.EDITPOSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        if (!AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
@@ -40,8 +36,8 @@ public class ImportServlet extends ToiletServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         if (FirstTimeDetector.FIRST_TIME_SETUP.equals(getServletContext().getAttribute(FirstTimeDetector.FIRST_TIME_SETUP))) {
             // this is OK
-        } else if (!AdminLoginServlet.EDITPOSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
-                || !HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.ADDARTICLE), AbstractInput.getParameter(request, "words"))) {
+        } else if (!AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
+                || !HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.ADD_ARTICLE), AbstractInput.getParameter(request, "words"))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
@@ -55,10 +51,10 @@ public class ImportServlet extends ToiletServlet {
             Long time = new Date().getTime() - start.getTime();
             log("Backup restored in " + time + " milliseconds.");
         } catch (Exception ex) {
-            error.add(request, "Restore from zip failed", null, ex);
+            error.logException(request, "Restore from zip failed", null, ex);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
-        response.sendRedirect(imead.getValue(SecurityRepo.CANONICAL_URL));
+        response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
     }
 }

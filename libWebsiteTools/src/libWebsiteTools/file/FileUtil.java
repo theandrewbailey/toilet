@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.Part;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.tag.AbstractInput;
 
 /**

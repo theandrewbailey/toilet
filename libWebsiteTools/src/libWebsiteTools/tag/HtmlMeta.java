@@ -12,9 +12,9 @@ import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.JspWriter;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.FileRepo;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
@@ -95,7 +95,7 @@ public class HtmlMeta extends SimpleTagSupport {
                 if (null != f && !f.isEmpty()) {
                     files.addAll(f);
                 } else {
-                    filenames.add(FileServlet.getNameFromURL(filename));
+                    filenames.add(BaseFileServlet.getNameFromURL(filename));
                 }
             }
             files.addAll(file.getFileMetadata(filenames));
@@ -112,6 +112,10 @@ public class HtmlMeta extends SimpleTagSupport {
         JspWriter output = getJspContext().getOut();
         if (showCss) {
             output.print(String.format("<meta charset=\"%s\"/>", ((PageContext) getJspContext()).getResponse().getCharacterEncoding()));
+            Object baseURL = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL);
+            if (null != baseURL) {
+                output.print(String.format("<base href=\"%s\"/>", baseURL.toString()));
+            }
             for (Filemetadata f : getCssFiles((HttpServletRequest) ((PageContext) getJspContext()).getRequest(), imead, file)) {
                 // TOTAL HACK: this assumes that the CSS is hosted locally 
                 try {
@@ -160,7 +164,7 @@ public class HtmlMeta extends SimpleTagSupport {
             if (feed instanceof iDynamicFeed) {
                 for (Map.Entry<String, String> entry : ((iDynamicFeed) feed).getFeedURLs(req).entrySet()) {
                     output.print(String.format("<link rel=\"alternate\" href=\"%srss/%s\" title=\"%s\" type=\"%s\">",
-                            imead.getValue(SecurityRepo.CANONICAL_URL), entry.getKey(), entry.getValue(), feed.getMimeType().toString()));
+                            imead.getValue(SecurityRepo.BASE_URL), entry.getKey(), entry.getValue(), feed.getMimeType().toString()));
                 }
             }
         }

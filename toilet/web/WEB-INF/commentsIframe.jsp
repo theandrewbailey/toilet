@@ -5,7 +5,6 @@
 <%@ taglib prefix="t" uri="uri:toilet" %><!DOCTYPE html>
 <html lang="${$_LIBIMEAD_PRIMARY_LOCALE.toLanguageTag()}" class="reset"><head>
     <h:meta/>
-    <base href="<h:local key="security_baseURL" locale=""/>"/>
     <h:localVar key="page_title"/><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
 </head><body class="reset">
 

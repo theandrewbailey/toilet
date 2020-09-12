@@ -14,11 +14,11 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.CertPath;
-import libWebsiteTools.CertUtil;
-import libWebsiteTools.HashUtil;
-import libWebsiteTools.GuardFilter;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.CertPath;
+import libWebsiteTools.security.CertUtil;
+import libWebsiteTools.security.HashUtil;
+import libWebsiteTools.security.GuardFilter;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCaches;
@@ -33,17 +33,17 @@ import toilet.rss.ErrorRss;
 @WebServlet(name = "AdminLoginServlet", description = "Populates admin view JSPs", urlPatterns = {"/adminLogin"})
 public class AdminLoginServlet extends ToiletServlet {
 
-    public static final String ADDARTICLE = "admin_addArticle";
-    public static final String CONTENT = "admin_content";
-    public static final String EDITPOSTS = "admin_editPosts";
+    public static final String ADD_ARTICLE = "admin_addArticle";
+    public static final String FILES = "admin_files";
+    public static final String EDIT_POSTS = "admin_editPosts";
+    public static final String ERROR_LOG = "admin_errorLog";
     public static final String HEALTH = "admin_health";
     public static final String IMEAD = "admin_imead";
-    public static final String LOG = "admin_log";
     public static final String RELOAD = "admin_reload";
     public static final String PERMISSION = "LOGIN";
-    public static final String HEALTH_COMMANDS = "site_health_commands";
+    public static final String HEALTH_COMMANDS = "site_healthCommands";
     public static final String ADMIN_ADD_ARTICLE = "WEB-INF/adminAddArticle.jsp";
-    public static final String ADMIN_CONTENT = "WEB-INF/adminContent.jsp";
+    public static final String ADMIN_CONTENT = "WEB-INF/adminFile.jsp";
     public static final String ADMIN_IMPORT = "WEB-INF/adminImport.jsp";
     public static final String ADMIN_HEALTH = "WEB-INF/adminHealth.jsp";
     public static final String ADMIN_EDIT_POSTS = "WEB-INF/adminEditPosts.jsp";
@@ -64,23 +64,23 @@ public class AdminLoginServlet extends ToiletServlet {
             }
 
             // this will take a while, so multithread
-            Future<Boolean> isAddArticle = exec.submit(new PasswordChecker(imead, answer, ADDARTICLE));
-            Future<Boolean> isContent = exec.submit(new PasswordChecker(imead, answer, CONTENT));
+            Future<Boolean> isAddArticle = exec.submit(new PasswordChecker(imead, answer, ADD_ARTICLE));
+            Future<Boolean> isContent = exec.submit(new PasswordChecker(imead, answer, FILES));
             Future<Boolean> isHealth = exec.submit(new PasswordChecker(imead, answer, HEALTH));
             Future<Boolean> isImead = exec.submit(new PasswordChecker(imead, answer, IMEAD));
-            Future<Boolean> isLog = exec.submit(new PasswordChecker(imead, answer, LOG));
-            Future<Boolean> isEditPosts = exec.submit(new PasswordChecker(imead, answer, EDITPOSTS));
+            Future<Boolean> isLog = exec.submit(new PasswordChecker(imead, answer, ERROR_LOG));
+            Future<Boolean> isEditPosts = exec.submit(new PasswordChecker(imead, answer, EDIT_POSTS));
             Future<Boolean> isReload = exec.submit(new PasswordChecker(imead, answer, RELOAD));
 
             if (isLog.get()) {
-                request.getSession().setAttribute(PERMISSION, LOG);
-                response.sendRedirect(imead.getValue(SecurityRepo.CANONICAL_URL) + "rss/" + ErrorRss.NAME);
+                request.getSession().setAttribute(PERMISSION, ERROR_LOG);
+                response.sendRedirect(imead.getValue(SecurityRepo.BASE_URL) + "rss/" + ErrorRss.NAME);
                 return;
             } else if (isEditPosts.get()) {
                 AdminArticle.showList(request, response, arts.getAll(null));
                 return;
             } else if (isAddArticle.get()) {
-                request.getSession().setAttribute(PERMISSION, ADDARTICLE);
+                request.getSession().setAttribute(PERMISSION, ADD_ARTICLE);
                 Article art = (Article) request.getSession().getAttribute(AdminArticle.LAST_ARTICLE_EDITED);
                 if (null == art) {
                     art = new Article();
@@ -88,13 +88,14 @@ public class AdminLoginServlet extends ToiletServlet {
                 AdminArticle.displayArticleEdit(request, response, art);
                 return;
             } else if (isContent.get()) {
-                AdminContent.showFileList(request, response, file.getFileMetadata(null));
+                AdminFile.showFileList(request, response, file.getFileMetadata(null));
                 return;
             } else if (isReload.get()) {
-                util.resetEverything();
+                cache.reset();
+                backup.backup();
                 request.getSession().invalidate();
                 request.getSession(true);
-                response.sendRedirect(imead.getValue(SecurityRepo.CANONICAL_URL));
+                response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                 return;
             } else if (isHealth.get()) {
                 request.getSession().setAttribute(PERMISSION, HEALTH);
@@ -141,7 +142,7 @@ public class AdminLoginServlet extends ToiletServlet {
                     }
                     request.setAttribute("certPaths", certPaths);
                 } catch (RuntimeException x) {
-                    error.add(request, "Certificate error", "building certificate chain", x);
+                    error.logException(request, "Certificate error", "building certificate chain", x);
                 }
                 request.setAttribute("certInfo", certInfo);
                 request.setAttribute("locales", Local.resolveLocales(request, imead));
@@ -154,13 +155,13 @@ public class AdminLoginServlet extends ToiletServlet {
                 return;
             }
         } catch (InterruptedException | ExecutionException ex) {
-            error.add(request, "Multithread Exception", "Something happened while verifying passwords", ex);
+            error.logException(request, "Multithread Exception", "Something happened while verifying passwords", ex);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             return;
         }
         request.getSession().setAttribute(PERMISSION, null);
-        error.add(request, null, "Tried to access restricted area.", null);
+        error.logException(request, null, "Tried to access restricted area.", null);
         request.setAttribute(GuardFilter.HANDLED_ERROR, true);
         request.getRequestDispatcher("/").forward(request, response);
     }

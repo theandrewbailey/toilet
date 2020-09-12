@@ -4,13 +4,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.Part;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 
 /**
  * base class for all input elements
@@ -23,7 +24,9 @@ public abstract class AbstractInput extends SimpleTagSupport {
     public static final String DISABLE_REFERRER_CHECKING = "$_LIBWEBSITETOOLS_DISABLE_REQUEST_TOKEN_REFERRER_CHECKING";
     //public static final String ORIGINAL_URL = "$_security_ORIGINAL_URL";
     public static final String ORIGINAL_REQUEST_URL = "$_LIBWEBSITETOOLS_ORIGINAL_REQUEST_URL";
+    // TODO: these should be merged somehow
     public static final String DEFAULT_PATTERN = "^[\\u{000A}\\u{000D}\\u{0020}-\\u{00FF}]*$";
+    public static final Pattern GENERAL_VALIDATION = Pattern.compile("^[\\x0A\\x0D\\x20-\\x7E\\u00A1-\\u052F]*$");
 
     public static final String[] INPUT_MODES = new String[]{"verbatim", "latin", "latin-name", "latin-prose",
         "full-width-latin", "kana", "katakana", "numeric", "tel", "email", "url"};
@@ -87,6 +90,19 @@ public abstract class AbstractInput extends SimpleTagSupport {
         return parts;
     }
 
+    public static String getTokenURL(HttpServletRequest req) {
+        if (null != req.getAttribute(ORIGINAL_REQUEST_URL)) {
+            return req.getAttribute(ORIGINAL_REQUEST_URL).toString();
+        }
+        StringBuffer urlBuf = req.getRequestURL();
+        if (req.getQueryString() != null) {
+            urlBuf.append("?").append(req.getQueryString());
+        }
+        String url = urlBuf.toString();
+        req.setAttribute(ORIGINAL_REQUEST_URL, url);
+        return url;
+    }
+
     public static String getIncomingHash(HttpServletRequest req, String str) {
         if (null != req.getServletContext().getAttribute(DISABLE_FIELDNAME_OBFUSCATION)
                 || (null != req.getSession(false)
@@ -98,19 +114,8 @@ public abstract class AbstractInput extends SimpleTagSupport {
                 && null != req.getSession().getAttribute(DISABLE_REFERRER_CHECKING))) {
             return HashUtil.getHmacSHA256Hash(req.getSession().getId(), str);
         }
-        return HashUtil.getHmacSHA256Hash(req.getSession().getId(), req.getHeader("referer") + str);
-    }
-
-    public static String getTokenURL(HttpServletRequest req) {
-        if (null != req.getAttribute(ORIGINAL_REQUEST_URL)) {
-            return req.getAttribute(ORIGINAL_REQUEST_URL).toString();
-        }
-        String url = req.getRequestURL().toString();
-        if (req.getQueryString() != null) {
-            url += "?" + req.getQueryString();
-        }
-        req.setAttribute(ORIGINAL_REQUEST_URL, url);
-        return url;
+        String url = req.getHeader("referer");
+        return HashUtil.getHmacSHA256Hash(req.getSession().getId(), url + str);
     }
 
     public static String getOutgoingHash(HttpServletRequest req, String str) {
@@ -124,7 +129,8 @@ public abstract class AbstractInput extends SimpleTagSupport {
                 && null != req.getSession().getAttribute(DISABLE_REFERRER_CHECKING))) {
             return HashUtil.getHmacSHA256Hash(req.getSession().getId(), str);
         }
-        return HashUtil.getHmacSHA256Hash(req.getSession().getId(), getTokenURL(req) + str);
+        String url = getTokenURL(req);
+        return HashUtil.getHmacSHA256Hash(req.getSession().getId(), url + str);
     }
 
     public abstract String getType();

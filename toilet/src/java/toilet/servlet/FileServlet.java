@@ -8,30 +8,30 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
 
-@WebServlet(name = "ContentServlet", description = "Handles uploading files, and serves files through inherited class", urlPatterns = {"/content", "/content/*", "/contentImmutable/*"})
+@WebServlet(name = "FileServlet", description = "Handles uploading files, and serves files through inherited class", urlPatterns = {"/file", "/file/*", "/fileImmutable/*"})
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1024) // 1 gigabyte
-public class ContentServlet extends FileServlet {
+public class FileServlet extends BaseFileServlet {
 
     public static final String DEFAULT_TYPE = "text/html;charset=UTF-8";
 
     @Override
     @SuppressWarnings("unchecked")
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminLoginServlet.CONTENT.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        if (!AdminLoginServlet.FILES.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
         super.doPost(request, response);
         try {
             Fileupload uploaded = ((List<Fileupload>) request.getAttribute("uploadedfiles")).get(0);
-            String[] split = AdminContent.splitDirectoryAndName(uploaded.getFilename());
+            String[] split = AdminFile.splitDirectoryAndName(uploaded.getFilename());
             request.setAttribute("opened_dir", split[0]);
         } catch (RuntimeException r) {
         }
-        AdminContent.showFileList(request, response, file.getFileMetadata(null));
+        AdminFile.showFileList(request, response, file.getFileMetadata(null));
     }
 
     @Override

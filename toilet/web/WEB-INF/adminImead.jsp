@@ -1,13 +1,13 @@
 <%@ page trimDirectiveWhitespaces="true" %>
 <%@ include file="/WEB-INF/head.jspf" %>
 <c:if test="${ERROR_MESSAGE != null}"><p class="error">${ERROR_MESSAGE}</p></c:if>
-<form action="<h:local key="security_baseURL" locale=""/>adminImead" method="post" class="adminform adminImead" accept-charset="UTF-8">
+<form action="adminImead" method="post" class="adminform adminImead" accept-charset="UTF-8">
     <h:button type="submit" id="action" value="save"><h:local key="page_save"/></h:button>
     <h:localVar key="page_patternMismatch" var="patternMismatch" /><h:localVar key="page_valueMissing" var="valueMissing" />
     <h:datalist id="localeList" options="${locales}"/>
     <c:set scope="page" var="propCount" value="${0}"/>
 
-    <details open="true"><summary>Security:</summary><table><thead><tr><th><h:local key="page_setup_key"/></th><th><h:local key="page_setup_value"/></th></tr></thead>
+    <details open="true"><summary>Security:</summary><table><thead><tr><th><h:local key="page_setupKey"/></th><th><h:local key="page_setupValue"/></th></tr></thead>
     <c:forEach items="${security}" var="prop">
         <tr class="secondmin <c:if test="${ERRORS.contains(prop.localizationPK)}">error</c:if>"><td>
             ${prop.localizationPK.key}<h:hidden id="key${propCount}" value="${prop.localizationPK.key}" /><h:hidden id="locale${propCount}" value="" />
@@ -20,11 +20,13 @@
 
     <c:forEach items="${imeadProperties}" var="imeadProp">
     <details open="true"><summary>${imeadProp.key}</summary>
-    <table><thead><tr><th><h:local key="page_setup_key"/></th><th><h:local key="page_setup_value"/></th><c:if test="${FIRST_TIME_SETUP != 'FIRST_TIME_SETUP'}"><th></th></c:if></tr></thead>
+    <table><thead><tr><th><h:local key="page_setupKey"/></th><th><h:local key="page_setupValue"/></th><c:if test="${FIRST_TIME_SETUP != 'FIRST_TIME_SETUP'}"><th></th></c:if></tr></thead>
     <c:forEach items="${imeadProp.value}" var="prop">
     <tr class="secondmin"><td>
-        ${prop.localizationPK.key}<h:hidden id="key${propCount}" value="${prop.localizationPK.key}" />
+        ${prop.localizationPK.key}
         </td><td>
+            <h:hidden id="key${propCount}" value="${prop.localizationPK.key}" />
+            <h:hidden id="locale${propCount}" value="${imeadProp.key}" />
             <h:textarea id="value${propCount}" label="" length="80" labelNextLine="false" value="${prop.value}" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" />
         </td>
     <c:if test="${FIRST_TIME_SETUP != 'FIRST_TIME_SETUP'}"><td><h:button type="submit" id="action" value="delete|${imeadProp.key}|${prop.localizationPK.key}"><h:local key="page_delete"/></h:button><h:hidden id="locale${propCount}" value="${imeadProp.key}" /></td></c:if>
@@ -41,13 +43,13 @@
             <td><h:textarea id="value${newCount}" label="" length="70" labelNextLine="false" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" /></td>
         </tr></c:forEach>
     </table>
-    <h:button type="submit" id="action" value="save"><h:local key="page_setup_add"/></h:button>
+    <h:button type="submit" id="action" value="save"><h:local key="page_setupAdd"/></h:button>
 </form>
 <c:if test="${FIRST_TIME_SETUP == 'FIRST_TIME_SETUP'}">
-    <form action="<h:local key="security_baseURL" locale=""/>import" method="POST" enctype="multipart/form-data" accept-charset="UTF-8">
-        <fieldset><legend><h:local key="page_setup_restore"/></legend>
+    <form action="import" method="POST" enctype="multipart/form-data" accept-charset="UTF-8">
+        <fieldset><legend><h:local key="page_setupRestore"/></legend>
             <h:file id="zip" label="Upload a backup: " labelNextLine="false" />
-            <h:button type="submit" id="action" value="Upload"><h:local key="page_setup_upload"/></h:button>
+            <h:button type="submit" id="action" value="Upload"><h:local key="page_setupUpload"/></h:button>
         </fieldset>
     </form>
 </c:if>

@@ -12,6 +12,7 @@ import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import javax.annotation.PostConstruct;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
@@ -21,13 +22,11 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.db.Repository;
 
 /**
  * Internationalization Made Easy And Dynamic
- *
- * run DB scripts before using
  *
  * @author alpha
  */
@@ -39,8 +38,8 @@ public class IMEADHolder implements Repository<Localization> {
     public static final String LOCAL_NAME = "java:module/IMEADHolder";
     private static final Logger LOG = Logger.getLogger(IMEADHolder.class.getName());
     private Map<Locale, Properties> localizedCache = new HashMap<>();
+    private final Map<String, List<Pattern>> patterns = new HashMap<>();
     private String localizedHash = "";
-
     @PersistenceUnit
     private EntityManagerFactory PU;
 
@@ -54,6 +53,7 @@ public class IMEADHolder implements Repository<Localization> {
         PU.getCache().evict(Localization.class);
         localizedCache = Collections.unmodifiableMap(getProperties());
         localizedHash = HashUtil.getSHA256Hash(localizedCache.toString());
+        patterns.clear();
         LOG.exiting(IMEADHolder.class.getName(), "evict");
     }
 
@@ -186,6 +186,26 @@ public class IMEADHolder implements Repository<Localization> {
         }
     }
 
+    public List<Pattern> getPatterns(String key) {
+        if (!patterns.containsKey(key)) {
+            List<Pattern> temps = new ArrayList<>();
+            for (String line : getValue(key).split("\n")) {
+                temps.add(Pattern.compile(line.replaceAll("\r", "")));
+            }
+            patterns.put(key, Collections.unmodifiableList(temps));
+        }
+        return patterns.get(key);
+    }
+
+    public static boolean matchesAny(CharSequence subject, List<Pattern> regexes) {
+        for (Pattern p : regexes) {
+            if (p.matcher(subject).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public Collection<Locale> getLocales() {
         return localizedCache.keySet();
     }
@@ -210,7 +230,11 @@ public class IMEADHolder implements Repository<Localization> {
      * @return value from keyValue map (from DB)
      */
     public String getValue(String key) {
-        return getLocal(key, Locale.ROOT);
+        try {
+            return localizedCache.get(Locale.ROOT).getProperty(key);
+        } catch (NullPointerException n) {
+            return null;
+        }
     }
 
     /**
@@ -235,21 +259,6 @@ public class IMEADHolder implements Repository<Localization> {
     }
 
     /**
-     * try to get value for key in specified locale (as locale).
-     *
-     * @param key
-     * @param locale
-     * @return value || null
-     */
-    public String getLocal(String key, Locale locale) {
-        try {
-            return localizedCache.get(locale).getProperty(key);
-        } catch (NullPointerException n) {
-            return null;
-        }
-    }
-
-    /**
      * try to get value for key in specified locale (as String). will return
      * null if key not in locale, will throw NullPointerException if locale does
      * not exist.
@@ -262,9 +271,13 @@ public class IMEADHolder implements Repository<Localization> {
     public String getLocal(String key, String locale) {
         Locale l = Locale.forLanguageTag(locale);
         if (null == l) {
-            throw new NullPointerException("Locale " + locale + " is not valid.");
+            throw new LocalizedStringNotFoundException("anything (as in, not set up)", locale);
         }
-        return localizedCache.get(l).getProperty(key);
+        try {
+            return localizedCache.get(l).getProperty(key);
+        } catch (NullPointerException n) {
+            throw new LocalizedStringNotFoundException(key, locale);
+        }
     }
 
     /**

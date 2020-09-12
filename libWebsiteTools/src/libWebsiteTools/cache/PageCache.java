@@ -21,9 +21,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.tag.AbstractInput;
 
 /**
  *
@@ -66,11 +67,7 @@ public class PageCache implements Cache<String, CachedPage> {
     public static String getLookup(HttpServletRequest req, IMEADHolder imead) {
         Object lookup = req.getAttribute("$_PAGECACHE_LOOKUP");
         if (null == lookup) {
-            StringBuilder lookupBuild = new StringBuilder(200).append(req.getRequestURL().toString());
-            String query = req.getQueryString();
-            if (null != query) {
-                lookupBuild.append("?").append(query);
-            }
+            StringBuilder lookupBuild = new StringBuilder(300).append(req.getAttribute(AbstractInput.ORIGINAL_REQUEST_URL).toString());
             lookupBuild.append("\n").append(JspFilter.getCompression(req));
             lookupBuild.append("; ").append(Local.getLocaleString(req, imead));
             lookupBuild.append("; ").append(imead.getLocalizedHash());

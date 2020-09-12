@@ -49,14 +49,13 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import libWebsiteTools.bean.ExceptionRepo;
-import libWebsiteTools.bean.SecurityRepo;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.SecurityRepo;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.Markdowner;
 import libWebsiteTools.XmlNodeSearcher;
 import libWebsiteTools.file.Brotlier;
-import libWebsiteTools.file.FileServlet;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.file.Gzipper;
@@ -74,6 +73,7 @@ import toilet.db.Section;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
 import toilet.rss.ToiletRssItem;
+import toilet.servlet.ToiletServlet;
 
 /**
  * so I can sleep at night, knowing my stuff is being backed up
@@ -97,13 +97,13 @@ public class BackupDaemon {
     @EJB
     private CommentRepo comms;
     @EJB
-    private ExceptionRepo error;
+    private SecurityRepo error;
     @EJB
     private IMEADHolder imead;
     @EJB
     private FileRepo fileRepo;
     @EJB
-    private UtilBean util;
+    private FeedBucket feeds;
     @Resource
     private ManagedExecutorService exec;
 
@@ -148,7 +148,7 @@ public class BackupDaemon {
                     writeFile(fn, f.getFiledata());
                 } catch (IOException ex) {
                     LOG.log(Level.SEVERE, "Error writing " + f.getFilename(), ex);
-                    error.add(null, "Backup failure", ex.getMessage() + ExceptionRepo.NEWLINE + "while backing up " + fn, null);
+                    error.logException(null, "Backup failure", ex.getMessage() + SecurityRepo.NEWLINE + "while backing up " + fn, null);
                 }
                 mimes.append(f.getFilename()).append(": ").append(f.getMimetype()).append('\n');
             }
@@ -159,21 +159,21 @@ public class BackupDaemon {
             writeFile(master + MIMES_TXT, mimes.toString().getBytes("UTF-8"));
         } catch (IOException ex) {
             LOG.log(Level.SEVERE, "Error writing mimes.txt: " + master + MIMES_TXT, ex);
-            error.add(null, "Backup failure", "Error writing mimes.txt: " + master + MIMES_TXT, ex);
+            error.logException(null, "Backup failure", "Error writing mimes.txt: " + master + MIMES_TXT, ex);
         }
         try {
             LOG.log(Level.FINE, "Writing Articles.rss");
             writeFile(master + File.separator + ArticleRss.NAME, xmlToBytes(new ArticleRss().createFeed(null, null)));
         } catch (IOException ex) {
             LOG.log(Level.SEVERE, "Error writing Articles.rss to file: " + master + File.separator + ArticleRss.NAME, ex);
-            error.add(null, "Backup failure", "Error writing Articles.rss to file: " + master + File.separator + ArticleRss.NAME, ex);
+            error.logException(null, "Backup failure", "Error writing Articles.rss to file: " + master + File.separator + ArticleRss.NAME, ex);
         }
         try {
             LOG.log(Level.FINE, "Writing Comments.rss");
             writeFile(master + File.separator + CommentRss.NAME, xmlToBytes(new CommentRss().createFeed(null, null)));
         } catch (IOException ex) {
             LOG.log(Level.SEVERE, "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
-            error.add(null, "Backup failure", "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
+            error.logException(null, "Backup failure", "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
         }
         LOG.info("Backup procedure finished");
         LOG.exiting(BackupDaemon.class.getName(), "backup");
@@ -210,36 +210,35 @@ public class BackupDaemon {
                                     Article art = new Article();
                                     art.setComments(Boolean.FALSE);
                                     for (Node component : new XmlNodeSearcher(item, "link")) {
-                                        art.setArticleid(Integer.decode(StateCache.getArticleIdFromURI(component.getTextContent())));
+                                        art.setArticleid(Integer.decode(StateCache.getArticleIdFromURI(component.getTextContent().trim())));
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "title")) {
-                                        String[] parts = component.getTextContent().split(": ", 2);
-                                        art.setArticletitle(parts.length == 2 ? parts[1] : "");
+                                        art.setArticletitle(component.getTextContent().trim());
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "pubDate")) {
-                                        art.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent()));
+                                        art.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent().trim()));
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "category")) {
-                                        art.setSectionid(new Section(null, component.getTextContent()));
+                                        art.setSectionid(new Section(null, component.getTextContent().trim()));
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "comments")) {
                                         art.setComments(Boolean.TRUE);
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "author")) {
-                                        art.setPostedname(component.getTextContent());
+                                        art.setPostedname(component.getTextContent().trim());
                                     }
                                     for (Node component : new XmlNodeSearcher(item, ToiletRssItem.TAB_METADESC_ELEMENT_NAME)) {
                                         try {
-                                            art.setDescription(URLDecoder.decode(component.getTextContent(), "UTF-8"));
+                                            art.setDescription(URLDecoder.decode(component.getTextContent().trim(), "UTF-8"));
                                         } catch (UnsupportedEncodingException enc) {
                                             throw new JVMNotSupportedError(enc);
                                         }
                                     }
                                     for (Node component : new XmlNodeSearcher(item, ToiletRssItem.MARKDOWN_ELEMENT_NAME)) {
-                                        art.setPostedmarkdown(component.getTextContent());
+                                        art.setPostedmarkdown(component.getTextContent().trim());
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "description")) {
-                                        art.setPostedhtml(component.getTextContent());
+                                        art.setPostedhtml(component.getTextContent().trim());
                                     }
                                     art.setCommentCollection(null);
                                     // conversion
@@ -249,7 +248,7 @@ public class BackupDaemon {
                                     return art;
                                 }));
                             }
-                            arts.deleteEverything();
+                            arts.delete(null);
                             return conversionTasks;
                         });
                         break;
@@ -311,7 +310,7 @@ public class BackupDaemon {
                                     }
                                     imead.upsert(localizations);
                                 } catch (IOException ex) {
-                                    error.add(null, "Can't restore properties", "Can't restore properties for locale " + locale, ex);
+                                    error.logException(null, "Can't restore properties", "Can't restore properties for locale " + locale, ex);
                                 }
                                 return props;
                             }));
@@ -357,7 +356,7 @@ public class BackupDaemon {
                             if (mimes.containsKey(file.getFilename())) {
                                 file.setMimetype(mimes.get(file.getFilename()));
                             }
-                            String fileUrl = FileServlet.getImmutableURL(imead.getValue(SecurityRepo.CANONICAL_URL), file);
+                            String fileUrl = BaseFileServlet.getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), file);
                             file.setUrl(fileUrl);
                             files.add(file);
                         }
@@ -430,8 +429,7 @@ public class BackupDaemon {
         UtilStatic.finish(altTasks).clear();
         imead.evict();
         exec.submit(() -> {
-            util.resetArticleFeed();
-            util.resetCommentFeed();
+            feeds.get(ArticleRss.NAME).preAdd();
             arts.refreshSearch();
             fileRepo.processArchive((f) -> {
                 exec.submit(new Brotlier(f));
@@ -453,12 +451,12 @@ public class BackupDaemon {
         String master = imead.getValue(MASTER_DIR);
         String zipName = getZipName();
         String fn = master + zipName;
-        try ( FileOutputStream out = new FileOutputStream(fn)) {
+        try (FileOutputStream out = new FileOutputStream(fn)) {
             createZip(out, Arrays.asList(BackupTypes.values()));
             LOG.info("Backup to zip procedure finished");
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Error writing zip file: " + fn, ex);
-            error.add(null, "Backup failure", ex.getMessage() + ExceptionRepo.NEWLINE + "while backing up " + fn, null);
+            error.logException(null, "Backup failure", ex.getMessage() + SecurityRepo.NEWLINE + "while backing up " + fn, null);
         }
         LOG.exiting(BackupDaemon.class.getName(), "backupToZip");
     }
@@ -473,7 +471,7 @@ public class BackupDaemon {
     public void createZip(OutputStream wrapped, List<BackupTypes> types) {
         final Queue<Future> altTasks = new ConcurrentLinkedQueue<>();
         long time = new Date().getTime();
-        try ( ZipOutputStream zip = new ZipOutputStream(wrapped)) {
+        try (ZipOutputStream zip = new ZipOutputStream(wrapped)) {
             if (types.contains(BackupTypes.ARTICLES)) {
                 altTasks.add(exec.submit(() -> {
                     byte[] xmlBytes = xmlToBytes(new ArticleRss().createFeed(null, null));
@@ -509,7 +507,7 @@ public class BackupDaemon {
                             String localeString = l != Locale.ROOT ? l.toLanguageTag() : "";
                             localeFiles.put(localeString, propertiesContent.toString());
                         } catch (IOException ex) {
-                            error.add(null, "Can't backup properties", "Can't backup properties for locale " + l.toLanguageTag(), ex);
+                            error.logException(null, "Can't backup properties", "Can't backup properties for locale " + l.toLanguageTag(), ex);
                         }
                     }
                     synchronized (zip) {
@@ -576,7 +574,7 @@ public class BackupDaemon {
      * + ".zip"
      */
     public String getZipName() {
-        return imead.getLocal(UtilBean.SITE_TITLE, "en").replaceAll("[^\\w]", "") + new SimpleDateFormat("yyyyMMdd'.zip'").format(new Date());
+        return imead.getLocal(ToiletServlet.SITE_TITLE, "en").replaceAll("[^\\w]", "") + new SimpleDateFormat("yyyyMMdd'.zip'").format(new Date());
     }
 
     /**
@@ -643,7 +641,7 @@ public class BackupDaemon {
             }
             f.createNewFile();
         }
-        try ( FileOutputStream tempStr = new FileOutputStream(f, false)) {
+        try (FileOutputStream tempStr = new FileOutputStream(f, false)) {
             tempStr.write(content);
         }
     }

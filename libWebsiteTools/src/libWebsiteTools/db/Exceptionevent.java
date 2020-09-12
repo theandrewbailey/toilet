@@ -24,7 +24,8 @@ import javax.validation.constraints.Size;
 @Table(name = "exceptionevent", schema = "tools")
 @NamedQueries({
     @NamedQuery(name = "Exceptionevent.findAll", query = "SELECT e FROM Exceptionevent e ORDER BY e.atime DESC"),
-    @NamedQuery(name = "Exceptionevent.findByExceptioneventid", query = "SELECT e FROM Exceptionevent e WHERE e.exceptioneventid = :exceptioneventid")})
+    @NamedQuery(name = "Exceptionevent.findByExceptioneventid", query = "SELECT e FROM Exceptionevent e WHERE e.exceptioneventid = :exceptioneventid"),
+    @NamedQuery(name = "Exceptionevent.clean", query = "DELETE FROM Exceptionevent e WHERE e.atime < :past")})
 public class Exceptionevent implements Serializable {
 
     private static final long serialVersionUID = 1L;

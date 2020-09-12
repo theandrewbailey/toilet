@@ -1,4 +1,4 @@
-package libWebsiteTools;
+package libWebsiteTools.security;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -34,6 +34,7 @@ import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import javax.security.auth.x500.X500Principal;
 import javax.ws.rs.core.MultivaluedHashMap;
+import libWebsiteTools.JVMNotSupportedError;
 
 /**
  *

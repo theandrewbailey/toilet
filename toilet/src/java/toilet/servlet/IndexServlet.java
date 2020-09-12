@@ -10,13 +10,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.bean.SecurityRepo;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.FirstTimeDetector;
-import toilet.UtilStatic;
 import toilet.bean.StateCache;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
 
 @WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/", "/index", "/index/*"})
@@ -34,7 +32,7 @@ public class IndexServlet extends ToiletServlet {
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
-        Date latest = UtilStatic.EPOCH;
+        Date latest = new Date(0);
         StateCache.IndexFetcher f = getIndexFetcher(request);
         request.setAttribute(StateCache.IndexFetcher.class.getCanonicalName(), f);
         for (Article a : f.getArticles()) {
@@ -82,7 +80,6 @@ public class IndexServlet extends ToiletServlet {
         StateCache.IndexFetcher f = (StateCache.IndexFetcher) request.getAttribute(StateCache.IndexFetcher.class.getCanonicalName());
         if (null != f && !response.isCommitted()) {
             Collection<Article> articles = f.getArticles();
-
             // dont bother if there is only 1 page total
             if (f.getCount() > 1) {
                 request.setAttribute("pagen_first", f.getFirst());
@@ -90,7 +87,7 @@ public class IndexServlet extends ToiletServlet {
                 request.setAttribute("pagen_current", f.getPage());
                 request.setAttribute("pagen_count", f.getCount());
             } else if (null == f.getSection() && 0 == arts.count()) {
-                String message = MessageFormat.format(imead.getLocal("page_noposts", Local.resolveLocales(request, imead)), new Object[]{imead.getValue(SecurityRepo.CANONICAL_URL) + "adminLogin"});
+                String message = MessageFormat.format(imead.getLocal("page_noPosts", Local.resolveLocales(request, imead)), new Object[]{request.getAttribute(SecurityRepo.BASE_URL).toString() + "adminLogin"});
                 request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, message);
                 request.getServletContext().getRequestDispatcher(CoronerServlet.ERROR_JSP).forward(request, response);
                 return;
@@ -110,9 +107,8 @@ public class IndexServlet extends ToiletServlet {
                 }
             }
             HtmlMeta.addPropertyTag(request, "og:description", f.getDescription());
-            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(UtilBean.SITE_TITLE, "en"));
+            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
             HtmlMeta.addPropertyTag(request, "og:type", "website");
-
             HtmlMeta.addNameTag(request, "description", f.getDescription());
             request.getServletContext().getRequestDispatcher(HOME_JSP).forward(request, response);
         }

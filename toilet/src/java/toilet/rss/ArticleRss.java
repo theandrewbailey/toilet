@@ -2,7 +2,6 @@ package toilet.rss;
 
 import java.io.StringWriter;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -21,8 +20,8 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import libWebsiteTools.bean.SecurityRepo;
-import libWebsiteTools.HashUtil;
+import libWebsiteTools.security.SecurityRepo;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.AbstractRssFeed;
 import libWebsiteTools.rss.RssChannel;
@@ -34,9 +33,10 @@ import org.w3c.dom.Document;
 import toilet.UtilStatic;
 import toilet.bean.ArticleRepo;
 import toilet.bean.StateCache;
-import toilet.bean.UtilBean;
 import toilet.db.Article;
+import toilet.servlet.ToiletServlet;
 import toilet.tag.ArticleUrl;
+import toilet.tag.Categorizer;
 
 @WebListener("The RSS feed for articles, autoadded")
 public class ArticleRss extends AbstractRssFeed implements iDynamicFeed {
@@ -61,34 +61,31 @@ public class ArticleRss extends AbstractRssFeed implements iDynamicFeed {
         // if instantiated manually
         if (arts == null && imead == null) {
             arts = UtilStatic.getBean(ArticleRepo.LOCAL_NAME, ArticleRepo.class);
-            imead = UtilStatic.getBean(UtilBean.IMEAD_LOCAL_NAME, IMEADHolder.class);
+            imead = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class);
         }
-
         RssChannel entries = new RssChannel(null == category
-                ? imead.getLocal(UtilBean.SITE_TITLE, "en")
-                : imead.getLocal(UtilBean.SITE_TITLE, "en") + " - " + category,
-                imead.getValue(SecurityRepo.CANONICAL_URL), imead.getLocal(UtilBean.TAGLINE, "en"));
-        entries.setWebMaster(imead.getValue(UtilBean.MASTER));
+                ? imead.getLocal(ToiletServlet.SITE_TITLE, "en")
+                : imead.getLocal(ToiletServlet.SITE_TITLE, "en") + " - " + category,
+                imead.getValue(SecurityRepo.BASE_URL), imead.getLocal(ToiletServlet.TAGLINE, "en"));
+        entries.setWebMaster(imead.getValue(AbstractRssFeed.MASTER));
         entries.setManagingEditor(entries.getWebMaster());
-        entries.setLanguage(imead.getValue(UtilBean.LANGUAGE));
-        entries.setCopyright(imead.getValue(UtilBean.COPYRIGHT));
-
-        Collection<Article> articles = arts.getSection(category, 1, numEntries);
-
-        for (Article e : articles) {
-            String text = e.getPostedhtml();
+        entries.setLanguage(imead.getValue(AbstractRssFeed.LANGUAGE));
+        entries.setCopyright(imead.getValue(AbstractRssFeed.COPYRIGHT));
+        for (Article art : arts.getSection(category, 1, numEntries)) {
+            String text = art.getPostedhtml();
             ToiletRssItem i = new ToiletRssItem(text);
             entries.addItem(i);
-            i.setTitle(e.getArticletitle());
+            i.setTitle(art.getArticletitle());
             i.setAuthor(entries.getWebMaster());
-            i.setLink(ArticleUrl.getUrl(imead.getValue(SecurityRepo.CANONICAL_URL), e, null, null));
+            i.setLink(ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), art, null, null));
             i.setGuid(i.getLink());
             i.setGuidPermaLink(true);
-            i.setPubDate(e.getPosted());
-            i.setMarkdownSource(e.getPostedmarkdown());
-            i.setDescription(e.getPostedhtml());
-            i.setMetadescription(e.getDescription());
-            if (e.getComments()) {
+            i.setPubDate(art.getPosted());
+            i.setMarkdownSource(art.getPostedmarkdown());
+            i.setDescription(art.getPostedhtml());
+            i.setMetadescription(art.getDescription());
+            i.addCategory(art.getSectionid().getName(), Categorizer.getUrl(imead.getValue(SecurityRepo.BASE_URL), category, null, null));
+            if (art.getComments()) {
                 i.setComments(i.getLink() + "#comments");
             }
         }
@@ -131,7 +128,7 @@ public class ArticleRss extends AbstractRssFeed implements iDynamicFeed {
                 temp.put(cat + getName(), cat + " articles");
             }
             URLs = Collections.unmodifiableMap(temp);
-        } catch (NumberFormatException n) {
+        } catch (RuntimeException r) {
             LOG.log(Level.SEVERE, "Comment feed will not be available due to an invalid parameter.");
             return null;
         }
