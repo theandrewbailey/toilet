@@ -2,6 +2,7 @@ package libWebsiteTools.cache;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -35,9 +36,15 @@ public final class PageCaches implements CacheManager {
      * Checks all caches for expired pages.
      */
     public void sweep() {
+        Long now = new Date().getTime();
         for (PageCache cache : caches.values()) {
             for (Map.Entry<String, CachedPage> entry : cache.getAll(null).entrySet()) {
                 CachedPage page = cache.get(entry.getKey());
+                // hasn't been used more than once per hour? drop it
+                if (null != page
+                        && Math.max(Double.valueOf(page.getHits()), 1.0) / ((now - page.getCreated().getTime()) / 3600000.0) < 1.0) {
+                    cache.remove(entry.getKey());
+                }
             }
         }
     }
@@ -91,9 +98,9 @@ public final class PageCaches implements CacheManager {
 
     @Override
     public void destroyCache(String name) {
-        PageCache cache = caches.remove(name);
-        cache.clear();
-        cache.close();
+        try (PageCache cache = caches.remove(name)) {
+            cache.clear();
+        }
     }
 
     @Override

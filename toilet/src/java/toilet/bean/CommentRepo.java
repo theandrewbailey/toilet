@@ -8,14 +8,15 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
+import javax.ejb.Singleton;
 import javax.ejb.Startup;
-import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.db.Repository;
 import toilet.db.Article;
 import toilet.db.Comment;
@@ -25,11 +26,11 @@ import toilet.db.Comment;
  * @author alpha
  */
 @Startup
-@Stateless
+@Singleton
 @LocalBean
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class CommentRepo implements Repository<Comment> {
 
-    public static final String LOCAL_NAME = "java:module/CommentRepo";
     private static final Logger LOG = Logger.getLogger(CommentRepo.class.getName());
     @PersistenceUnit
     private EntityManagerFactory toiletPU;
@@ -76,7 +77,7 @@ public class CommentRepo implements Repository<Comment> {
     public Comment get(Object commentId) {
         EntityManager em = toiletPU.createEntityManager();
         try {
-            return em.find(Comment.class, commentId, SecurityRepo.USE_CACHE_HINT);
+            return em.find(Comment.class, commentId);
         } finally {
             em.close();
         }
@@ -118,7 +119,7 @@ public class CommentRepo implements Repository<Comment> {
 
     @Override
     public void processArchive(Consumer<Comment> operation, Boolean transaction) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override

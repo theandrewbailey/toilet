@@ -14,13 +14,13 @@ public class CachedContent extends CachedPage {
 
     private final List<Pattern> acceptableDomains;
 
-    public CachedContent(HttpServletResponse res, byte[] capturedBody, List<Pattern> acceptableDomains) {
-        super(res, capturedBody);
+    public CachedContent(List<Pattern> acceptableDomains, HttpServletResponse res, byte[] capturedBody, String lookup) {
+        super(res, capturedBody, lookup);
         this.acceptableDomains = acceptableDomains;
     }
 
     @Override
     public boolean isApplicable(HttpServletRequest req) {
-        return BaseFileServlet.isAuthorized(getContentType(), acceptableDomains, req);
+        return BaseFileServlet.isAuthorized(req, getContentType(), acceptableDomains);
     }
 }

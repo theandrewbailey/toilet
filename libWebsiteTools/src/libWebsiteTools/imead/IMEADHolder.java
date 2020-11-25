@@ -18,6 +18,7 @@ import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
+import javax.ejb.Startup;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
@@ -30,12 +31,12 @@ import libWebsiteTools.db.Repository;
  *
  * @author alpha
  */
+@Startup
 @Singleton
 @LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class IMEADHolder implements Repository<Localization> {
 
-    public static final String LOCAL_NAME = "java:module/IMEADHolder";
     private static final Logger LOG = Logger.getLogger(IMEADHolder.class.getName());
     private Map<Locale, Properties> localizedCache = new HashMap<>();
     private final Map<String, List<Pattern>> patterns = new HashMap<>();

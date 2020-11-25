@@ -23,12 +23,12 @@ public class WellKnownServlet extends ToiletServlet {
         String URL = request.getRequestURI().replaceFirst(request.getServletContext().getContextPath(), "");
         switch (URL) {
             case "/favicon.ico":
-                ToiletServlet.permaMove(response, imead.getValue("site_favicon"));
+                ToiletServlet.permaMove(response, beans.getImeadValue("site_favicon"));
                 break;
             default:
                 if (URL.contains("/.well-known/")) {
                     request.getServletContext().getRequestDispatcher(URL.replaceFirst("/.well-known/", "/content/")).forward(request, response);
-                } else if (null != file.get(URL.substring(1))) {
+                } else if (null != beans.getFile().get(URL.substring(1))) {
                     String next = "/file" + URL;
                     request.getServletContext().getRequestDispatcher(next).forward(request, response);
                 } else {

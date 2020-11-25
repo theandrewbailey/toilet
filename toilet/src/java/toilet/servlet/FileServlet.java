@@ -31,7 +31,7 @@ public class FileServlet extends BaseFileServlet {
             request.setAttribute("opened_dir", split[0]);
         } catch (RuntimeException r) {
         }
-        AdminFile.showFileList(request, response, file.getFileMetadata(null));
+        AdminFile.showFileList(request, response, beans.getFile().getFileMetadata(null));
     }
 
     @Override

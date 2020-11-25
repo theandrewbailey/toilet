@@ -11,7 +11,7 @@ CREATE SEQUENCE IF NOT EXISTS tools.exceptionevent_exceptioneventid_seq START WI
 CREATE TABLE IF NOT EXISTS tools.fileupload (filename character varying(1000) NOT NULL, atime timestamp without time zone NOT NULL, etag character(250) NOT NULL, filedata bytea NOT NULL, brdata bytea, gzipdata bytea, mimetype character varying(100) NOT NULL, url character varying(65000), CONSTRAINT fileupload_pk PRIMARY KEY (filename));
 CREATE TABLE IF NOT EXISTS tools.honeypot (honeypotid integer NOT NULL, expiresatatime timestamp without time zone NOT NULL, ip character varying(100) NOT NULL, startedatatime timestamp without time zone NOT NULL, CONSTRAINT honeypot_pk PRIMARY KEY (honeypotid));
 CREATE SEQUENCE IF NOT EXISTS tools.honeypot_honeypotid_seq START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1 OWNED BY tools.honeypot.honeypotid;
-CREATE TABLE IF NOT EXISTS tools.localization (key character varying(1000) NOT NULL, localecode character varying(100), value character varying(65000) NOT NULL, CONSTRAINT localization_pk PRIMARY KEY (key, localecode));
+CREATE TABLE IF NOT EXISTS tools.localization (key character varying(1000) NOT NULL, localecode character varying(100) NOT NULL, value character varying(65000) NOT NULL, CONSTRAINT localization_pk PRIMARY KEY (key, localecode));
 ALTER TABLE ONLY toilet.article ALTER COLUMN articleid SET DEFAULT nextval('toilet.article_articleid_seq'::regclass);
 ALTER TABLE ONLY toilet.comment ALTER COLUMN commentid SET DEFAULT nextval('toilet.comment_commentid_seq'::regclass);
 ALTER TABLE ONLY toilet.section ALTER COLUMN sectionid SET DEFAULT nextval('toilet.section_sectionid_seq'::regclass);

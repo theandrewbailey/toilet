@@ -4,12 +4,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
@@ -22,6 +19,7 @@ import javax.ejb.EJB;
 import javax.ejb.LocalBean;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
+import javax.ejb.Startup;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -39,6 +37,7 @@ import libWebsiteTools.imead.IMEADHolder;
  *
  * @author alpha
  */
+@Startup
 @Singleton
 @LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
@@ -50,12 +49,6 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     public static final Pattern ORIGIN_PATTERN = Pattern.compile("^((https?://)([^/]+))(/.*)?$");
     public static final String BASE_URL = "security_baseURL";
     public static final String ALLOWED_ORIGINS = "security_allowedOrigins";
-    public static final Map<String, Object> USE_CACHE_HINT = Collections.unmodifiableMap(new HashMap<String, Object>() {
-        {
-            put("javax.persistence.cache.retrieveMode", "USE");
-            put("javax.persistence.cache.storeMode", "USE");
-        }
-    });
     public static final String DENIED_USER_AGENTS = "security_deniedAgents";
     public static final String HONEYPOTS = "security_honeypots";
     private static final String HONEYPOT_INITIAL_BLOCK_TIME = "security_initialBlock";
@@ -69,7 +62,7 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     private EntityManagerFactory PU;
 
     @PostConstruct
-    @Schedule(hour = "1")
+    @Schedule(persistent = false, hour = "1")
     @Override
     public void evict() {
         exec.submit(() -> {

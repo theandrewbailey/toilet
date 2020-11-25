@@ -58,17 +58,13 @@ public class RssItem implements Serializable, iPublishable {
         Element item = XML.createElement("item");
         Element n;
         chan.appendChild(item);
-
-        RssChannel.textNode(item, "title", getTitle(), true);
-        RssChannel.textNode(item, "link", getLink(), true);
-        RssChannel.textNode(item, "author", getAuthor(), true);
-
+        RssChannel.cdataTextNode(item, "title", getTitle());
+        RssChannel.cdataTextNode(item, "link", getLink());
+        RssChannel.cdataTextNode(item, "author", getAuthor());
         for (RssCategory c : cats) {
             c.publish(item);
         }
-
-        RssChannel.textNode(item, "comments", getComments(), true);
-
+        RssChannel.cdataTextNode(item, "comments", getComments());
         if (getEnclosure() != null) {
             n = XML.createElement("enclosure");
             n.setAttribute("url", getEnclosure());
@@ -76,23 +72,20 @@ public class RssItem implements Serializable, iPublishable {
             n.setAttribute("type", getEMime());
             item.appendChild(n);
         }
-
         if (getGuid() != null) {
-            n = RssChannel.textNode(item, "guid", getGuid(), false);
-
+            n = RssChannel.textNode(item, "guid", getGuid());
             if (!isGuidPermaLink()) {
                 n.setAttribute("isPermaLink", "false");
             }
         }
         if (getPubDate() != null) {
-            RssChannel.textNode(item, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()), true);
+            RssChannel.cdataTextNode(item, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()));
         }
         if (getSrc() != null) {
-            n = RssChannel.textNode(item, "source", getSrc(), true);
+            n = RssChannel.cdataTextNode(item, "source", getSrc());
             n.setAttribute("url", getSrcUrl());
         }
-
-        RssChannel.textNode(item, "description", getDescription(), true);
+        RssChannel.cdataTextNode(item, "description", getDescription());
         return item;
     }
 

@@ -14,11 +14,8 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.Markdowner;
-import libWebsiteTools.db.Repository;
-import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
-import libWebsiteTools.imead.IMEADHolder;
 import toilet.db.Article;
 import toilet.tag.ArticleUrl;
 
@@ -39,14 +36,12 @@ public class ArticleProcessor implements Callable<Article> {
     // !?\["?(.+?)"?\]\(\S+?(?:\s"?(.+?)"?)?\)
     private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[\"?(.+?)\"?\\]\\(\\S+?(?:\\s\"?(.+?)\"?)?\\)");
 
-    public Repository<Fileupload> file;
+    private final AllBeanAccess beans;
     public Article art;
-    public IMEADHolder imead;
 
-    public ArticleProcessor(Article art, IMEADHolder imead, Repository<Fileupload> file) {
+    public ArticleProcessor(AllBeanAccess beans, Article art) {
         this.art = art;
-        this.file = file;
-        this.imead = imead;
+        this.beans = beans;
     }
 
     @Override
@@ -87,12 +82,6 @@ public class ArticleProcessor implements Callable<Article> {
         }
         if (null == art.getPostedhtml() || null == art.getPostedmarkdown()) {
             convert(art);
-        }
-        if (null == imead) {
-            imead = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class);
-        }
-        if (null == file) {
-            file = UtilStatic.getBean(FileRepo.LOCAL_NAME, FileRepo.class);
         }
         String html = art.getPostedhtml();
         String paragraph = "";
@@ -143,7 +132,6 @@ public class ArticleProcessor implements Callable<Article> {
                 String srcset = baseAttribs.get("src") + " 1x";
                 if (null != doubleAttribs) {
                     srcset += ", " + doubleAttribs.get("src") + " 2x";
-                    baseset.put("data-highres", doubleAttribs.get("src"));
                 }
                 baseset.put("srcset", srcset);
                 pictureTag.append(createTag("source", baseset).append("/>"));
@@ -179,25 +167,31 @@ public class ArticleProcessor implements Callable<Article> {
     }
 
     @SuppressWarnings("UseSpecificCatch")
-    private Map<String, String> getImageInfo(String url, Map<String, String> attribs) {
-        if (null == attribs) {
-            attribs = new HashMap<>();
+    private Map<String, String> getImageInfo(String url, Map<String, String> attributes) {
+        if (null == attributes) {
+            attributes = new HashMap<>();
         }
-        Fileupload fileUpload = file.get(BaseFileServlet.getNameFromURL(url));
-        attribs.put("src", BaseFileServlet.getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), fileUpload));
-        attribs.put("type", fileUpload.getMimetype());
+        Fileupload fileUpload = beans.getFile().get(BaseFileServlet.getNameFromURL(url));
+        attributes.put("src", BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileUpload));
+        attributes.put("type", fileUpload.getMimetype());
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileUpload.getFiledata()));
-            attribs.put("width", Integer.toString(image.getWidth()));
-            attribs.put("height", Integer.toString(image.getHeight()));
+            attributes.put("width", Integer.toString(image.getWidth()));
+            attributes.put("height", Integer.toString(image.getHeight()));
         } catch (Exception e) {
         }
-        return attribs;
+        return attributes;
     }
 
-    private StringBuilder createTag(String tagname, Map<String, String> attribs) {
+    /**
+     * 
+     * @param tagname
+     * @param attributes
+     * @return an unterminated opening tag with the given tagname and attributes
+     */
+    private StringBuilder createTag(String tagname, Map<String, String> attributes) {
         StringBuilder tag = new StringBuilder(200).append("<").append(tagname);
-        for (Map.Entry<String, String> attribute : attribs.entrySet()) {
+        for (Map.Entry<String, String> attribute : attributes.entrySet()) {
             tag.append(" ").append(attribute.getKey());
             if (null != attribute.getValue()) {
                 tag.append("=\"").append(attribute.getValue()).append("\"");

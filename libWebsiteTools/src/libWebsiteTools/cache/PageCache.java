@@ -21,8 +21,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;
 
@@ -32,6 +32,7 @@ import libWebsiteTools.tag.AbstractInput;
  */
 public class PageCache implements Cache<String, CachedPage> {
 
+    public static final String PAGECACHE_LOOKUP="$_PAGECACHE_LOOKUP";
     private Map<String, CachedPage> cache;
     private final CacheManager cman;
     private final String name;
@@ -64,23 +65,23 @@ public class PageCache implements Cache<String, CachedPage> {
         return out;
     }
 
-    public static String getLookup(HttpServletRequest req, IMEADHolder imead) {
-        Object lookup = req.getAttribute("$_PAGECACHE_LOOKUP");
+    public static String getLookup(IMEADHolder imead, HttpServletRequest req) {
+        Object lookup = req.getAttribute(PAGECACHE_LOOKUP);
         if (null == lookup) {
             StringBuilder lookupBuild = new StringBuilder(300).append(req.getAttribute(AbstractInput.ORIGINAL_REQUEST_URL).toString());
             lookupBuild.append("\n").append(JspFilter.getCompression(req));
-            lookupBuild.append("; ").append(Local.getLocaleString(req, imead));
+            lookupBuild.append("; ").append(Local.getLocaleString(imead, req));
             lookupBuild.append("; ").append(imead.getLocalizedHash());
             lookup = lookupBuild.toString();
-            req.setAttribute("$_PAGECACHE_LOOKUP", lookup);
+            req.setAttribute(PAGECACHE_LOOKUP, lookup);
         }
         return lookup.toString();
     }
 
-    public static String getETag(HttpServletRequest req, IMEADHolder imead) {
+    public static String getETag(IMEADHolder imead, HttpServletRequest req) {
         Object etag = req.getAttribute(HttpHeaders.ETAG);
         if (null == etag) {
-            etag = "\"" + HashUtil.getSHA256Hash(PageCache.getLookup(req, imead)) + "\"";
+            etag = "\"" + HashUtil.getSHA256Hash(PageCache.getLookup(imead, req)) + "\"";
             req.setAttribute(HttpHeaders.ETAG, etag);
         }
         return etag.toString();

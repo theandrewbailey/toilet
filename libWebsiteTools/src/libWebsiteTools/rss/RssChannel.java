@@ -8,18 +8,20 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 /**
- * represents a channel or subsection of an Rss feed
- * shouldn't need to extend unless you are adding a namespace to the feed
+ * represents a channel or subsection of an Rss feed shouldn't need to extend
+ * unless you are adding a namespace to the feed
+ *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
 public class RssChannel implements Serializable, iPublishable {
-    public final String generator="praetor_alpha's libRssServlet v2.0";
-    protected final String docs="http://cyber.law.harvard.edu/tech/rss";
-    private final String[] namesOfDays=new String[]{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-    private String title="Replace This Title";  // standard RSS parameters
-    private String link="Replace this link";
-    private String description="Replace this description";
+    public final String generator = "praetor_alpha's libRssServlet v2.0";
+    protected final String docs = "http://cyber.law.harvard.edu/tech/rss";
+    private final String[] namesOfDays = new String[]{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+    private String title = "Replace This Title";  // standard RSS parameters
+    private String link = "Replace this link";
+    private String description = "Replace this description";
     private String copyright;
     private String managingEditor;
     private String webMaster;
@@ -46,13 +48,13 @@ public class RssChannel implements Serializable, iPublishable {
 
     private Date pubDate;
     private Date lastBuildDate;
-    private Integer ttl=720;            // semi-daily
-    private boolean[] skipHours=new boolean[24];
-    private boolean[] skipDays=new boolean[7];
-    private int limit=0;
+    private Integer ttl = 720;            // semi-daily
+    private boolean[] skipHours = new boolean[24];
+    private boolean[] skipDays = new boolean[7];
+    private int limit = 0;
 
-    protected final ArrayList<RssItem> items=new ArrayList<>();
-    protected final ArrayList<RssCategory> cats=new ArrayList<>();
+    protected final ArrayList<RssItem> items = new ArrayList<>();
+    protected final ArrayList<RssCategory> cats = new ArrayList<>();
 
     /**
      * conditionally attaches a new node to the given node with the content as
@@ -62,31 +64,45 @@ public class RssChannel implements Serializable, iPublishable {
      * @param parent node to attach to
      * @param name what the node should be named
      * @param content text to put into the node (toString is called on this)
-     * @param cdata wrap text in CDATA tags?
      * @return new node, or null if content == null
      */
-    public static Element textNode(Element parent, String name, Object content, boolean cdata) {
+    public static Element cdataTextNode(Element parent, String name, Object content) {
         if (content != null) {
             Element n = parent.getOwnerDocument().createElement(name);
             parent.appendChild(n);
-            if (cdata){
-                n.appendChild(parent.getOwnerDocument().createCDATASection(content.toString()));
-            }else{
-                n.setTextContent(content.toString());
-            }
+            n.appendChild(parent.getOwnerDocument().createCDATASection(content.toString()));
             return n;
         }
         return null;
     }
 
     /**
-     * default constructor
-     * please do not use
+     * does what cdataTextNode does, but doesn't wrap the node in CDATA tags.
+     *
+     * @param parent node to attach to
+     * @param name what the node should be named
+     * @param content text to put into the node (toString is called on this)
+     * @return new node, or null if content == null
      */
-    public RssChannel(){}
+    public static Element textNode(Element parent, String name, Object content) {
+        if (content != null) {
+            Element n = parent.getOwnerDocument().createElement(name);
+            parent.appendChild(n);
+            n.setTextContent(content.toString());
+            return n;
+        }
+        return null;
+    }
+
+    /**
+     * default constructor please do not use
+     */
+    public RssChannel() {
+    }
 
     /**
      * use this constructor, fill in the required fields for an RSS channel:
+     *
      * @param iTitle title of channel ("My Blog")
      * @param iLink HTTP link to respective content ("http://myblog.com/")
      * @param iDesc description of the feed ("read my blog and feed")
@@ -99,9 +115,10 @@ public class RssChannel implements Serializable, iPublishable {
     }
 
     /**
-     * Inserts an RssItem into the channel, making it the top (most recent) item in the feed.
-     * Will remove the last item if over the limit.
-     * Also updates the lastBuildDate.
+     * Inserts an RssItem into the channel, making it the top (most recent) item
+     * in the feed. Will remove the last item if over the limit. Also updates
+     * the lastBuildDate.
+     *
      * @param i the RssItem to be added to the top of the feed
      */
     public void addItemToTop(RssItem i) {
@@ -115,8 +132,9 @@ public class RssChannel implements Serializable, iPublishable {
     /**
      * Inserts an RssItem into the channel, making it the last item in the feed.
      * This should be useful if you rebuild the feed from scratch each time.
-     * Will remove the first item if over the limit.
-     * Also updates the lastBuildDate.
+     * Will remove the first item if over the limit. Also updates the
+     * lastBuildDate.
+     *
      * @param i the RssItem to be added
      */
     public void addItem(RssItem i) {
@@ -129,6 +147,7 @@ public class RssChannel implements Serializable, iPublishable {
 
     /**
      * Adds a category to the channel.
+     *
      * @param name
      * @param domain
      */
@@ -139,15 +158,15 @@ public class RssChannel implements Serializable, iPublishable {
     /**
      * removes all items and categories from this feed.
      */
-    public void clearFeed(){
+    public void clearFeed() {
         items.clear();
         cats.clear();
     }
 
-
     /**
-     * tells the aggregator (in theory) to not update at a given hour
-     * zero based, 0 = midnight, 23 = 11pm.
+     * tells the aggregator (in theory) to not update at a given hour zero
+     * based, 0 = midnight, 23 = 11pm.
+     *
      * @param hour
      * @throws ArrayIndexOutOfBoundsException if hour outside of 0-23
      */
@@ -156,8 +175,9 @@ public class RssChannel implements Serializable, iPublishable {
     }
 
     /**
-     * in theory, tells the aggregator to not update on a given day
-     * zero based, 0 = Sunday, 6 = Saturday
+     * in theory, tells the aggregator to not update on a given day zero based,
+     * 0 = Sunday, 6 = Saturday
+     *
      * @param day
      * @throws ArrayIndexOutOfBoundsException if day outside of 0-6
      */
@@ -179,28 +199,24 @@ public class RssChannel implements Serializable, iPublishable {
         Element chan = XML.createElement("channel");
         root.appendChild(chan);
         Element n;
-        textNode(chan, "title", getTitle(), true);
-        textNode(chan, "link", getLink(), true);
-        textNode(chan, "description", getDescription(), true);
-        textNode(chan, "language", getLanguage(), true);
-        textNode(chan, "copyright", getCopyright(), true);
-        textNode(chan, "managingEditor", getManagingEditor(), true);
-        textNode(chan, "webMaster", getWebMaster(), true);
-
+        cdataTextNode(chan, "title", getTitle());
+        cdataTextNode(chan, "link", getLink());
+        cdataTextNode(chan, "description", getDescription());
+        cdataTextNode(chan, "language", getLanguage());
+        cdataTextNode(chan, "copyright", getCopyright());
+        cdataTextNode(chan, "managingEditor", getManagingEditor());
+        cdataTextNode(chan, "webMaster", getWebMaster());
         if (getPubDate() != null) {
-            textNode(chan, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()), true);
+            cdataTextNode(chan, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()));
         }
         if (getLastBuildDate() != null) {
-            textNode(chan, "lastBuildDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getLastBuildDate()), true);
+            cdataTextNode(chan, "lastBuildDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getLastBuildDate()));
         }
-
         for (RssCategory c : cats) {
             c.publish(chan);
         }
-
-        textNode(chan, "generator", getGenerator(), true);
-        textNode(chan, "docs", getDocs(), true);
-
+        cdataTextNode(chan, "generator", getGenerator());
+        cdataTextNode(chan, "docs", getDocs());
         if (getIUrl() != null) {
             n = XML.createElement("cloud");
             XML.appendChild(n);
@@ -210,29 +226,26 @@ public class RssChannel implements Serializable, iPublishable {
             n.setAttribute("registerProcedure", getCRegister());
             n.setAttribute("protocol", getCProtocol());
         }
-        textNode(chan, "ttl", getTtl(), true);
-
+        cdataTextNode(chan, "ttl", getTtl());
         if (getIUrl() != null) {
             Element image = XML.createElement("image");
             XML.appendChild(image);
-            textNode(image, "url", getIUrl(), true);
-            textNode(image, "title", getITitle(), true);
-            textNode(image, "link", getILink(), true);
-            textNode(image, "description", getIDesc(), true);
-            textNode(image, "height", getIHeight(), true);
-            textNode(image, "width", getIWidth(), true);
+            cdataTextNode(image, "url", getIUrl());
+            cdataTextNode(image, "title", getITitle());
+            cdataTextNode(image, "link", getILink());
+            cdataTextNode(image, "description", getIDesc());
+            cdataTextNode(image, "height", getIHeight());
+            cdataTextNode(image, "width", getIWidth());
         }
-        textNode(chan, "rating", getRating(), true);
-
+        cdataTextNode(chan, "rating", getRating());
         if (getTTitle() != null) {
             Element text = XML.createElement("textInput");
             XML.appendChild(text);
-            textNode(text, "title", getTTitle(), true);
-            textNode(text, "description", getTDesc(), true);
-            textNode(text, "name", getTName(), true);
-            textNode(text, "link", getTLink(), true);
+            cdataTextNode(text, "title", getTTitle());
+            cdataTextNode(text, "description", getTDesc());
+            cdataTextNode(text, "name", getTName());
+            cdataTextNode(text, "link", getTLink());
         }
-
         n = null;
         for (Integer h = 0; h < skipHours.length; h++) {
             if (skipHours[h]) {
@@ -257,7 +270,6 @@ public class RssChannel implements Serializable, iPublishable {
                 n.appendChild(day);
             }
         }
-
         for (RssItem item : items) {
             item.publish(chan);
         }
@@ -625,8 +637,9 @@ public class RssChannel implements Serializable, iPublishable {
      * @param iHeight the iHeight to set
      */
     public void setIHeight(Integer iHeight) {
-        if(iHeight<401)
+        if (iHeight < 401) {
             this.iHeight = iHeight;
+        }
     }
 
     /**
@@ -640,8 +653,9 @@ public class RssChannel implements Serializable, iPublishable {
      * @param iWidth the iWidth to set
      */
     public void setIWidth(Integer iWidth) {
-        if (iWidth<145)
+        if (iWidth < 145) {
             this.iWidth = iWidth;
+        }
     }
 
     /**
@@ -652,12 +666,13 @@ public class RssChannel implements Serializable, iPublishable {
     }
 
     /**
-     * @param limit The maximum amount of items that this channel can hold, and automatically removes items, if needed
+     * @param limit The maximum amount of items that this channel can hold, and
+     * automatically removes items, if needed
      */
     public void setLimit(int limit) {
         this.limit = limit;
-        while (limit>0 && items.size()>limit)
+        while (limit > 0 && items.size() > limit) {
             items.remove(limit);
+        }
     }
 }
-

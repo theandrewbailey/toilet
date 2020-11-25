@@ -37,9 +37,9 @@ public class CoronerServlet extends ToiletServlet {
             }
             errorCode = null != messages[0] ? messages[0].toString() : "501";
         }
-        String errorMessage = imead.getLocal(ERROR_PREFIX + errorCode, Local.resolveLocales(request, imead));
+        String errorMessage = beans.getImead().getLocal(ERROR_PREFIX + errorCode, Local.resolveLocales(beans.getImead(), request));
         if (null == errorMessage) {
-            errorMessage = imead.getLocal(ERROR_PREFIX + "404", Local.resolveLocales(request, imead));
+            errorMessage = beans.getImead().getLocal(ERROR_PREFIX + "404", Local.resolveLocales(beans.getImead(), request));
         }
         request.setAttribute("title", "ERROR " + errorCode);
         showError(request, response, errorMessage);

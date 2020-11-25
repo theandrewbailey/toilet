@@ -9,18 +9,21 @@ import java.util.Properties;
 import javax.cache.CacheManager;
 import javax.cache.configuration.OptionalFeature;
 import javax.cache.spi.CachingProvider;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
 
 /**
- *
+ * TODO: use JSR-107 via META-INF.services/javax.cache.spi.CachingProvider instead of EJB
  * @author alpha
  */
 @Startup
 @Singleton
 @LocalBean
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class PageCacheProvider implements CachingProvider {
 
     public static final String DEFAULT_URI = "http://theandrewbailey.com/libWebsiteTools/cache/PageCacheProvider";
@@ -32,7 +35,7 @@ public class PageCacheProvider implements CachingProvider {
     /**
      * Checks all caches for expired pages.
      */
-    @Schedule(minute = "*", hour = "*", dayOfWeek = "*", month = "*")
+    @Schedule(persistent = false, minute = "*", hour = "*", dayOfWeek = "*", month = "*")
     public void sweep() {
         for (CacheManager m : caches.values()) {
             try {

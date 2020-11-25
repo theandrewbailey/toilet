@@ -25,7 +25,6 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.security.HashUtil;
-import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.AbstractRssFeed;
 import libWebsiteTools.rss.RssChannel;
 import libWebsiteTools.rss.RssItem;
@@ -34,9 +33,7 @@ import libWebsiteTools.rss.SimpleRssFeed;
 import libWebsiteTools.rss.iDynamicFeed;
 import libWebsiteTools.rss.iFeed;
 import org.w3c.dom.Document;
-import toilet.UtilStatic;
-import toilet.bean.ArticleRepo;
-import toilet.bean.CommentRepo;
+import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.servlet.ToiletServlet;
@@ -51,55 +48,51 @@ public class CommentRss extends AbstractRssFeed implements iDynamicFeed {
     private static final Logger LOG = Logger.getLogger(CommentRss.class.getName());
     private static final Pattern NAME_PATTERN = Pattern.compile("Comments(.*?)\\.rss");
     @EJB
-    private ArticleRepo arts;
-    @EJB
-    private CommentRepo comms;
-    @EJB
-    private IMEADHolder imead;
+    private ToiletBeanAccess beans;
 
     public CommentRss() {
     }
 
-    public Document createFeed(Integer numEntries, Object articleId) {
+    public CommentRss(ToiletBeanAccess beans) {
+        this.beans = beans;
+    }
+
+    public Document createFeed(Object articleId) {
         LOG.entering("CommentRss", "createFeed");
-        // if instantiated manually
-        if (comms == null && imead == null) {
-            arts = UtilStatic.getBean(ArticleRepo.LOCAL_NAME, ArticleRepo.class);
-            comms = UtilStatic.getBean(CommentRepo.LOCAL_NAME, CommentRepo.class);
-            imead = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class);
-        }
-
-        RssChannel entries = new RssChannel(imead.getLocal(ToiletServlet.SITE_TITLE, "en") + " - Comments", imead.getValue(SecurityRepo.BASE_URL), imead.getLocal(ToiletServlet.TAGLINE, "en"));
-        entries.setWebMaster(imead.getValue(AbstractRssFeed.MASTER));
-        entries.setManagingEditor(entries.getWebMaster());
-        entries.setLanguage(imead.getValue(AbstractRssFeed.LANGUAGE));
-
-        Collection<Comment> lComments;
+        RssChannel entries;
         if (null == articleId) {
-            lComments = comms.getAll(numEntries);
+            entries = createChannel(beans.getComms().getAll(Integer.valueOf(beans.getImeadValue(COMMENT_COUNT))));
         } else {
-            Article art = arts.get(Integer.parseInt(articleId.toString()));
-            List<Comment> temp = new ArrayList<>(art.getCommentCollection());
-            Collections.reverse(temp);
-            lComments = temp;
+            Article art = beans.getArts().get(Integer.parseInt(articleId.toString()));
+            List<Comment> lComments = new ArrayList<>(art.getCommentCollection());
+            Collections.reverse(lComments);
+            entries = createChannel(lComments);
             entries.setTitle(art.getArticletitle() + " - Comments");
-            entries.setDescription("from " + imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
+            entries.setDescription("from " + beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en"));
         }
+        LOG.exiting("CommentRss", "createFeed");
+        return SimpleRssFeed.refreshFeed(Arrays.asList(entries));
+    }
+
+    public RssChannel createChannel(Collection<Comment> lComments) {
+        RssChannel entries = new RssChannel(beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en") + " - Comments", beans.getImeadValue(SecurityRepo.BASE_URL), beans.getImead().getLocal(ToiletServlet.TAGLINE, "en"));
+        entries.setWebMaster(beans.getImeadValue(AbstractRssFeed.MASTER));
+        entries.setManagingEditor(entries.getWebMaster());
+        entries.setLanguage(beans.getImeadValue(AbstractRssFeed.LANGUAGE));
         for (Comment c : lComments) {
             RssItem i = new RssItem(c.getPostedhtml());
             entries.addItem(i);
-            i.addCategory(c.getArticleid().getSectionid().getName(), Categorizer.getUrl(imead.getValue(SecurityRepo.BASE_URL), c.getArticleid().getSectionid().getName(), null, null));
-            i.setLink(ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), c.getArticleid(), null, "comments"));
+            i.addCategory(c.getArticleid().getSectionid().getName(), Categorizer.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid().getSectionid().getName(), null, null));
+            i.setLink(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid(), null, "comments"));
             i.setGuid(HashUtil.getSHA256Hash(c.getPostedname() + c.getPosted().getTime() + c.getPostedhtml()));
             i.setPubDate(c.getPosted());
             i.setTitle(c.getArticleid().getArticletitle());
             i.setAuthor(c.getPostedname());
             if (c.getArticleid().getComments()) {
-                i.setComments(ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), c.getArticleid(), null, "comments"));
+                i.setComments(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid(), null, "comments"));
             }
         }
-        LOG.exiting("CommentRss", "createFeed");
-        return SimpleRssFeed.refreshFeed(Arrays.asList(entries));
+        return entries;
     }
 
     @Override
@@ -115,10 +108,10 @@ public class CommentRss extends AbstractRssFeed implements iDynamicFeed {
      */
     @Override
     public Map<String, String> getFeedURLs(HttpServletRequest req) {
-        Article art = (Article) req.getAttribute("art");
+        Article art = (Article) req.getAttribute(Article.class.getSimpleName());
         HashMap<String, String> output = new HashMap<>();
         output.put(getName(), "All Comments");
-        if (null != art) {
+        if (null != art && null != art.getComments() && art.getComments()) {
             output.put("Comments" + art.getArticleid() + ".rss", art.getArticletitle() + " Comments");
         }
         return output;
@@ -137,7 +130,7 @@ public class CommentRss extends AbstractRssFeed implements iDynamicFeed {
     @Override
     public iFeed preAdd() {
         try {
-            createFeed(Integer.valueOf(imead.getValue(COMMENT_COUNT)), null);
+            createFeed(null);
         } catch (RuntimeException r) {
             LOG.log(Level.SEVERE, "Comment feed will not be available due to an invalid parameter.");
             return null;
@@ -155,7 +148,7 @@ public class CommentRss extends AbstractRssFeed implements iDynamicFeed {
                 group = null;
             }
             try {
-                Document XML = createFeed(Integer.valueOf(imead.getValue(COMMENT_COUNT)), group);
+                Document XML = createFeed(group);
                 DOMSource DOMsrc = new DOMSource(XML);
                 StringWriter holder = new StringWriter(10000);
                 StreamResult str = new StreamResult(holder);

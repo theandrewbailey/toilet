@@ -59,6 +59,7 @@ public class ArticleUrl extends SimpleTagSupport {
         return url.toString();
     }
 
+    @Deprecated
     public static String getAmpUrl(String baseURL, Article article, Locale lang) {
         StringBuilder url = new StringBuilder(baseURL);
         if (null != lang) {

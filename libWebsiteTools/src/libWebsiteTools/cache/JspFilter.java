@@ -3,12 +3,9 @@ package libWebsiteTools.cache;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
-import javax.ejb.EJB;
-import javax.inject.Inject;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletRequest;
@@ -17,9 +14,8 @@ import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.HttpHeaders;
+import libWebsiteTools.BaseAllBeanAccess;
 import libWebsiteTools.file.BaseFileServlet;
-import libWebsiteTools.file.FileRepo;
-import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
@@ -29,56 +25,44 @@ import libWebsiteTools.tag.HtmlTime;
  * @author alpha
  */
 @WebFilter(description = "Adds security headers and potentially adds to cache.", filterName = "JspFilter", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD}, urlPatterns = {"*.jsp"})
-public class JspFilter implements Filter {
+public class JspFilter extends BaseAllBeanAccess implements Filter {
 
     public static final String CONTENT_SECURITY_POLICY = "security_csp";
     public static final String FEATURE_POLICY = "security_features";
     public static final String REFERRER_POLICY = "security_referrer";
     public static final String PRIMARY_LOCALE_PARAM = "$_LIBIMEAD_PRIMARY_LOCALE";
-    @EJB
-    private IMEADHolder imead;
-    @EJB
-    private FileRepo file;
-    @Inject
-    private PageCacheProvider pageCacheProvider;
-    private PageCache globalCache;
-
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        globalCache = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
-    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest req = ((HttpServletRequest) request);
         HttpServletResponse res = (HttpServletResponse) response;
-        Locale primaryLocale = Local.resolveLocales(req, imead).get(0);
+        Locale primaryLocale = Local.resolveLocales(getImead(), req).get(0);
         request.setAttribute(PRIMARY_LOCALE_PARAM, primaryLocale);
-        HtmlMeta.addNameTag(req, "viewport", imead.getValue("site_viewport"));
-        HtmlMeta.addLink(req, "shortcut icon", imead.getValue("site_favicon"));
+        HtmlMeta.addNameTag(req, "viewport", getImeadValue("site_viewport"));
+        HtmlMeta.addLink(req, "shortcut icon", getImeadValue("site_favicon"));
         try {
-            String icon = imead.getValue("site_apple-touch-icon");
+            String icon = getImeadValue("site_appleTouchIcon");
             if (null != icon) {
-                HtmlMeta.addLink(req, "apple-touch-icon", file.getFileMetadata(Arrays.asList(icon)).get(0).getUrl());
+                HtmlMeta.addLink(req, "apple-touch-icon", getFile().getFileMetadata(Arrays.asList(icon)).get(0).getUrl());
             }
         } catch (Exception x) {
         }
         Object csp = request.getAttribute(CONTENT_SECURITY_POLICY);
         res.setHeader("Accept-Ranges", "none");
         res.addHeader(HttpHeaders.CONTENT_LANGUAGE, primaryLocale.toLanguageTag());
-        res.addHeader("Content-Security-Policy", null == csp ? imead.getValue(CONTENT_SECURITY_POLICY) : csp.toString());
-        res.addHeader("Feature-Policy", imead.getValue(FEATURE_POLICY));
-        res.addHeader("Referrer-Policy", imead.getValue(REFERRER_POLICY));
+        res.addHeader("Content-Security-Policy", null == csp ? getImeadValue(CONTENT_SECURITY_POLICY) : csp.toString());
+        res.addHeader("Feature-Policy", getImeadValue(FEATURE_POLICY));
+        res.addHeader("Referrer-Policy", getImeadValue(REFERRER_POLICY));
         // unnecessary for modern browsers
         //res.addHeader("X-Frame-Options", "SAMEORIGIN");
         //res.addHeader("X-Xss-Protection", "1; mode=block");
         if (null == request.getAttribute(HtmlTime.FORMAT_VAR)) {
-            request.setAttribute(HtmlTime.FORMAT_VAR, imead.getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales((HttpServletRequest) request, imead)));
+            request.setAttribute(HtmlTime.FORMAT_VAR, getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(getImead(), (HttpServletRequest) request)));
         }
-        PageCache cache = globalCache.getCache(req, res);
+        PageCache cache = getGlobalCache().getCache(req, res);
         if (null != cache) {
             CachedPage page = capturePage(chain, req, res);
-            cache.put(PageCache.getLookup(req, imead), page);
+            cache.put(PageCache.getLookup(getImead(), req), page);
         } else {
             compressBody(chain, req, res);
         }
@@ -91,7 +75,7 @@ public class JspFilter implements Filter {
         }
         String etag = res.getHeader(HttpHeaders.ETAG);
         if (null == etag) {
-            etag = PageCache.getETag(req, imead);
+            etag = PageCache.getETag(getImead(), req);
             res.setHeader(HttpHeaders.ETAG, etag);
         }
         ServletOutputWrapper<ServletOutputWrapper.ByteArrayOutput> wrap = new ServletOutputWrapper<>(ServletOutputWrapper.ByteArrayOutput.class, res);
@@ -104,7 +88,7 @@ public class JspFilter implements Filter {
             out.flush();
         } catch (IOException ix) {
         }
-        return new CachedPage(res, responseBytes);
+        return new CachedPage(res, responseBytes, PageCache.getLookup(getImead(), req));
     }
 
     private void compressBody(FilterChain chain, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {

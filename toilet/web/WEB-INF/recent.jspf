@@ -1,4 +1,4 @@
-<%@ page session="false" trimDirectiveWhitespaces="true" %>
+<%@ page session="false" %>
     <c:if test="${articleCategory ne null}"><nav><h1><h:local key="page_sideRecentCategory"><h:param object="${articleCategory}"/></h:local></h1><ul><t:recentArticles number="10" category="${articleCategory}">
         <li><t:articleUrl article="${_article}"/></li></t:recentArticles>
     </ul></nav></c:if>

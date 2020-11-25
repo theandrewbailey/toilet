@@ -1,9 +1,7 @@
 package libWebsiteTools.file;
 
 import java.util.concurrent.Callable;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
-import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.AllBeanAccess;
 
 /**
  *
@@ -16,19 +14,10 @@ public abstract class FileCompressorJob implements Callable<Boolean>, Comparable
      */
     public static final String POTATO = "POTATO";
     final Fileupload file;
-    final FileRepo fileRepo = getBean(FileRepo.LOCAL_NAME, FileRepo.class);
-    final IMEADHolder imead = getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class);
+    final AllBeanAccess beans;
 
-    @SuppressWarnings("unchecked")
-    public static <T> T getBean(String name, Class<T> type) {
-        try {
-            return (T) new InitialContext().lookup(name);
-        } catch (NamingException n) {
-            throw new RuntimeException(n);
-        }
-    }
-
-    public FileCompressorJob(Fileupload file) {
+    public FileCompressorJob(AllBeanAccess beans, Fileupload file) {
+        this.beans = beans;
         this.file = file;
     }
 

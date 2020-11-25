@@ -69,7 +69,7 @@ public class RssCategory implements Serializable, iPublishable {
 
     @Override
     public Element publish(Element e) {
-        Element n = RssChannel.textNode(e, "category", getName(), true);
+        Element n = RssChannel.cdataTextNode(e, "category", getName());
         if (getDomain() != null) {
             n.setAttribute("domain", getDomain());
         }

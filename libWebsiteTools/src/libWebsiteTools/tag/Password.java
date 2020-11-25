@@ -6,4 +6,9 @@ public class Password extends AbstractInput {
     public String getType() {
         return "password";
     }
+
+    @Override
+    public String getPattern() {
+        return null;
+    }
 }

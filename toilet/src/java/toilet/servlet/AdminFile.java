@@ -29,38 +29,38 @@ public class AdminFile extends ToiletServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String del = AbstractInput.getParameter(request, "action");
         String answer = AbstractInput.getParameter(request, "answer");
-        if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.FILES), answer)) {
-            showFileList(request, response, file.getFileMetadata(null));
+        if (answer != null && HashUtil.verifyArgon2Hash(beans.getImeadValue(AdminLoginServlet.FILES), answer)) {
+            showFileList(request, response, beans.getFile().getFileMetadata(null));
         } else if (AdminLoginServlet.FILES.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION)) && del != null) {
-            Fileupload deleted = file.delete(del.split("\\|")[1]);
+            Fileupload deleted = beans.getFile().delete(del.split("\\|")[1]);
             String[] split = splitDirectoryAndName(deleted.getFilename());
             request.setAttribute("opened_dir", split[0]);
-            showFileList(request, response, file.getFileMetadata(null));
+            showFileList(request, response, beans.getFile().getFileMetadata(null));
         }
     }
 
     public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Filemetadata> uploads) throws ServletException, IOException {
         request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
-        LinkedHashMap<String, List<Filemetadata>> content = new LinkedHashMap<>(uploads.size() * 2);
+        LinkedHashMap<String, List<Filemetadata>> files = new LinkedHashMap<>(uploads.size() * 2);
         List<String> directories = new ArrayList<>();
 
         // root "directory" first
-        content.put("", new ArrayList<>());
+        files.put("", new ArrayList<>());
         directories.add("");
 
         for (Filemetadata f : uploads) {
             String[] split = splitDirectoryAndName(f.getFilename());
-            List<Filemetadata> temp = content.get(split[0]);
+            List<Filemetadata> temp = files.get(split[0]);
             if (temp == null) {
                 temp = new ArrayList<>();
-                content.put(split[0], temp);
+                files.put(split[0], temp);
                 directories.add(split[0]);
             }
             f.setFilename(split[1]);
             temp.add(f);
         }
 
-        request.setAttribute("content", content);
+        request.setAttribute("files", files);
         request.setAttribute("directories", directories);
         if (null == request.getAttribute("opened_dir")) {
             request.setAttribute("opened_dir", "");

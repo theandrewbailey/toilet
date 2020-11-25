@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.EJB;
 import javax.ejb.LocalBean;
+import javax.ejb.Singleton;
 import javax.ejb.Startup;
-import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
@@ -22,7 +24,6 @@ import javax.persistence.PersistenceUnit;
 import javax.persistence.Query;
 import javax.persistence.StoredProcedureQuery;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.db.Repository;
@@ -36,28 +37,24 @@ import toilet.db.Section;
  * @author alpha
  */
 @Startup
-@Stateless
+@Singleton
 @LocalBean
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class ArticleRepo implements Repository<Article> {
 
     public static final String DEFAULT_CATEGORY = "entry_defaultCategory";
-    public static final String LOCAL_NAME = "java:module/ArticleRepo";
-
     private static final Logger LOG = Logger.getLogger(ArticleRepo.class.getName());
-    @PersistenceUnit
-    private EntityManagerFactory toiletPU;
     @EJB
     private IMEADHolder imead;
-    @EJB
-    private StateCache cache;
+    @PersistenceUnit
+    private EntityManagerFactory toiletPU;
 
     @Override
     public void evict() {
         toiletPU.getCache().evict(Article.class);
-        toiletPU.getCache().evict(Section.class);
     }
 
-    public List<Article> getSection(String sect, Integer page, Integer perPage) {
+    public List<Article> getBySection(String sect, Integer page, Integer perPage) {
         LOG.log(Level.FINE, "Retrieving articles, section {0}, page {1}, per page {2}", new Object[]{sect, page, perPage});
         if (null != sect && sect.equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
             sect = null;
@@ -79,21 +76,10 @@ public class ArticleRepo implements Repository<Article> {
 
     @Override
     public Long count() {
-        return count(null);
-    }
-
-    public Long count(String sect) {
-        LOG.log(Level.FINE, "Counting articles in section {0}", sect);
-        if (null != sect && sect.equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
-            sect = null;
-        }
         EntityManager em = toiletPU.createEntityManager();
         try {
-            TypedQuery<Long> qn = sect == null
-                    ? em.createNamedQuery("Article.count", Long.class)
-                    : em.createNamedQuery("Article.countBySection", Long.class).setParameter("section", sect);
+            TypedQuery<Long> qn = em.createNamedQuery("Article.count", Long.class);
             Long output = qn.getSingleResult();
-            LOG.log(Level.FINE, "Counted articles in section {0}, got {1}", new Object[]{sect, output});
             return output;
         } finally {
             em.close();
@@ -151,7 +137,7 @@ public class ArticleRepo implements Repository<Article> {
                 String sect = art.getSectionid().getName();
                 boolean getnew = art.getArticleid() == null;
                 dbArt = getnew ? new Article() : em.find(Article.class, art.getArticleid());
-
+                // TODO: figure out how to upsert
                 dbArt.setPosted(art.getPosted() == null ? dbArt.getModified() : art.getPosted());
                 dbArt.setComments(art.getComments());
                 dbArt.setCommentCollection(art.getComments() ? dbArt.getCommentCollection() : null);
@@ -185,7 +171,6 @@ public class ArticleRepo implements Repository<Article> {
                 LOG.log(Level.INFO, "Article added {0}, section {1}", new Object[]{art.getArticletitle(), sect});
             }
             em.getTransaction().commit();
-            cache.reset();
             return out;
         } catch (Throwable x) {
             LOG.throwing(ArticleRepo.class.getCanonicalName(), "addArticles", x);
@@ -204,10 +189,8 @@ public class ArticleRepo implements Repository<Article> {
     @Override
     public Article get(Object articleId) {
         EntityManager em = toiletPU.createEntityManager();
-        //em.setProperty(QueryHints.CACHE_USAGE, CacheUsage.CheckCacheThenDatabase);
-        //em.setProperty(QueryHints.READ_ONLY, HintValues.TRUE);
         try {
-            return em.find(Article.class, articleId, SecurityRepo.USE_CACHE_HINT);
+            return em.find(Article.class, articleId);
         } finally {
             em.close();
         }
@@ -280,7 +263,13 @@ public class ArticleRepo implements Repository<Article> {
     public void processArchive(Consumer<Article> operation, Boolean transaction) {
         EntityManager em = toiletPU.createEntityManager();
         try {
-            em.createNamedQuery("Article.findAll", Article.class).getResultStream().forEachOrdered(operation);
+            if (transaction) {
+                em.getTransaction().begin();
+                em.createNamedQuery("Article.findAll", Article.class).getResultStream().forEachOrdered(operation);
+                em.getTransaction().commit();
+            } else {
+                em.createNamedQuery("Article.findAll", Article.class).getResultStream().forEachOrdered(operation);
+            }
         } finally {
             em.close();
         }

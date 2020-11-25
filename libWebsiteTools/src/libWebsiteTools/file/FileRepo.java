@@ -7,16 +7,17 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
+import javax.ejb.ConcurrencyManagement;
+import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
+import javax.ejb.Singleton;
 import javax.ejb.Startup;
-import javax.ejb.Stateless;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCacheProvider;
@@ -24,11 +25,11 @@ import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.db.Repository;
 
 @Startup
-@Stateless
+@Singleton
 @LocalBean
+@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class FileRepo implements Repository<Fileupload> {
 
-    public static final String LOCAL_NAME = "java:module/FileRepo";
     public static final String DEFAULT_MIME_TYPE = "application/octet-stream";
     @Inject
     private PageCacheProvider pageCacheProvider;
@@ -39,7 +40,7 @@ public class FileRepo implements Repository<Fileupload> {
 
     @Override
     @PostConstruct
-    public void evict() {
+    public synchronized void evict() {
         if (null == globalCache) {
             globalCache = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
         }
@@ -56,7 +57,7 @@ public class FileRepo implements Repository<Fileupload> {
         Fileupload out;
         EntityManager em = PU.createEntityManager();
         try {
-            out = em.find(Fileupload.class, filename, SecurityRepo.USE_CACHE_HINT);
+            out = em.find(Fileupload.class, filename);
             LOG.log(Level.FINEST, "File retrieved: {0}", filename);
             return out;
         } catch (NoResultException n) {
@@ -113,7 +114,6 @@ public class FileRepo implements Repository<Fileupload> {
             }
             em.close();
         }
-        globalCache.clear();
         return out;
     }
 

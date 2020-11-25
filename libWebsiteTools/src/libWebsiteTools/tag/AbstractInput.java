@@ -25,8 +25,8 @@ public abstract class AbstractInput extends SimpleTagSupport {
     //public static final String ORIGINAL_URL = "$_security_ORIGINAL_URL";
     public static final String ORIGINAL_REQUEST_URL = "$_LIBWEBSITETOOLS_ORIGINAL_REQUEST_URL";
     // TODO: these should be merged somehow
-    public static final String DEFAULT_PATTERN = "^[\\u{000A}\\u{000D}\\u{0020}-\\u{00FF}]*$";
-    public static final Pattern GENERAL_VALIDATION = Pattern.compile("^[\\x0A\\x0D\\x20-\\x7E\\u00A1-\\u052F]*$");
+    public static final String DEFAULT_PATTERN = "^[\\u000A\\u000D\\u0020-\\uFFFF\\u20000-\\u2FFFF]*$";
+    public static final Pattern DEFAULT_REGEXP = Pattern.compile(DEFAULT_PATTERN);
 
     public static final String[] INPUT_MODES = new String[]{"verbatim", "latin", "latin-name", "latin-prose",
         "full-width-latin", "kana", "katakana", "numeric", "tel", "email", "url"};

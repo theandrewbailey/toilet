@@ -36,9 +36,9 @@ public class SearchServlet extends ToiletServlet {
             response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        List<Article> results = arts.search(searchTerm);
+        List<Article> results = beans.getArts().search(searchTerm);
         try {
-            String suggestion = arts.searchSuggestion(searchTerm);
+            String suggestion = beans.getArts().searchSuggestion(searchTerm);
             request.setAttribute("searchSuggestion", suggestion);
             request.setAttribute("searchURL", "search?searchTerm=" + URLEncoder.encode(suggestion, "UTF-8"));
         } catch (NullPointerException n) {
@@ -64,7 +64,7 @@ public class SearchServlet extends ToiletServlet {
                 break;
             }
         }
-        HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
+        HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en"));
         HtmlMeta.addPropertyTag(request, "og:type", "website");
         HtmlMeta.addPropertyTag(request, "og:description", "Search results");
         HtmlMeta.addNameTag(request, "description", "Search results");

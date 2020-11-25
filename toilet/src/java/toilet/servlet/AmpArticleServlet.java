@@ -12,9 +12,17 @@ import libWebsiteTools.cache.JspFilter;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
+import toilet.IndexFetcher;
 import toilet.db.Article;
 import toilet.tag.ArticleUrl;
 
+/**
+ * 
+ * @author alpha
+ * @deprecated Google has been moving away from AMP, making it optional for the "top stories" section
+ * @see https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html
+ */
+@Deprecated
 @WebServlet(name = "AmpArticleServlet", description = "Gets a single article from the DB and serve in AMP form", urlPatterns = {"/amp/*"})
 public class AmpArticleServlet extends ArticleServlet {
 
@@ -25,7 +33,7 @@ public class AmpArticleServlet extends ArticleServlet {
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null == art) {
             try {
-                art = cache.getArticleFromURI(request.getRequestURI());
+                art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -36,7 +44,7 @@ public class AmpArticleServlet extends ArticleServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        String properUrl = ArticleUrl.getAmpUrl(imead.getValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM));
+        String properUrl = ArticleUrl.getAmpUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM));
         String actual = request.getRequestURI();
         if (!properUrl.endsWith(actual)) {
             request.setAttribute(Article.class.getCanonicalName(), null);
@@ -60,28 +68,28 @@ public class AmpArticleServlet extends ArticleServlet {
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null != art && !response.isCommitted()) {
             SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-            request.setAttribute("art", art);
+            request.setAttribute(Article.class.getSimpleName(), art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            request.setAttribute("canonical", ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), art, null, null));
-            request.setAttribute("css", new String(file.get(imead.getLocal("site_cssamp", Local.resolveLocales(request, imead))).getFiledata(), "UTF-8"));
+            request.setAttribute("canonical", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null, null));
+            request.setAttribute("css", new String(beans.getFile().get(beans.getImead().getLocal("site_cssamp", Local.resolveLocales(beans.getImead(), request))).getFiledata(), "UTF-8"));
             HtmlMeta.addNameTag(request, "description", art.getDescription());
             HtmlMeta.addNameTag(request, "author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:title", art.getArticletitle());
-            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
             if (null != art.getImageurl()) {
                 HtmlMeta.addPropertyTag(request, "og:image", art.getImageurl());
             }
             if (null != art.getDescription()) {
                 HtmlMeta.addPropertyTag(request, "og:description", art.getDescription());
             }
-            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
+            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en"));
             HtmlMeta.addPropertyTag(request, "og:type", "article");
             HtmlMeta.addPropertyTag(request, "og:article:published_time", htmlFormat.format(art.getPosted()));
             HtmlMeta.addPropertyTag(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
             HtmlMeta.addPropertyTag(request, "og:article:author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:article:section", art.getSectionid().getName());
-            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(imead.getValue(SecurityRepo.BASE_URL), art, null, null));
+            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null, null));
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
     }

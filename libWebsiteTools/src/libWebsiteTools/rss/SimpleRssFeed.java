@@ -72,6 +72,7 @@ public abstract class SimpleRssFeed extends AbstractRssFeed {
 
     /**
      * @param req
+     * @param res
      * @return result of refreshFeed() (the no param override)
      */
     @Override

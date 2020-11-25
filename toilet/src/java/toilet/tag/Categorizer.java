@@ -12,7 +12,8 @@ import javax.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.Local;
-import toilet.bean.StateCache;
+import toilet.bean.ToiletBeanAccess;
+import toilet.db.Section;
 
 /**
  *
@@ -21,7 +22,7 @@ import toilet.bean.StateCache;
 public class Categorizer extends SimpleTagSupport {
 
     @EJB
-    private StateCache cache;
+    private ToiletBeanAccess beans;
     private String category;
     private Integer page;
 
@@ -31,8 +32,8 @@ public class Categorizer extends SimpleTagSupport {
             execute(category);
             return;
         }
-        for (String catName : cache.getArticleCategories()) {
-            execute(catName);
+        for (Section sect : beans.getSects().getAll(null)) {
+            execute(sect.getName());
         }
     }
 
@@ -40,14 +41,15 @@ public class Categorizer extends SimpleTagSupport {
         HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
         Locale locale = (Locale) req.getAttribute(Local.OVERRIDE_LOCALE_PARAM);
         Object baseURL = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL);
-        getJspContext().setAttribute("_cate_url", getUrl(baseURL.toString(), catName, page, locale));
-        getJspContext().setAttribute("_cate_group", catName);
-        getJspBody().invoke(null);
+        if (null != baseURL) {
+            getJspContext().setAttribute("_cate_url", getUrl(baseURL.toString(), catName, page, locale));
+            getJspContext().setAttribute("_cate_group", catName);
+            getJspBody().invoke(null);
+        }
     }
 
-    public static String getUrl(String baseURL ,String category, Integer page, Locale lang) {
+    public static String getUrl(String baseURL, String category, Integer page, Locale lang) {
         StringBuilder url = new StringBuilder(70).append(baseURL).append("index/");
-        //StringBuilder url = new StringBuilder(70).append("index/");
         if (null != category && !category.isEmpty()) {
             try {
                 String title = URLEncoder.encode(category, "UTF-8");
@@ -59,9 +61,6 @@ public class Categorizer extends SimpleTagSupport {
         if (null != page) {
             url.append(page);
         }
-//        if (null != lang) {
-//            url.append("?lang=").append(lang.toLanguageTag());
-//        }
         return url.toString();
     }
 

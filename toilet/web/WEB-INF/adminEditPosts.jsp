@@ -2,7 +2,7 @@
 <%@ include file="/WEB-INF/head.jspf" %>
 
 <form action="import" method="POST" enctype="multipart/form-data" accept-charset="UTF-8" class="uploadBackup">
-    <a href="import"><h:local key="page_downloadLegend"/></a>
+    <a href="adminImport"><h:local key="page_downloadLegend"/></a>
     <fieldset><legend><h:local key="page_uploadLegend"/></legend>
         <h:localVar key="page_uploadField"/><h:file id="zip" label="${page_uploadField} " labelNextLine="false" /><br/>
         <h:localVar key="page_magicWords"/><h:password id="words" label="${page_magicWords} " labelNextLine="false" size="40" />
@@ -17,8 +17,8 @@
     <button type="submit" name="editarticle" value="${art.articleid}">Edit</button>&nbsp;
     <t:articleUrl article="${art}"/>&nbsp;<c:if test="${art.sectionid.name != ' '}">under ${art.sectionid.name},&nbsp;</c:if>
     <h:time datetime="${art.posted}" pubdate="true" pattern="EEE MM/dd/yy h:mm a"/>&nbsp;
-
-    <c:if test="${0!=fn:length(art.commentCollection)}"><p class="secondmin" ><c:forEach items="${art.commentCollection}" var="comm"><h:time datetime="${comm.posted}" pubdate="true" pattern="EEE MM/dd/yy h:mm a"/> by ${comm.postedname} <button type="submit" name="deletecomment" value="${comm.commentid}">Delete</button><br/>
+    <c:if test="${0!=fn:length(art.commentCollection)}"><p class="secondmin" >
+    <c:forEach items="${art.commentCollection}" var="comm"><h:time datetime="${comm.posted}" pubdate="true" pattern="EEE MM/dd/yy h:mm a"/> by ${comm.postedname} <button type="submit" name="deletecomment" value="${comm.commentid}">Delete</button><br/>
     </c:forEach></p></c:if>
 </article></c:forEach>
 <button name="selectAll" data-check="articleCheckbox">Select All</button>

@@ -11,6 +11,7 @@ import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
+import javax.ejb.Startup;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.w3c.dom.Document;
@@ -20,12 +21,12 @@ import org.w3c.dom.Element;
  *
  * @author alpha
  */
+@Startup
 @Singleton
 @LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class SiteMaster {
 
-    public static final String LOCAL_NAME = "java:module/SiteMaster";
     private final Set<Iterable<UrlMap>> sources = Collections.synchronizedSet(new HashSet<>());
     private static final Logger LOG = Logger.getLogger(SiteMaster.class.getName());
 

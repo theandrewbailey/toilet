@@ -14,7 +14,6 @@ import javax.script.ScriptException;
  */
 public class Markdowner {
 
-    public static final String LOCAL_NAME = "java:module/Markdowner";
     private static final Logger LOG = Logger.getLogger(Markdowner.class.getName());
     private static final LinkedBlockingQueue<ScriptEngine> SCRIPT_ENGINES = new LinkedBlockingQueue<>(Runtime.getRuntime().availableProcessors());
 

@@ -264,16 +264,12 @@ public class Article implements Serializable, Comparable<Article> {
         return "toilet.db.Article, id:" + articleid + ", title: " + articletitle;
     }
 
-    /**
-     * @return the postedamp
-     */
+    @Deprecated
     public String getPostedamp() {
         return postedamp;
     }
 
-    /**
-     * @param postedamp the postedamp to set
-     */
+    @Deprecated
     public void setPostedamp(String postedamp) {
         this.postedamp = postedamp;
     }

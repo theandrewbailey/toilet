@@ -2,7 +2,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <c:set scope="request" var="title" value="Spruce"/>
 <c:set scope="request" var="page.titleAfter" value="true"/><%@ include file="/WEB-INF/head.jspf" %>
-<div><main class="spruceMain">
+<main class="spruceMain">
     <article>
     <header><h1><h:local key="page_spruceHeader"/></h1></header>
     <div class="spruceQuote">
@@ -16,5 +16,5 @@
     </div></article>
 <hr/>
 <h:local key="page_spruceArticle" />
-</main></div>
+</main>
 <%@ include file="/WEB-INF/foot.jspf" %>

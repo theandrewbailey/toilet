@@ -13,7 +13,11 @@ public class Textarea extends AbstractInput {
         if (null != height) {
             out.append("\" rows=\"").append(height.toString());
         } else if (null == height && null != getValue()) {
-            out.append("\" rows=\"").append(Math.max(3, getValue().split("\n").length));
+            int rows = 0;
+            for (String line : getValue().split("\n")) {
+                rows += (line.length() / 70) + 1;
+            }
+            out.append("\" rows=\"").append(Math.max(3, rows));
         }
         if (null != getLength()) {
             out.append("\" cols=\"").append(getLength().toString());

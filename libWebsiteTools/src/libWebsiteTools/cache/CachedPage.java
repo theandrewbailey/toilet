@@ -27,8 +27,9 @@ public class CachedPage {
     private final Date created = new Date();
     private final AtomicInteger hits = new AtomicInteger();
     private final String contentType;
+    private final String lookup;
 
-    public CachedPage(HttpServletResponse res, byte[] capturedBody) {
+    public CachedPage(HttpServletResponse res, byte[] capturedBody, String lookup) {
         body = capturedBody;
         Map<String, String> heads = new HashMap<>();
         for (String header : res.getHeaderNames()) {
@@ -39,8 +40,10 @@ public class CachedPage {
         this.headers = Collections.unmodifiableMap(heads);
         status = res.getStatus();
         CacheControl cc = CacheControl.valueOf(res.getHeader(HttpHeaders.CACHE_CONTROL));
-        expires = new Date(new Date().getTime() + (cc.getMaxAge() * 1000));
+        int diff = 400 > status ? cc.getMaxAge() * 1000 : cc.getMaxAge();
+        expires = new Date(new Date().getTime() + diff);
         contentType = res.getContentType();
+        this.lookup = lookup;
     }
 
     public boolean isApplicable(HttpServletRequest req) {
@@ -48,7 +51,8 @@ public class CachedPage {
     }
 
     public boolean isExpired(Date lastFlush) {
-        return lastFlush.after(created) || new Date().after(getExpires());
+        Date now = new Date();
+        return lastFlush.after(getCreated()) || now.after(getExpires());
     }
 
     public int hit() {
@@ -59,9 +63,6 @@ public class CachedPage {
         return hits.get();
     }
 
-    /**
-     * @return the headers
-     */
     public Map<String, String> getHeaders() {
         return headers;
     }
@@ -70,31 +71,27 @@ public class CachedPage {
         return headers.get(header);
     }
 
-    /**
-     * @return the body
-     */
     public byte[] getBody() {
         return body;
     }
 
-    /**
-     * @return the statusCode
-     */
     public int getStatus() {
         return status;
     }
 
-    /**
-     * @return the contentType
-     */
     public String getContentType() {
         return contentType;
     }
 
-    /**
-     * @return the expires
-     */
     public Date getExpires() {
         return expires;
+    }
+
+    public String getLookup() {
+        return lookup;
+    }
+
+    public Date getCreated() {
+        return created;
     }
 }

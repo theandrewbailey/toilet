@@ -11,23 +11,22 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import libWebsiteTools.cache.CachedPage;
+import libWebsiteTools.cache.PageCache;
+import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
-import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
-import toilet.UtilStatic;
-import toilet.bean.StateCache;
+import toilet.bean.ToiletBeanAccess;
 import toilet.bean.ArticleRepo;
 import toilet.db.Article;
-import toilet.rss.CommentRss;
+import toilet.db.Section;
 
 /**
  *
@@ -36,10 +35,7 @@ import toilet.rss.CommentRss;
 @WebServlet(name = "adminArticle", description = "Administer articles (and sometimes comments)", urlPatterns = {"/adminArticle"})
 public class AdminArticle extends ToiletServlet {
 
-    public static final String LAST_ARTICLE_EDITED = "art";
     public static final String CREATE_NEW_GROUP = "$_CREATE_NEW_GROUP";
-    @EJB
-    private FeedBucket src;
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -49,60 +45,65 @@ public class AdminArticle extends ToiletServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String answer = request.getParameter("answer");
-        if (answer != null && HashUtil.verifyArgon2Hash(imead.getValue(AdminLoginServlet.EDIT_POSTS), answer)) {
-            showList(request, response, arts.getAll(null));
+        if (answer != null && HashUtil.verifyArgon2Hash(beans.getImeadValue(AdminLoginServlet.EDIT_POSTS), answer)) {
+            showList(request, response, beans.getArts().getAll(null));
         } else if (AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             if (request.getParameter("deletecomment") != null) {      // delete comment
-                comms.delete(Integer.parseInt(request.getParameter("deletecomment")));
-                src.get(CommentRss.NAME).preAdd();
-                showList(request, response, arts.getAll(null));
+                beans.getComms().delete(Integer.parseInt(request.getParameter("deletecomment")));
+                beans.reset();
+                showList(request, response, beans.getArts().getAll(null));
                 return;
             } else if (request.getParameter("editarticle") != null) {      // set up to edit article
-                Article art = arts.get(Integer.parseInt(request.getParameter("editarticle")));
-                displayArticleEdit(request, response, art);
+                Article art = beans.getArts().get(Integer.parseInt(request.getParameter("editarticle")));
+                displayArticleEdit(beans, request, response, art);
                 return;
             } else if (request.getParameter("disablecomments") != null) {
                 List<Article> articles = new ArrayList<>();
                 for (String id : request.getParameterValues(AbstractInput.getIncomingHash(request, "selectedArticle"))) {
-                    Article art = arts.get(Integer.parseInt(id));
+                    Article art = beans.getArts().get(Integer.parseInt(id));
                     art.setComments(Boolean.FALSE);
                     articles.add(art);
                 }
-                arts.upsert(articles);
+                beans.getArts().upsert(articles);
+                beans.reset();
                 response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                 return;
             } else if (request.getParameter("rewrite") != null) {
-                file.processArchive((fileupload) -> {
-                    fileupload.setUrl(BaseFileServlet.getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), fileupload));
+                beans.getFile().processArchive((fileupload) -> {
+                    fileupload.setUrl(BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileupload));
                 }, true);
                 Queue<Future<Article>> articleTasks = new ConcurrentLinkedQueue<>();
                 for (String id : request.getParameterValues(AbstractInput.getIncomingHash(request, "selectedArticle"))) {
-                    Article art = arts.get(Integer.parseInt(id));
+                    Article art = beans.getArts().get(Integer.parseInt(id));
                     art.setPostedhtml(null);
                     art.setPostedamp(null);
-                    articleTasks.add(exec.submit(new ArticleProcessor(art, imead, file)));
+                    articleTasks.add(beans.getExec().submit(new ArticleProcessor(beans, art)));
                 }
-                List<Article> articles = new ArrayList<>(articleTasks.size());
-                for (Future<Article> f : articleTasks) {
-                    while (true) {
-                        try {
-                            if (articles.isEmpty() || null != f.get(1L, TimeUnit.MILLISECONDS)) {
-                                articles.add(f.get());
-                                break;
+                beans.getExec().submit(() -> {
+                    List<Article> articles = new ArrayList<>(articleTasks.size());
+                    for (Future<Article> f : articleTasks) {
+                        while (true) {
+                            try {
+                                if (articles.isEmpty() || null != f.get(1L, TimeUnit.MILLISECONDS)) {
+                                    articles.add(f.get());
+                                    break;
+                                }
+                            } catch (TimeoutException t) {
+                                beans.getArts().upsert(articles);
+                                articles.clear();
+                            } catch (InterruptedException | ExecutionException e) {
+                                throw new RuntimeException(e);
                             }
-                        } catch (TimeoutException t) {
-                            arts.upsert(articles);
-                            articles.clear();
-                        } catch (InterruptedException | ExecutionException e) {
-                            throw new RuntimeException(e);
                         }
                     }
-                }
-                arts.upsert(articles);
+                    beans.getArts().upsert(articles);
+                    beans.reset();
+                });
+                ((PageCache) beans.getPageCacheProvider().getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI)).clear();
                 response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                 return;
             }
-            request.getRequestDispatcher("adminLogin?answer=" + imead.getValue(AdminLoginServlet.EDIT_POSTS)).forward(request, response);
+            request.getRequestDispatcher("adminLogin?answer=" + beans.getImeadValue(AdminLoginServlet.EDIT_POSTS)).forward(request, response);
         }
     }
 
@@ -113,21 +114,23 @@ public class AdminArticle extends ToiletServlet {
         request.getRequestDispatcher(AdminLoginServlet.ADMIN_EDIT_POSTS).forward(request, response);
     }
 
-    public static void displayArticleEdit(HttpServletRequest request, HttpServletResponse response, Article art) throws ServletException, IOException {
+    public static void displayArticleEdit(ToiletBeanAccess beans, HttpServletRequest request, HttpServletResponse response, Article art) throws ServletException, IOException {
         if (art.getCommentCollection() == null) {
             art.setCommentCollection(new ArrayList<>());
         }
         LinkedHashSet<String> groups = new LinkedHashSet<>();
-        String defaultGroup = UtilStatic.getBean(IMEADHolder.LOCAL_NAME, IMEADHolder.class).getValue(ArticleRepo.DEFAULT_CATEGORY);
-        groups.addAll(UtilStatic.getBean(StateCache.LOCAL_NAME, StateCache.class).getArticleCategories());
+        String defaultGroup = beans.getImeadValue(ArticleRepo.DEFAULT_CATEGORY);
+        for (Section sect : beans.getSects().getAll(null)) {
+            groups.add(sect.getName());
+        }
         request.setAttribute("groups", groups);
         if (null == art.getSectionid()) {
             groups.add(defaultGroup);
         } else if (!groups.add(art.getSectionid().getName())) {
             groups.add(art.getSectionid().getName());
         }
-        request.setAttribute(LAST_ARTICLE_EDITED, art);
-        request.getSession().setAttribute(LAST_ARTICLE_EDITED, art);
+        request.setAttribute(Article.class.getSimpleName(), art);
+        request.getSession().setAttribute(Article.class.getSimpleName(), art);
         request.getRequestDispatcher(AdminLoginServlet.ADMIN_ADD_ARTICLE).forward(request, response);
     }
 }

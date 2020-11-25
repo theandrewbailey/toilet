@@ -17,7 +17,7 @@ public class RecentArticles extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        for (Article e : arts.getSection(category, 1, number)) {
+        for (Article e : arts.getBySection(category, 1, number)) {
             getJspContext().setAttribute(getVar(), e);
             getJspBody().invoke(null);
         }

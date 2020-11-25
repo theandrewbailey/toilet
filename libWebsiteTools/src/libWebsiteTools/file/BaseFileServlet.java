@@ -11,11 +11,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.ejb.EJBException;
-import javax.enterprise.concurrent.ManagedExecutorService;
-import javax.inject.Inject;
 import javax.persistence.NoResultException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -23,15 +20,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.HttpHeaders;
+import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.tag.ResponseTag;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.cache.CachedContent;
-import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
-import libWebsiteTools.cache.PageCacheProvider;
-import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 
@@ -47,18 +42,7 @@ public abstract class BaseFileServlet extends HttpServlet {
     // [ origin, timestamp for immutable requests (guaranteed null if not immutable), file path, query string ]
     private static final Pattern FILE_URL = Pattern.compile("^(.*?)file(?:Immutable/([^/]+))?/([^\\?]+)\\??(.*)?");
     @EJB
-    protected FileRepo file;
-    @EJB
-    protected IMEADHolder imead;
-    @EJB
-    protected SecurityRepo error;
-    @EJB
-    protected SecurityRepo guard;
-    @Resource
-    protected ManagedExecutorService exec;
-    @Inject
-    private PageCacheProvider pageCacheProvider;
-    protected PageCache globalCache;
+    protected AllBeanAccess beans;
 
     public static String getNameFromURL(CharSequence URL) {
         try {
@@ -115,15 +99,10 @@ public abstract class BaseFileServlet extends HttpServlet {
     }
 
     @Override
-    public void init() {
-        globalCache = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
-    }
-
-    @Override
     protected long getLastModified(HttpServletRequest request) {
         Fileupload c;
         try {
-            c = file.get(getNameFromURL(request.getRequestURL()));
+            c = beans.getFile().get(getNameFromURL(request.getRequestURL()));
             c.getAtime();
             request.setAttribute(BaseFileServlet.class.getCanonicalName(), c);
         } catch (Exception ex) {
@@ -141,7 +120,7 @@ public abstract class BaseFileServlet extends HttpServlet {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
-        if (IMEADHolder.matchesAny(request.getHeader("Origin"), imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS)) && originMatcher.matches()) {
+        if (IMEADHolder.matchesAny(request.getHeader("Origin"), beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS)) && originMatcher.matches()) {
             response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
         } else {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -160,7 +139,7 @@ public abstract class BaseFileServlet extends HttpServlet {
         if (null == c) {
             try {
                 String name = getNameFromURL(request.getRequestURL());
-                c = file.get(name);
+                c = beans.getFile().get(name);
                 if (null == c) {
                     throw new FileNotFoundException(name);
                 }
@@ -168,7 +147,7 @@ public abstract class BaseFileServlet extends HttpServlet {
             } catch (FileNotFoundException ex) {
                 response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + MAX_AGE_SECONDS);
                 response.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + MAX_AGE_MILLISECONDS);
-                if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS), request)) {
+                if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(request, beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS))) {
                     request.setAttribute(GuardFilter.HANDLED_ERROR, true);
                 }
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -176,9 +155,9 @@ public abstract class BaseFileServlet extends HttpServlet {
             }
         }
 
-        if (!isAuthorized(c.getMimetype(), imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS), request)) {
+        if (!isAuthorized(request, c.getMimetype(), beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS))) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            error.logException(request, null, imead.getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(request, imead)), null);
+            beans.getError().logException(request, null, beans.getImead().getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(beans.getImead(), request)), null);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             return;
         }
@@ -214,19 +193,19 @@ public abstract class BaseFileServlet extends HttpServlet {
             if ((compressions.contains("gzip") && null != c.getGzipdata()
                     && c.getGzipdata().length < c.getBrdata().length)) {
                 response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
-                response.setContentLength(c.getFilemetadata().getGzipsize());
+                response.setContentLength(c.getGzipdata().length);
                 etag = "\"" + c.getEtag() + "g\"";
             } else {
                 response.setHeader(HttpHeaders.CONTENT_ENCODING, "br");
-                response.setContentLength(c.getFilemetadata().getBrsize());
+                response.setContentLength(c.getBrdata().length);
                 etag = "\"" + c.getEtag() + "b\"";
             }
         } else if (compressions.contains("gzip") && null != c.getGzipdata()) {
             response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
-            response.setContentLength(c.getFilemetadata().getGzipsize());
+            response.setContentLength(c.getGzipdata().length);
             etag = "\"" + c.getEtag() + "g\"";
         } else {
-            response.setContentLength(c.getFilemetadata().getDatasize());
+            response.setContentLength(c.getFiledata().length);
             etag = "\"" + c.getEtag() + "\"";
         }
         response.setHeader(HttpHeaders.ETAG, etag);
@@ -258,9 +237,9 @@ public abstract class BaseFileServlet extends HttpServlet {
                 responseBytes = c.getFiledata();
             }
             response.getOutputStream().write(responseBytes);
-            PageCache cache = globalCache.getCache(request, response);
+            PageCache cache = beans.getGlobalCache().getCache(request, response);
             if (null != cache) {
-                cache.put(PageCache.getLookup(request, imead), new CachedContent(response, responseBytes, imead.getPatterns(SecurityRepo.ALLOWED_ORIGINS)));
+                cache.put(PageCache.getLookup(beans.getImead(), request), new CachedContent(beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS), response, responseBytes, PageCache.getLookup(beans.getImead(), request)));
             }
             request.setAttribute(ResponseTag.RENDER_TIME_PARAM, new Date().getTime() - ((Date) request.getAttribute(GuardFilter.TIME_PARAM)).getTime());
         }
@@ -271,17 +250,18 @@ public abstract class BaseFileServlet extends HttpServlet {
         try {
             List<Fileupload> uploadedfiles = FileUtil.getFilesFromRequest(request, "filedata");
             for (Fileupload uploadedfile : uploadedfiles) {
-                if (null != file.get(uploadedfile.getFilename())) {
+                if (null != beans.getFile().get(uploadedfile.getFilename())) {
                     request.setAttribute("ERROR_MESSAGE", "File exists: " + uploadedfile.getFilename());
                     return;
                 }
-                uploadedfile.setUrl(getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), uploadedfile));
+                uploadedfile.setUrl(getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), uploadedfile));
             }
-            file.upsert(uploadedfiles);
+            beans.getFile().upsert(uploadedfiles);
+            beans.getFile().evict();
             request.setAttribute("uploadedfiles", uploadedfiles);
             for (Fileupload fileupload : uploadedfiles) {
-                exec.submit(new Brotlier(fileupload));
-                exec.submit(new Gzipper(fileupload));
+                beans.getExec().submit(new Brotlier(beans, fileupload));
+                beans.getExec().submit(new Gzipper(beans, fileupload));
             }
         } catch (FileNotFoundException fx) {
             request.setAttribute("ERROR_MESSAGE", "File not sent");
@@ -290,13 +270,13 @@ public abstract class BaseFileServlet extends HttpServlet {
         }
     }
 
-    public static boolean isAuthorized(String mimetype, List<Pattern> acceptableDomains, HttpServletRequest req) {
+    public static boolean isAuthorized(HttpServletRequest req, String mimetype, List<Pattern> acceptableDomains) {
         if (null == mimetype) {
             throw new IllegalArgumentException("No mimetype.");
         }
         if (mimetype.startsWith("image") || mimetype.startsWith("audio") || mimetype.startsWith("video")) {
             try {
-                if (!fromApprovedDomain(acceptableDomains, req)) {
+                if (!fromApprovedDomain(req, acceptableDomains)) {
                     return false;
                 }
             } catch (NullPointerException n) {
@@ -306,7 +286,7 @@ public abstract class BaseFileServlet extends HttpServlet {
         return true;
     }
 
-    public static boolean fromApprovedDomain(List<Pattern> acceptableDomains, HttpServletRequest req) {
+    public static boolean fromApprovedDomain(HttpServletRequest req, List<Pattern> acceptableDomains) {
         String referrer = req.getHeader("referer");
         if (null != referrer) {
             return IMEADHolder.matchesAny(referrer, acceptableDomains);

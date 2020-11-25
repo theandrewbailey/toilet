@@ -44,7 +44,7 @@ public class RssServlet extends HttpServlet {
     private static final Logger LOG = Logger.getLogger(RssServlet.class.getName());
     private final TransformerFactory xFormFact = TransformerFactory.newInstance();
     @EJB
-    private FeedBucket src;
+    private FeedBucket bucket;
 
     public static String getRssName(String URL) {
         Matcher matcher = RSS_NAME_REGEX.matcher(URL);
@@ -58,7 +58,7 @@ public class RssServlet extends HttpServlet {
         }
         String name = getRssName(req.getRequestURL().toString());
         req.setAttribute(RssServlet.class.getSimpleName(), name);
-        feed = src.get(name);
+        feed = bucket.get(name);
         if (feed == null) {
             LOG.log(Level.FINE, "RSS feed {0} not found", name);
             return null;
@@ -105,6 +105,11 @@ public class RssServlet extends HttpServlet {
         try {
             doHead(request, response);
             iFeed feed = getFeed(request);
+            if (null == feed) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
             LOG.log(Level.FINE, "RSS feed {0} requested, servicing", getRssName(request.getRequestURI()));
             Document XML = feed.preWrite(request, response);
             if (HttpServletResponse.SC_OK != response.getStatus()) {

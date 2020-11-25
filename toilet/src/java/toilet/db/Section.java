@@ -27,7 +27,7 @@ import javax.validation.constraints.Size;
 @NamedQueries({
     @NamedQuery(name = "Section.findAll", query = "SELECT s FROM Section s"),
     @NamedQuery(name = "Section.findByName", query = "SELECT s FROM Section s WHERE s.name = :name"),
-    @NamedQuery(name = "Section.byArticlesPosted", query = "SELECT a.sectionid.name, min(a.posted), COUNT(a.sectionid.name) FROM Article a GROUP BY a.sectionid.name ORDER BY min(a.posted)")})
+    @NamedQuery(name = "Section.byArticlesPosted", query = "SELECT a.sectionid, min(a.posted), COUNT(a.sectionid.sectionid) FROM Article a GROUP BY a.sectionid ORDER BY min(a.posted)")})
 @SuppressWarnings("ValidPrimaryTableName")
 public class Section implements Serializable {
 

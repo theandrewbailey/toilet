@@ -7,7 +7,6 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.EJBException;
 import javax.servlet.http.HttpServletRequest;
@@ -35,7 +34,6 @@ public class Local extends SimpleTagSupport {
      * overridden locale, default behavior will be used.
      */
     public static final String OVERRIDE_LOCALE_PARAM = "$_LIBIMEAD_OVERRIDE_LOCALE";
-    private static final Logger LOG = Logger.getLogger(Local.class.getName());
     @EJB
     protected IMEADHolder imead;
     private String key;
@@ -58,7 +56,7 @@ public class Local extends SimpleTagSupport {
      * @see LOCALE_PARAM
      */
     @SuppressWarnings("unchecked")
-    public static List<Locale> resolveLocales(HttpServletRequest req, IMEADHolder imead) {
+    public static List<Locale> resolveLocales(IMEADHolder imead, HttpServletRequest req) {
         List<Locale> out = (List<Locale>) req.getAttribute(LOCALE_PARAM);
         if (null == out) {
             LinkedHashSet<Locale> lset = new LinkedHashSet<>();
@@ -94,9 +92,9 @@ public class Local extends SimpleTagSupport {
         return out;
     }
 
-    public static String getLocaleString(HttpServletRequest req, IMEADHolder imead) {
+    public static String getLocaleString(IMEADHolder imead, HttpServletRequest req) {
         ArrayList<String> langTags = new ArrayList<>();
-        for (Locale l : resolveLocales(req, imead)) {
+        for (Locale l : resolveLocales(imead, req)) {
             langTags.add(l.toLanguageTag());
         }
         return String.join(", ", langTags);
@@ -112,7 +110,7 @@ public class Local extends SimpleTagSupport {
             if (locale != null) {
                 return MessageFormat.format(imead.getLocal(getKey(), locale), getParams().toArray());
             }
-            return MessageFormat.format(imead.getLocal(getKey(), resolveLocales((HttpServletRequest) ((PageContext) getJspContext()).getRequest(), imead)), getParams().toArray());
+            return MessageFormat.format(imead.getLocal(getKey(), resolveLocales(imead, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())), getParams().toArray());
         } catch (EJBException e) {
             if (!(e.getCause() instanceof LocalizedStringNotFoundException)) {
                 throw e;

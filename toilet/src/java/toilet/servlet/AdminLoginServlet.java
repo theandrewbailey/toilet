@@ -1,36 +1,28 @@
 package toilet.servlet;
 
 import java.io.IOException;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import javax.ejb.EJBException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.security.CertPath;
-import libWebsiteTools.security.CertUtil;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.SecurityRepo;
-import libWebsiteTools.cache.CachedPage;
-import libWebsiteTools.cache.PageCache;
-import libWebsiteTools.cache.PageCaches;
-import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;
-import toilet.UtilStatic;
+import toilet.AllBeanAccess;
+import toilet.IndexFetcher;
 import toilet.db.Article;
 import toilet.rss.ErrorRss;
 
-@WebServlet(name = "AdminLoginServlet", description = "Populates admin view JSPs", urlPatterns = {"/adminLogin"})
+@WebServlet(name = "AdminLoginServlet", description = "Populates admin view JSPs", urlPatterns = {"/adminLogin", "/edit/*"})
 public class AdminLoginServlet extends ToiletServlet {
 
     public static final String ADD_ARTICLE = "admin_addArticle";
@@ -40,17 +32,23 @@ public class AdminLoginServlet extends ToiletServlet {
     public static final String HEALTH = "admin_health";
     public static final String IMEAD = "admin_imead";
     public static final String RELOAD = "admin_reload";
-    public static final String PERMISSION = "LOGIN";
-    public static final String HEALTH_COMMANDS = "site_healthCommands";
-    public static final String ADMIN_ADD_ARTICLE = "WEB-INF/adminAddArticle.jsp";
-    public static final String ADMIN_CONTENT = "WEB-INF/adminFile.jsp";
-    public static final String ADMIN_IMPORT = "WEB-INF/adminImport.jsp";
-    public static final String ADMIN_HEALTH = "WEB-INF/adminHealth.jsp";
-    public static final String ADMIN_EDIT_POSTS = "WEB-INF/adminEditPosts.jsp";
-    public static final String ADMIN_LOGIN_PAGE = "WEB-INF/adminLogin.jsp";
+    public static final List<String> SCOPES = Arrays.asList(ADD_ARTICLE, FILES, EDIT_POSTS, ERROR_LOG, HEALTH, IMEAD, RELOAD);
+    public static final String PERMISSION = "$_ADMIN_LOGIN_SERVLET_PERMISSION";
+    public static final String HEALTH_COMMANDS = "file_healthCommands";
+    public static final String ADMIN_ADD_ARTICLE = "/WEB-INF/adminAddArticle.jsp";
+    public static final String ADMIN_CONTENT = "/WEB-INF/adminFile.jsp";
+    public static final String ADMIN_IMPORT = "/WEB-INF/adminImport.jsp";
+    public static final String ADMIN_HEALTH = "/WEB-INF/adminHealth.jsp";
+    public static final String ADMIN_EDIT_POSTS = "/WEB-INF/adminEditPosts.jsp";
+    public static final String ADMIN_LOGIN_PAGE = "/WEB-INF/adminLogin.jsp";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        try {
+            Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
+            request.getSession().setAttribute(Article.class.getSimpleName(), art);
+        } catch (RuntimeException ex) {
+        }
         request.getRequestDispatcher(ADMIN_LOGIN_PAGE).forward(request, response);
     }
 
@@ -62,112 +60,74 @@ public class AdminLoginServlet extends ToiletServlet {
             if (null == answer) {
                 throw new IllegalArgumentException("No answer!");
             }
-
-            // this will take a while, so multithread
-            Future<Boolean> isAddArticle = exec.submit(new PasswordChecker(imead, answer, ADD_ARTICLE));
-            Future<Boolean> isContent = exec.submit(new PasswordChecker(imead, answer, FILES));
-            Future<Boolean> isHealth = exec.submit(new PasswordChecker(imead, answer, HEALTH));
-            Future<Boolean> isImead = exec.submit(new PasswordChecker(imead, answer, IMEAD));
-            Future<Boolean> isLog = exec.submit(new PasswordChecker(imead, answer, ERROR_LOG));
-            Future<Boolean> isEditPosts = exec.submit(new PasswordChecker(imead, answer, EDIT_POSTS));
-            Future<Boolean> isReload = exec.submit(new PasswordChecker(imead, answer, RELOAD));
-
-            if (isLog.get()) {
-                request.getSession().setAttribute(PERMISSION, ERROR_LOG);
-                response.sendRedirect(imead.getValue(SecurityRepo.BASE_URL) + "rss/" + ErrorRss.NAME);
-                return;
-            } else if (isEditPosts.get()) {
-                AdminArticle.showList(request, response, arts.getAll(null));
-                return;
-            } else if (isAddArticle.get()) {
-                request.getSession().setAttribute(PERMISSION, ADD_ARTICLE);
-                Article art = (Article) request.getSession().getAttribute(AdminArticle.LAST_ARTICLE_EDITED);
-                if (null == art) {
-                    art = new Article();
-                }
-                AdminArticle.displayArticleEdit(request, response, art);
-                return;
-            } else if (isContent.get()) {
-                AdminFile.showFileList(request, response, file.getFileMetadata(null));
-                return;
-            } else if (isReload.get()) {
-                cache.reset();
-                backup.backup();
-                request.getSession().invalidate();
-                request.getSession(true);
-                response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
-                return;
-            } else if (isHealth.get()) {
-                request.getSession().setAttribute(PERMISSION, HEALTH);
-                request.setAttribute("processes", exec.submit(() -> {
-                    LinkedHashMap<String, String> processes = new LinkedHashMap<>();
-                    for (String command : imead.getValue(HEALTH_COMMANDS).split("\n")) {
-                        try {
-                            processes.put(command, new String(FileUtil.runProcess(command, null, 1000)));
-                        } catch (IOException | RuntimeException t) {
-                            processes.put(command, t.getLocalizedMessage());
-                        }
+            switch (getScope(beans, answer)) {
+                case ERROR_LOG:
+                    request.getSession().setAttribute(PERMISSION, ERROR_LOG);
+                    response.sendRedirect(beans.getImeadValue(SecurityRepo.BASE_URL) + "rss/" + ErrorRss.NAME);
+                    return;
+                case EDIT_POSTS:
+                    request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.EDIT_POSTS);
+                    AdminArticle.showList(request, response, beans.getArts().getAll(null));
+                    return;
+                case ADD_ARTICLE:
+                    request.getSession().setAttribute(PERMISSION, ADD_ARTICLE);
+                    Article art = (Article) request.getSession().getAttribute(Article.class.getSimpleName());
+                    if (null == art) {
+                        art = new Article();
                     }
-                    return processes;
-                }));
-                request.setAttribute("articles", exec.submit(() -> {
-                    return arts.getAll(null);
-                }));
-                request.setAttribute("comments", exec.submit(() -> {
-                    return comms.getAll(null);
-                }));
-                request.setAttribute("files", exec.submit(() -> {
-                    return file.getFileMetadata(null);
-                }));
-                request.setAttribute("cached", exec.submit(() -> {
-                    PageCache globalCache = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
-                    ArrayList<String> cached = new ArrayList<>(100);
-                    for (Map.Entry<String, CachedPage> page : globalCache.getAll(null).entrySet()) {
-                        String key = page.getKey() + "\nExpires: " + page.getValue().getExpires().toString();
-                        cached.add(UtilStatic.htmlFormat(key, false, false));
+                    AdminArticle.displayArticleEdit(beans, request, response, art);
+                    return;
+                case FILES:
+                    request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
+                    AdminFile.showFileList(request, response, beans.getFile().getFileMetadata(null));
+                    return;
+                case RELOAD:
+                    beans.reset();
+                    try {
+                        beans.getBackup().backup();
+                    } catch (EJBException e) {
                     }
-                    return cached;
-                }));
-                Map<X509Certificate, LinkedHashMap> certInfo = new HashMap<>();
-                try {
-                    CertUtil certUtil = (CertUtil) request.getServletContext().getAttribute(CertUtil.CERTIFICATE_CHAIN);
-                    List<CertPath<X509Certificate>> certPaths = certUtil.getServerCertificateChain(imead.getValue(GuardFilter.CERTIFICATE_NAME));
-                    for (CertPath<X509Certificate> path : certPaths) {
-                        for (X509Certificate x509 : path.getCertificates()) {
-                            LinkedHashMap<String, String> cert = CertUtil.formatCert(x509);
-                            if (null != cert) {
-                                certInfo.put(x509, cert);
-                            }
-                        }
-                    }
-                    request.setAttribute("certPaths", certPaths);
-                } catch (RuntimeException x) {
-                    error.logException(request, "Certificate error", "building certificate chain", x);
-                }
-                request.setAttribute("certInfo", certInfo);
-                request.setAttribute("locales", Local.resolveLocales(request, imead));
-                request.getRequestDispatcher(ADMIN_HEALTH).forward(request, response);
-                return;
-            } else if (isImead.get()) {
-                request.getSession().setAttribute(PERMISSION, IMEAD);
-                request.getRequestDispatcher("adminImead").forward(request, response);
-                //response.sendRedirect(imead.getValue(SecurityRepo.CANONICAL_URL) + "adminImead");
-                return;
+                    request.getSession().invalidate();
+                    request.getSession(true);
+                    response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
+                    return;
+                case HEALTH:
+                    request.getSession().setAttribute(PERMISSION, HEALTH);
+                    request.getRequestDispatcher("/adminHealth").forward(request, response);
+                    return;
+                case IMEAD:
+                    request.getSession().setAttribute(PERMISSION, IMEAD);
+                    request.getRequestDispatcher("/adminImead").forward(request, response);
+                    //response.sendRedirect(beans.getImeadValue(SecurityRepo.CANONICAL_URL) + "adminImead");
+                    return;
             }
         } catch (InterruptedException | ExecutionException ex) {
-            error.logException(request, "Multithread Exception", "Something happened while verifying passwords", ex);
+            beans.getError().logException(request, "Multithread Exception", "Something happened while verifying passwords", ex);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             return;
         }
         request.getSession().setAttribute(PERMISSION, null);
-        error.logException(request, null, "Tried to access restricted area.", null);
+        beans.getError().logException(request, null, "Tried to access restricted area.", null);
         request.setAttribute(GuardFilter.HANDLED_ERROR, true);
         request.getRequestDispatcher("/").forward(request, response);
     }
+
+    public static String getScope(AllBeanAccess beans, String password) throws InterruptedException, ExecutionException {
+        List<Future<String>> checkers = new ArrayList<>(SCOPES.size());
+        for (String scope : SCOPES) {
+            checkers.add(beans.getExec().submit(new PasswordChecker(beans.getImead(), password, scope)));
+        }
+        for (Future<String> test : checkers) {
+            if (null != test.get()) {
+                return test.get();
+            }
+        }
+        return null;
+    }
 }
 
-class PasswordChecker implements Callable<Boolean> {
+class PasswordChecker implements Callable<String> {
 
     private final IMEADHolder imead;
     private final String toVerify;
@@ -180,11 +140,11 @@ class PasswordChecker implements Callable<Boolean> {
     }
 
     @Override
-    public Boolean call() throws Exception {
+    public String call() throws Exception {
         try {
-            return HashUtil.verifyArgon2Hash(imead.getValue(key), toVerify);
+            return HashUtil.verifyArgon2Hash(imead.getValue(key), toVerify) ? key : null;
         } catch (Exception x) {
-            return false;
+            return null;
         }
     }
 }

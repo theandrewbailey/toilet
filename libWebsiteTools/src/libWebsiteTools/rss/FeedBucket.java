@@ -9,14 +9,12 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.ejb.ConcurrencyManagement;
 import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
-import javax.ejb.Lock;
-import javax.ejb.LockType;
 import javax.ejb.Singleton;
+import javax.ejb.Startup;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
@@ -30,12 +28,12 @@ import libWebsiteTools.db.Repository;
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
+@Startup
 @Singleton
 @LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class FeedBucket implements Repository<iFeed> {
 
-    public static final String LOCAL_NAME = "java:module/FeedManager";
     public static final String TIME_FORMAT = "EEE, dd MMM yyyy HH:mm:ss z";
     private static final Logger LOG = Logger.getLogger(FeedBucket.class.getName());
     private final Map<String, iFeed> feeds = Collections.synchronizedMap(new HashMap<>());
@@ -59,11 +57,6 @@ public class FeedBucket implements Repository<iFeed> {
         } catch (TransformerConfigurationException ex) {
             throw new RuntimeException(ex);
         }
-    }
-
-    @PostConstruct
-    private void init() {
-        LOG.log(Level.INFO, "FeedBucket in service");
     }
 
     /**
@@ -100,8 +93,8 @@ public class FeedBucket implements Repository<iFeed> {
      */
     @Override
     public iFeed get(Object name) {
-        if (feeds.containsKey(name)) {
-            return feeds.get(name);
+        if (feeds.containsKey(name.toString())) {
+            return feeds.get(name.toString());
         }
         for (iFeed feed : feeds.values()) {
             if (feed instanceof iDynamicFeed && ((iDynamicFeed) feed).willHandle(name.toString())) {
@@ -150,8 +143,7 @@ public class FeedBucket implements Repository<iFeed> {
     }
 
     @PreDestroy
-    @Lock(LockType.WRITE)
-    void destroy() {
+    private void destroy() {
         for (String el : new ArrayList<>(feeds.keySet())) {
             try {
                 delete(el);

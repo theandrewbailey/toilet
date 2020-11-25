@@ -7,6 +7,8 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.cache.PageCache;
 
 /**
  *
@@ -18,8 +20,8 @@ public class Gzipper extends FileCompressorJob {
     private final String COMMAND_KEY = "file_gzipCommand";
     private final static Logger LOG = Logger.getLogger(Gzipper.class.getName());
 
-    public Gzipper(Fileupload file) {
-        super(file);
+    public Gzipper(AllBeanAccess beans, Fileupload file) {
+        super(beans, file);
     }
 
     @Override
@@ -30,7 +32,7 @@ public class Gzipper extends FileCompressorJob {
         }
         byte[] compressedData = null;
         File tempfile = null;
-        String command = imead.getValue(COMMAND_KEY);
+        String command = beans.getImeadValue(COMMAND_KEY);
         if (null == command) {
             LOG.finest("Gzip command not set.");
             return false;
@@ -55,9 +57,11 @@ public class Gzipper extends FileCompressorJob {
         }
         if (null != compressedData) {
             synchronized (FileCompressorJob.POTATO) {
-                Fileupload activeFile = fileRepo.get(file.getFilename());
+                Fileupload activeFile = beans.getFile().get(file.getFilename());
                 activeFile.setGzipdata(compressedData);
-                fileRepo.upsert(Arrays.asList(activeFile));
+                beans.getFile().upsert(Arrays.asList(activeFile));
+                PageCache global = beans.getGlobalCache();
+                global.removeAll(global.searchLookups(activeFile.getFilename()));
             }
         }
         return true;

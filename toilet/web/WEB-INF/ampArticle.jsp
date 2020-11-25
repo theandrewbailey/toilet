@@ -15,17 +15,16 @@
 </head><body>
 <header><h1><a title="Home" href="<h:local key="security_baseURL" locale=""/>"><h:local key="page_title"/></a></h1></header>
 <amp-pixel src="${canonical}" layout="nodisplay"></amp-pixel>
-<article class="article${art.articleid}"><header><h1 id="article${art.articleid}">${art.articletitle}</h1>
-<a class="ampMessage" href="<t:articleUrl article='${art}' link='false'/>"><h:local key="page_amp"/></a>
+<article class="article${Article.articleid}"><header><h1 id="article${Article.articleid}">${Article.articletitle}</h1>
+<a class="ampMessage" href="<t:articleUrl article='${Article}' link='false'/>"><h:local key="page_amp"/></a>
 </header>
-<c:out escapeXml="false" value="${art.postedamp}"/>
-    <footer><h:local key="page_articleFooter"><h:param><h:time datetime="${art.posted}" pubdate="true"/></h:param>
-        <h:param><t:categorizer category="${art.sectionid.name}"><a href="${_cate_url}">${_cate_group}</a></t:categorizer></h:param></h:local>
-    <c:if test="${art.comments || fn:length(art.commentCollection) > 0}">${" "}<t:articleUrl article="${art}" anchor="comments" cssClass="noPrint" text="${fn:length(art.commentCollection)} ${fn:length(art.commentCollection) == 1 ? ' complaint.' : ' complaints.'}"/></c:if>
+<c:out escapeXml="false" value="${Article.postedamp}"/>
+    <footer><h:local key="page_articleFooter"><h:param><h:time datetime="${Article.posted}" pubdate="true"/></h:param>
+        <h:param><t:categorizer category="${Article.sectionid.name}"><a href="${_cate_url}">${_cate_group}</a></t:categorizer></h:param></h:local>
+    <c:if test="${Article.comments || fn:length(art.commentCollection) > 0}">${" "}<t:articleUrl article="${Article}" anchor="comments" cssClass="noPrint" text="${fn:length(Article.commentCollection)} ${fn:length(Article.commentCollection) == 1 ? ' complaint.' : ' complaints.'}"/></c:if>
     </footer>
-<a class="ampMessage" href="<t:articleUrl article='${art}' link='false'/>"><h:local key="page_amp"/></a>
+<a class="ampMessage" href="<t:articleUrl article='${Article}' link='false'/>"><h:local key="page_amp"/></a>
 </article>
-
 <aside class="noPrint">
     <div class="side_top"><h:local key="page_sideTop"/></div>
     <nav><h1><h:local key="page_topics" /></h1><ul><t:categorizer>

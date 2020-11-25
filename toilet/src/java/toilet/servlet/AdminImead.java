@@ -14,17 +14,16 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.cache.JspFilter;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
-import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.Localization;
 import libWebsiteTools.imead.LocalizationPK;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.tag.AbstractInput;
+import toilet.AllBeanAccess;
 import toilet.FirstTimeDetector;
-import toilet.UtilStatic;
 
 /**
  *
@@ -40,9 +39,9 @@ public class AdminImead extends ToiletServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         //Object ssl = request.getAttribute("javax.servlet.request.ssl_session_mgr");
-        if (FirstTimeDetector.isFirstTime(imead)) {
+        if (FirstTimeDetector.isFirstTime(beans)) {
             request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.IMEAD);
-            if (null == imead.getValue(SecurityRepo.BASE_URL)) {
+            if (null == beans.getImeadValue(SecurityRepo.BASE_URL)) {
                 String canonicalRoot = AbstractInput.getTokenURL(request);
                 if (!canonicalRoot.endsWith("/")) {
                     canonicalRoot += "/";
@@ -56,13 +55,13 @@ public class AdminImead extends ToiletServlet {
                     locals.add(new Localization("", JspFilter.CONTENT_SECURITY_POLICY, String.format(CSP_TEMPLATE, canonicalRoot)));
                     locals.add(new Localization("", SecurityRepo.BASE_URL, canonicalRoot));
                 }
-                imead.upsert(locals);
+                beans.getImead().upsert(locals);
                 request.setAttribute(SecurityRepo.BASE_URL, canonicalRoot);
-                file.processArchive((fileupload) -> {
-                    fileupload.setUrl(BaseFileServlet.getImmutableURL(imead.getValue(SecurityRepo.BASE_URL), fileupload));
+                beans.getFile().processArchive((fileupload) -> {
+                    fileupload.setUrl(BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileupload));
                 }, true);
             }
-            showProperties(request, response, imead);
+            showProperties(beans, request, response);
         } else {
             super.doGet(request, response);
         }
@@ -84,30 +83,32 @@ public class AdminImead extends ToiletServlet {
             for (Localization l : new LocalizationRetriever(request)) {
                 if (l.getLocalizationPK().getKey().startsWith("admin_")
                         && !HashUtil.ARGON2_ENCODING_PATTERN.matcher(l.getValue()).matches()) {
-                    String previousValue = imead.getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode());
+                    String previousValue = beans.getImead().getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode());
                     if (!HashUtil.ARGON2_ENCODING_PATTERN.matcher(previousValue).matches() && previousValue.equals(l.getValue())) {
                         errors.add(l.getLocalizationPK());
-                        request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, imead.getLocal("error_adminadmin", Local.resolveLocales(request, imead)));
+                        request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, beans.getImead().getLocal("error_adminadmin", Local.resolveLocales(beans.getImead(), request)));
                     }
                     l.setValue(HashUtil.getArgon2Hash(l.getValue()));
                 }
-                if (!imead.getLocaleStrings().contains(l.getLocalizationPK().getKey())
-                        || !l.getValue().equals(imead.getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode()))) {
+                if (!beans.getImead().getLocaleStrings().contains(l.getLocalizationPK().getKey())
+                        || !l.getValue().equals(beans.getImead().getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode()))) {
                     if (l.getLocalizationPK().getKey().startsWith("error_") || l.getLocalizationPK().getKey().startsWith("page_")) {
-                        l.setValue(UtilStatic.htmlFormat(l.getValue(), true, false));
+                        l.setValue(l.getValue());
                     }
                     props.add(l);
                 }
             }
             if (errors.isEmpty()) {
-                imead.upsert(props);
+                beans.getImead().upsert(props);
                 request.getServletContext().removeAttribute(FirstTimeDetector.FIRST_TIME_SETUP);
+                beans.getGlobalCache().clear();
             }
         } else if (action.startsWith("delete")) {
             String[] params = action.split("\\|");
-            imead.delete(new LocalizationPK(params[2], params[1]));
+            beans.getImead().delete(new LocalizationPK(params[2], params[1]));
+            beans.getGlobalCache().clear();
         }
-        showProperties(request, response, imead);
+        showProperties(beans, request, response);
     }
 
     private static class LocalizationRetriever implements Iterable<Localization>, Iterator<Localization> {
@@ -146,9 +147,9 @@ public class AdminImead extends ToiletServlet {
         }
     }
 
-    public static void showProperties(HttpServletRequest request, HttpServletResponse response, IMEADHolder imead) throws ServletException, IOException {
+    public static void showProperties(AllBeanAccess beans, HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Map<Locale, List<Localization>> imeadProperties = new HashMap<>();
-        for (Localization L : imead.getAll(null)) {
+        for (Localization L : beans.getImead().getAll(null)) {
             Locale locale = Locale.forLanguageTag(L.getLocalizationPK().getLocalecode());
             if (!imeadProperties.containsKey(locale)) {
                 imeadProperties.put(locale, new ArrayList<>());
@@ -166,7 +167,7 @@ public class AdminImead extends ToiletServlet {
         }
         request.setAttribute("security", security);
         request.setAttribute("imeadProperties", imeadProperties);
-        request.setAttribute("locales", imead.getLocaleStrings());
+        request.setAttribute("locales", beans.getImead().getLocaleStrings());
         request.getRequestDispatcher(ADMIN_IMEAD).forward(request, response);
     }
 }

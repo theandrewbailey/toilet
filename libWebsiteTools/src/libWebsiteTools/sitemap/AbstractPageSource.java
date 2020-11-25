@@ -15,8 +15,7 @@ public abstract class AbstractPageSource implements ServletContextListener, Iter
 
     @EJB
     private SiteMaster siteMaster;
-    @SuppressWarnings("unchecked")
-    protected List<UrlMap> urlMap = Collections.unmodifiableList(Collections.EMPTY_LIST);
+    protected List<UrlMap> urlMap = Collections.unmodifiableList(Collections.<UrlMap>emptyList());
 
     @Override
     public Iterator<UrlMap> iterator() {

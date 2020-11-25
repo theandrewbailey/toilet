@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.cache.PageCache;
 
 /**
  *
@@ -15,8 +17,8 @@ public class Brotlier extends FileCompressorJob {
     private final String COMMAND_KEY = "file_brCommand";
     private final static Logger LOG = Logger.getLogger(Brotlier.class.getName());
 
-    public Brotlier(Fileupload file) {
-        super(file);
+    public Brotlier(AllBeanAccess beans, Fileupload file) {
+        super(beans, file);
     }
 
     @Override
@@ -25,7 +27,7 @@ public class Brotlier extends FileCompressorJob {
             LOG.log(Level.FINEST, "File {0} already brotli'd.", file.getFilename());
             return false;
         }
-        String command = imead.getValue(COMMAND_KEY);
+        String command = beans.getImeadValue(COMMAND_KEY);
         if (null == command) {
             LOG.finest("Brotli command not set.");
             return false;
@@ -34,9 +36,11 @@ public class Brotlier extends FileCompressorJob {
             byte[] compressedData = FileUtil.runProcess(command, file.getFiledata(), file.getFiledata().length * 2);
             if (null != compressedData && compressedData.length + SIZE_DIFFERENCE < file.getFiledata().length) {
                 synchronized (FileCompressorJob.POTATO) {
-                    Fileupload activeFile = fileRepo.get(file.getFilename());
+                    Fileupload activeFile = beans.getFile().get(file.getFilename());
                     activeFile.setBrdata(compressedData);
-                    fileRepo.upsert(Arrays.asList(activeFile));
+                    beans.getFile().upsert(Arrays.asList(activeFile));
+                    PageCache global = beans.getGlobalCache();
+                    global.removeAll(global.searchLookups(activeFile.getFilename()));
                 }
             }
         } catch (IOException | RuntimeException ex) {

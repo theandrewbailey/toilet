@@ -5,9 +5,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
-import libWebsiteTools.security.SecurityRepo;
 
 public final class UtilStatic {
 
@@ -17,15 +14,17 @@ public final class UtilStatic {
         throw new UnsupportedOperationException("You cannot instantiate this class");
     }
 
-    // try to NOT use this, it's not fast
-    @SuppressWarnings("unchecked")
-    public static <T> T getBean(String name, Class<T> type) {
-        try {
-            return (T) new InitialContext().lookup(name);
-        } catch (NamingException n) {
-            LOG.log(Level.SEVERE, "Attempted to look up invalid bean, name:" + name + " type:" + type.getName(), n);
-            throw new RuntimeException(n);
-        }
+    /**
+     * handy formula to rank things by popularity over time. stolen from hacker
+     * news.
+     *
+     * @param points
+     * @param lifetime
+     * @param gravity exponential decay factor, try using 1.8
+     * @return
+     */
+    public static double score(double points, double lifetime, double gravity) {
+        return points / Math.pow(lifetime, gravity);
     }
 
     public static Collection<Future> finish(Collection<Future> these) {
@@ -34,7 +33,7 @@ public final class UtilStatic {
                 task.get();
             } catch (InterruptedException | ExecutionException ex) {
                 LOG.log(Level.SEVERE, "Tried to finish a bunch of jobs, but couldn't.", ex);
-                getBean(SecurityRepo.LOCAL_NAME, SecurityRepo.class).logException(null, "Multithread Exception", "Tried to finish a bunch of jobs, but couldn't.", ex);
+                //libWebsiteTools.AllBeanAccess.getBean(SecurityRepo.LOCAL_NAME, SecurityRepo.class).logException(null, "Multithread Exception", "Tried to finish a bunch of jobs, but couldn't.", ex);
                 throw new RuntimeException(ex);
             }
         }
@@ -64,16 +63,16 @@ public final class UtilStatic {
      * @param in input string
      * @param link keep "<" and ">", preserving embedded links
      * @param addPtags
+     * @param addBreaks convert line breaks to br tags
      * @return formatted string
      */
-    public static String htmlFormat(String in, boolean link, boolean addPtags) {
+    public static String htmlFormat(String in, boolean link, boolean addPtags, boolean addBreaks) {
         StringBuilder sb = new StringBuilder(in.length() + 1000);
         if (addPtags) {
             sb.append("<p>");
         }
         in = removeSpaces(in);
         boolean inBrack = false;
-        int index = 0;
         for (char c : in.toCharArray()) {
             switch (c) {
                 case '<':
@@ -101,7 +100,7 @@ public final class UtilStatic {
                     break;
                 case '\'':
                     if (!inBrack) {
-                        sb.append("&apos;");
+                        sb.append("&#39;");
                     } else {
                         sb.append(c);
                     }
@@ -115,19 +114,18 @@ public final class UtilStatic {
                         sb.append(c);
                     }
                     break;
+                case '\r':
+                    continue;
                 case '\n':
-                    if (!inBrack) {
+                    if (addBreaks && !inBrack) {
                         sb.append("<br/>");
                     } else {
                         sb.append(c);
                     }
                     break;
-                case '\r':
-                    continue;
                 default:
                     sb.append(c);
             }
-            index++;
         }
         if (addPtags) {
             sb.append("</p>");

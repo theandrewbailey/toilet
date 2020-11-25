@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.ejb.EJBException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -26,12 +27,12 @@ import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
 import toilet.ArticleProcessor;
+import toilet.IndexFetcher;
 import toilet.UtilStatic;
 import toilet.bean.ArticleRepo;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Section;
-import toilet.rss.ArticleRss;
 import toilet.tag.ArticleUrl;
 
 @WebServlet(name = "ArticleServlet", description = "Gets a single article from the DB with comments", urlPatterns = {"/article/*"})
@@ -45,7 +46,7 @@ public class ArticleServlet extends ToiletServlet {
     @Override
     protected long getLastModified(HttpServletRequest request) {
         try {
-            Article art = cache.getArticleFromURI(request.getRequestURI());
+            Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
             request.setAttribute(Article.class.getCanonicalName(), art);
             return art.getModified().getTime();
         } catch (RuntimeException ex) {
@@ -54,12 +55,13 @@ public class ArticleServlet extends ToiletServlet {
     }
 
     @Override
+    @SuppressWarnings("UnnecessaryReturnStatement")
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null == art) {
             try {
-                art = cache.getArticleFromURI(request.getRequestURI());
+                art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -93,17 +95,15 @@ public class ArticleServlet extends ToiletServlet {
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null != art && !response.isCommitted()) {
             SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-            request.setAttribute("art", art);
+            request.setAttribute(Article.class.getSimpleName(), art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-
             request.setAttribute("seeAlsoTerm", getArticleSuggestionTerm(art));
-            request.setAttribute("seeAlso", getArticleSuggestions(arts, art));
-
+            request.setAttribute("seeAlso", getArticleSuggestions(beans.getArts(), art));
             if (art.getComments()) {
                 request.setAttribute("commentForm", getCommentFormUrl(art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
-                SimpleDateFormat timeFormat = new SimpleDateFormat(imead.getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(request, imead)));
-                String footer = MessageFormat.format(imead.getLocal("page_articleFooter", Local.resolveLocales(request, imead)),
+                SimpleDateFormat timeFormat = new SimpleDateFormat(beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), request)));
+                String footer = MessageFormat.format(beans.getImead().getLocal("page_articleFooter", Local.resolveLocales(beans.getImead(), request)),
                         new Object[]{timeFormat.format(art.getPosted()), art.getSectionid().getName()})
                         + (1 == art.getCommentCollection().size() ? "1 comment." : art.getCommentCollection().size() + " comments.");
                 request.setAttribute("commentFormTitle", footer);
@@ -118,14 +118,14 @@ public class ArticleServlet extends ToiletServlet {
             if (null != art.getDescription()) {
                 HtmlMeta.addPropertyTag(request, "og:description", art.getDescription());
             }
-            HtmlMeta.addPropertyTag(request, "og:site_name", imead.getLocal(ToiletServlet.SITE_TITLE, "en"));
+            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en"));
             HtmlMeta.addPropertyTag(request, "og:type", "article");
             HtmlMeta.addPropertyTag(request, "og:article:published_time", htmlFormat.format(art.getPosted()));
             HtmlMeta.addPropertyTag(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
             HtmlMeta.addPropertyTag(request, "og:article:author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:article:section", art.getSectionid().getName());
             HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
-            HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(imead.getValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
+            HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
     }
@@ -156,7 +156,7 @@ public class ArticleServlet extends ToiletServlet {
         try {
             Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(getArticleSuggestionTerm(art)));
             if (7 > seeAlso.size()) {
-                seeAlso.addAll(arts.getSection(art.getSectionid().getName(), 1, 14));
+                seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 14));
             }
             seeAlso.remove(art);
             List<Article> temp = Arrays.asList(Arrays.copyOf(seeAlso.toArray(new Article[]{}), 6));
@@ -178,16 +178,14 @@ public class ArticleServlet extends ToiletServlet {
     }
 
     public String getCommentFormUrl(Article art, Locale lang) {
+        @SuppressWarnings("ReplaceStringBufferByString")
         StringBuilder url = new StringBuilder("comments/").append(art.getArticleid()).append("?iframe");
-//        if (null != lang) {
-//            url.append("&lang=").append(lang.toLanguageTag());
-//        }
         return url.toString();
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Matcher validator = AbstractInput.GENERAL_VALIDATION.matcher("");
+        Matcher validator = AbstractInput.DEFAULT_REGEXP.matcher("");
         switch (AbstractInput.getParameter(request, "submit-type")) {
             case "comment":     // submitted comment
                 if (AbstractInput.getParameter(request, "text") == null || AbstractInput.getParameter(request, "text").isEmpty()
@@ -202,7 +200,7 @@ public class ArticleServlet extends ToiletServlet {
                 }
                 String rawin = AbstractInput.getParameter(request, "text");
                 String totest = rawin.toLowerCase();
-                String[] spamwords = imead.getValue(SPAM_WORDS).split("\n");
+                String[] spamwords = beans.getImeadValue(SPAM_WORDS).split("\n");
                 for (String ua : spamwords) {
                     if (Pattern.matches(ua, totest)) {
                         response.sendError(HttpServletResponse.SC_FORBIDDEN);
@@ -210,19 +208,19 @@ public class ArticleServlet extends ToiletServlet {
                     }
                 }
                 Comment c = new Comment();
-                c.setPostedhtml(UtilStatic.htmlFormat(UtilStatic.removeSpaces(rawin), false, true));
+                c.setPostedhtml(UtilStatic.htmlFormat(UtilStatic.removeSpaces(rawin), false, true, true));
                 String postName = AbstractInput.getParameter(request, "name");
                 postName = postName.trim();
-                c.setPostedname(UtilStatic.htmlFormat(postName, false, false));
+                c.setPostedname(UtilStatic.htmlFormat(postName, false, false, true));
                 if (!validator.reset(postName).matches()
                         || !validator.reset(rawin).matches()
                         || c.getPostedname().length() > 250 || c.getPostedhtml().length() > 64000) {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST);
                     return;
                 }
-                Integer id = cache.getArticleFromURI(request.getRequestURI()).getArticleid();
+                Integer id = IndexFetcher.getArticleFromURI(beans, request.getRequestURI()).getArticleid();
                 c.setArticleid(new Article(id));
-                comms.upsert(Arrays.asList(c));
+                beans.getComms().upsert(Arrays.asList(c));
                 request.getSession().setAttribute("LastPostedName", postName);
                 doGet(request, response);
                 break;
@@ -234,24 +232,27 @@ public class ArticleServlet extends ToiletServlet {
                 }
                 Article art = updateArticleFromPage(request);
                 if ("Preview".equals(request.getParameter("action"))) {
-                    AdminArticle.displayArticleEdit(request, response, art);
+                    AdminArticle.displayArticleEdit(beans, request, response, art);
                     return;
                 } else if (!validator.reset(art.getArticletitle()).matches()
                         || !validator.reset(art.getDescription()).matches()
                         || !validator.reset(art.getPostedname()).matches()
                         || !validator.reset(art.getPostedmarkdown()).matches()
                         || !validator.reset(art.getSectionid().getName()).matches()) {
-                    request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, imead.getLocal("page_patternMismatch", Local.resolveLocales(request, imead)));
-                    AdminArticle.displayArticleEdit(request, response, art);
+                    request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, beans.getImead().getLocal("page_patternMismatch", Local.resolveLocales(beans.getImead(), request)));
+                    AdminArticle.displayArticleEdit(beans, request, response, art);
                     return;
                 }
-                art = arts.upsert(Arrays.asList(art)).get(0);
+                art = beans.getArts().upsert(Arrays.asList(art)).get(0);
+                beans.reset();
                 response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
-                request.getSession().removeAttribute(AdminArticle.LAST_ARTICLE_EDITED);
-                exec.submit(() -> {
-                    backup.backup();
-                    feeds.get(ArticleRss.NAME).preAdd();
-                    arts.refreshSearch();
+                request.getSession().removeAttribute(Article.class.getSimpleName());
+                beans.getExec().submit(() -> {
+                    beans.getArts().refreshSearch();
+                    try {
+                        beans.getBackup().backup();
+                    } catch (EJBException e) {
+                    }
                 });
                 break;
             default:
@@ -261,17 +262,17 @@ public class ArticleServlet extends ToiletServlet {
     }
 
     private Article updateArticleFromPage(HttpServletRequest req) {
-        Article art = (Article) req.getSession().getAttribute(AdminArticle.LAST_ARTICLE_EDITED);
+        Article art = (Article) req.getSession().getAttribute(Article.class.getSimpleName());
         boolean isNewArticle = null == art.getArticleid();
         if (isNewArticle) {
-            int nextID = arts.count().intValue();
+            int nextID = beans.getArts().count().intValue();
             art.setArticleid(++nextID);
         }
         art.setArticletitle(AbstractInput.getParameter(req, "articletitle"));
         art.setDescription(AbstractInput.getParameter(req, "description"));
         art.setSectionid(new Section(0, AbstractInput.getParameter(req, "section")));
         art.setPostedname(AbstractInput.getParameter(req, "postedname") == null || AbstractInput.getParameter(req, "postedname").isEmpty()
-                ? imead.getValue(DEFAULT_NAME)
+                ? beans.getImeadValue(DEFAULT_NAME)
                 : AbstractInput.getParameter(req, "postedname"));
         String date = AbstractInput.getParameter(req, "posted");
         if (date != null) {
@@ -284,7 +285,7 @@ public class ArticleServlet extends ToiletServlet {
         art.setComments(AbstractInput.getParameter(req, "comments") != null);
         art.setPostedmarkdown(AbstractInput.getParameter(req, "postedmarkdown"));
         try {
-            return new ArticleProcessor(ArticleProcessor.convert(art), imead, file).call();
+            return new ArticleProcessor(beans, ArticleProcessor.convert(art)).call();
         } finally {
             if (isNewArticle) {
                 art.setArticleid(null);

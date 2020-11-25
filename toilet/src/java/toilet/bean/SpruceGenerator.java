@@ -39,7 +39,6 @@ import org.w3c.dom.Document;
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class SpruceGenerator extends SimpleRssFeed implements iDynamicFeed {
 
-    public static final String LOCAL_NAME = "java:module/SpruceGenerator";
     public static final String DICTIONARY_XML = "spruce_dictionary";
     public static final String SPRUCE_FEED_NAME = "Spruce.rss";
     public static final String ERROR = "Spruce cannot start properly!";
