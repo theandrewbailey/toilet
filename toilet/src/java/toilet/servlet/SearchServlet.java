@@ -52,7 +52,7 @@ public class SearchServlet extends ToiletServlet {
             //          if (!prefix.endsWith("/")) {
             //            prefix += "/";
             //      }
-            String url = ArticleUrl.getUrl("/", art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null);
+            String url = ArticleUrl.getUrl("/", art, null);
             request.getServletContext().getRequestDispatcher(url).forward(request, response);
             return;
         }

@@ -62,7 +62,7 @@ public class SitemapProvider extends AbstractPageSource {
                         freq = ChangeFreq.yearly;
                     }
                 }
-                urlMap.add(new UrlMap(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), e, null, null), e.getModified(), freq, String.format("%.1f", difference)));
+                urlMap.add(new UrlMap(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), e, null), e.getModified(), freq, String.format("%.1f", difference)));
             }
             for (Section s : sects) {
                 String name = s.getName();

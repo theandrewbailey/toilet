@@ -46,7 +46,7 @@
     <h:button type="submit" id="action" value="save"><h:local key="page_setupAdd"/></h:button>
 </form>
 <c:if test="${FIRST_TIME_SETUP == 'FIRST_TIME_SETUP'}">
-    <form action="import" method="POST" enctype="multipart/form-data" accept-charset="UTF-8">
+    <form action="adminImport" method="POST" enctype="multipart/form-data" accept-charset="UTF-8">
         <fieldset><legend><h:local key="page_setupRestore"/></legend>
             <h:file id="zip" label="Upload a backup: " labelNextLine="false" />
             <h:button type="submit" id="action" value="Upload"><h:local key="page_setupUpload"/></h:button>

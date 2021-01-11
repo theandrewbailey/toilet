@@ -119,9 +119,9 @@ public class IndexFetcher {
         // get total of all, to display number of pages limit
         if (count == 0) {
             double counted;
-            if(null==section){
+            if (null == section) {
                 counted = beans.getArts().count();
-            }else{
+            } else {
                 counted = beans.getSects().get(section).getArticleCollection().size();
             }
             count = (int) Math.ceil(counted / ppp);

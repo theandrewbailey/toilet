@@ -12,16 +12,11 @@ import javax.ejb.ConcurrencyManagementType;
 import javax.ejb.LocalBean;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
-import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceUnit;
 import javax.persistence.TypedQuery;
-import libWebsiteTools.cache.CachedPage;
-import libWebsiteTools.cache.PageCache;
-import libWebsiteTools.cache.PageCacheProvider;
-import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.db.Repository;
 
 @Startup
@@ -31,9 +26,6 @@ import libWebsiteTools.db.Repository;
 public class FileRepo implements Repository<Fileupload> {
 
     public static final String DEFAULT_MIME_TYPE = "application/octet-stream";
-    @Inject
-    private PageCacheProvider pageCacheProvider;
-    private PageCache globalCache;
     @PersistenceUnit
     private EntityManagerFactory PU;
     private static final Logger LOG = Logger.getLogger(FileRepo.class.getName());
@@ -41,9 +33,6 @@ public class FileRepo implements Repository<Fileupload> {
     @Override
     @PostConstruct
     public synchronized void evict() {
-        if (null == globalCache) {
-            globalCache = (PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
-        }
         PU.getCache().evict(Fileupload.class);
         PU.getCache().evict(Filemetadata.class);
         EntityManager em = PU.createEntityManager();
@@ -130,7 +119,6 @@ public class FileRepo implements Repository<Fileupload> {
                 em.close();
             }
         }
-        globalCache.clear();
         return f;
     }
 

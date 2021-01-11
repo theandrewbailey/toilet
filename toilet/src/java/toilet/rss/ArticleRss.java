@@ -68,14 +68,14 @@ public class ArticleRss extends AbstractRssFeed implements iDynamicFeed {
             entries.addItem(i);
             i.setTitle(art.getArticletitle());
             i.setAuthor(entries.getWebMaster());
-            i.setLink(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null, null));
+            i.setLink(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null));
             i.setGuid(i.getLink());
             i.setGuidPermaLink(true);
             i.setPubDate(art.getPosted());
             i.setMarkdownSource(art.getPostedmarkdown());
             i.setDescription(art.getPostedhtml());
             i.setMetadescription(art.getDescription());
-            i.addCategory(art.getSectionid().getName(), Categorizer.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), category, null, null));
+            i.addCategory(art.getSectionid().getName(), Categorizer.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), category, null));
             if (art.getComments()) {
                 i.setComments(i.getLink() + "#comments");
             }

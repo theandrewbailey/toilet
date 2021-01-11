@@ -11,10 +11,7 @@ import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.inject.Inject;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import libWebsiteTools.cache.CachedPage;
-import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCacheProvider;
-import libWebsiteTools.cache.PageCaches;
 import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
@@ -81,7 +78,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
         arts.evict();
         sects.evict();
         file.evict();
-        ((PageCache) pageCacheProvider.getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI)).clear();
+        getGlobalCache().clear();
     }
 
     @Override

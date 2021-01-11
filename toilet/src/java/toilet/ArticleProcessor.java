@@ -153,7 +153,7 @@ public class ArticleProcessor implements Callable<Article> {
                     art.setImageurl(baseAttribs.get("src"));
                 }
                 art.setSummary(String.format("<article class=\"article%s\"><a class=\"withFigure\" href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
-                        art.getArticleid(), ArticleUrl.getUrl("", art, null, null), pictureString, art.getArticletitle(), paragraph
+                        art.getArticleid(), ArticleUrl.getUrl("", art, null), pictureString, art.getArticletitle(), paragraph
                 ));
             }
         }
@@ -161,7 +161,7 @@ public class ArticleProcessor implements Callable<Article> {
         art.setPostedamp(ampHtml);
         if (null == art.getSummary()) {
             art.setSummary(String.format("<article class=\"article%s\"><header><a href=\"%s\"><h1>%s</h1></a></header>%s</article>",
-                    art.getArticleid(), ArticleUrl.getUrl("", art, null, null), art.getArticletitle(), paragraph));
+                    art.getArticleid(), ArticleUrl.getUrl("", art, null), art.getArticletitle(), paragraph));
         }
         return art;
     }

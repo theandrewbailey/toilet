@@ -47,15 +47,22 @@ public class JspFilter extends BaseAllBeanAccess implements Filter {
             }
         } catch (Exception x) {
         }
+        try {
+            String theme = getImeadValue("site_themeColor");
+            if (null != theme) {
+                HtmlMeta.addNameTag(req, "theme-color", theme);
+            }
+        } catch (Exception x) {
+        }
         Object csp = request.getAttribute(CONTENT_SECURITY_POLICY);
         res.setHeader("Accept-Ranges", "none");
-        res.addHeader(HttpHeaders.CONTENT_LANGUAGE, primaryLocale.toLanguageTag());
-        res.addHeader("Content-Security-Policy", null == csp ? getImeadValue(CONTENT_SECURITY_POLICY) : csp.toString());
-        res.addHeader("Feature-Policy", getImeadValue(FEATURE_POLICY));
-        res.addHeader("Referrer-Policy", getImeadValue(REFERRER_POLICY));
+        res.setHeader(HttpHeaders.CONTENT_LANGUAGE, primaryLocale.toLanguageTag());
+        res.setHeader("Content-Security-Policy", null == csp ? getImeadValue(CONTENT_SECURITY_POLICY) : csp.toString());
+        res.setHeader("Feature-Policy", getImeadValue(FEATURE_POLICY));
+        res.setHeader("Referrer-Policy", getImeadValue(REFERRER_POLICY));
         // unnecessary for modern browsers
-        //res.addHeader("X-Frame-Options", "SAMEORIGIN");
-        //res.addHeader("X-Xss-Protection", "1; mode=block");
+        //res.setHeader("X-Frame-Options", "SAMEORIGIN");
+        //res.setHeader("X-Xss-Protection", "1; mode=block");
         if (null == request.getAttribute(HtmlTime.FORMAT_VAR)) {
             request.setAttribute(HtmlTime.FORMAT_VAR, getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(getImead(), (HttpServletRequest) request)));
         }

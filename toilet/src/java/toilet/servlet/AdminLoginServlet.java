@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import javax.ejb.EJBException;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -83,10 +82,7 @@ public class AdminLoginServlet extends ToiletServlet {
                     return;
                 case RELOAD:
                     beans.reset();
-                    try {
-                        beans.getBackup().backup();
-                    } catch (EJBException e) {
-                    }
+                    beans.getExec().submit(beans.getBackup());
                     request.getSession().invalidate();
                     request.getSession(true);
                     response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
@@ -98,19 +94,19 @@ public class AdminLoginServlet extends ToiletServlet {
                 case IMEAD:
                     request.getSession().setAttribute(PERMISSION, IMEAD);
                     request.getRequestDispatcher("/adminImead").forward(request, response);
-                    //response.sendRedirect(beans.getImeadValue(SecurityRepo.CANONICAL_URL) + "adminImead");
                     return;
+                default:
+                    beans.getError().logException(request, "Bad Login", "Tried to access restricted area. Login not recognized: " + answer, null);
+                    request.getSession().setAttribute(PERMISSION, null);
+                    request.setAttribute(GuardFilter.HANDLED_ERROR, true);
+                    request.getRequestDispatcher("/").forward(request, response);
+                    break;
             }
         } catch (InterruptedException | ExecutionException ex) {
             beans.getError().logException(request, "Multithread Exception", "Something happened while verifying passwords", ex);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            return;
         }
-        request.getSession().setAttribute(PERMISSION, null);
-        beans.getError().logException(request, null, "Tried to access restricted area.", null);
-        request.setAttribute(GuardFilter.HANDLED_ERROR, true);
-        request.getRequestDispatcher("/").forward(request, response);
     }
 
     public static String getScope(AllBeanAccess beans, String password) throws InterruptedException, ExecutionException {

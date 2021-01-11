@@ -81,7 +81,7 @@ import toilet.servlet.ToiletServlet;
 @Singleton
 @LocalBean
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
-public class BackupDaemon {
+public class BackupDaemon implements Runnable {
 
     public final static String MIMES_TXT = "mimes.txt";
     private final static String MASTER_DIR = "file_backup";
@@ -96,6 +96,11 @@ public class BackupDaemon {
         ARTICLES, COMMENTS, LOCALIZATIONS, FILES;
     }
 
+    @Override
+    public void run() {
+        backup();
+    }
+
     /**
      * dumps articles, comments, and uploaded files to a directory (specified by
      * site_backup key in beans.getImead().keyValue)
@@ -108,6 +113,10 @@ public class BackupDaemon {
         beans.getImead().evict();
         beans.getArts().evict();
         beans.getFile().evict();
+        Future<Boolean> zipTask = beans.getExec().submit(() -> {
+            backupToZip();
+            return true;
+        });
         String master = beans.getImeadValue(MASTER_DIR);
         if (null == master) {
             throw new IllegalArgumentException(MASTER_DIR + " not configured.");
@@ -131,7 +140,6 @@ public class BackupDaemon {
                 mimes.append(f.getFilename()).append(": ").append(f.getMimetype()).append('\n');
             }
         }, false);
-
         try {
             LOG.log(Level.FINE, "Writing mimes.txt");
             writeFile(master + MIMES_TXT, mimes.toString().getBytes("UTF-8"));
@@ -153,9 +161,12 @@ public class BackupDaemon {
             LOG.log(Level.SEVERE, "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
             beans.getError().logException(null, "Backup failure", "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
         }
+        try {
+            zipTask.get();
+        } catch (InterruptedException | ExecutionException ex) {
+        }
         LOG.info("Backup procedure finished");
         LOG.exiting(BackupDaemon.class.getName(), "backup");
-        backupToZip();
     }
 
     /**

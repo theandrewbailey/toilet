@@ -31,7 +31,7 @@ public class ArticleUrl extends SimpleTagSupport {
         if (link) {
             b.append("<a href=\"");
         }
-        b.append(getUrl(((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL).toString(), article, locale, anchor));
+        b.append(getUrl(((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL).toString(), article, anchor));
         if (link && id != null) {
             b.append("\" id=\"").append(id);
         }
@@ -47,12 +47,8 @@ public class ArticleUrl extends SimpleTagSupport {
         getJspContext().getOut().print(b.toString());
     }
 
-    public static String getUrl(String baseURL, Article article, Locale lang, String anchor) {
+    public static String getUrl(String baseURL, Article article, String anchor) {
         StringBuilder url = new StringBuilder(baseURL).append("article/").append(article.getArticleid()).append('/').append(getUrlArticleTitle(article));
-        //StringBuilder url = new StringBuilder("article/").append(article.getArticleid()).append('/').append(getUrlArticleTitle(article));
-//        if (null != lang) {
-//            url.append("?lang=").append(lang.toLanguageTag());
-//        }
         if (null != anchor) {
             url.append("#").append(anchor);
         }

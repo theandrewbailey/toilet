@@ -13,9 +13,12 @@ import javax.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
+import net.minidev.json.JSONArray;
+import net.minidev.json.JSONObject;
 import toilet.FirstTimeDetector;
 import toilet.IndexFetcher;
 import toilet.db.Article;
+import toilet.tag.Categorizer;
 
 @WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/", "/index", "/index/*"})
 public class IndexServlet extends ToiletServlet {
@@ -110,6 +113,27 @@ public class IndexServlet extends ToiletServlet {
             HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en"));
             HtmlMeta.addPropertyTag(request, "og:type", "website");
             HtmlMeta.addNameTag(request, "description", f.getDescription());
+            JSONArray itemList = new JSONArray();
+            itemList.add(HtmlMeta.getLDBreadcrumb(beans.getImead().getLocal("page_title", Local.resolveLocales(beans.getImead(), request)), 1, request.getAttribute(SecurityRepo.BASE_URL).toString()));
+            if (null == f.getSection() && 1 == f.getPage() && null == request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)) {
+                JSONObject potentialAction = new JSONObject();
+                potentialAction.put("@type", "SearchAction");
+                potentialAction.put("target", beans.getImeadValue(SecurityRepo.BASE_URL) + "search?searchTerm={search_term_string}");
+                potentialAction.put("query-input", "required name=search_term_string");
+                JSONObject search = new JSONObject();
+                search.put("@context", "https://schema.org");
+                search.put("@type", "WebSite");
+                search.put("url", beans.getImeadValue(SecurityRepo.BASE_URL));
+                search.put("potentialAction", potentialAction);
+                HtmlMeta.addLDJSON(request, search.toJSONString());
+            } else if (null != f.getSection()) {
+                itemList.add(HtmlMeta.getLDBreadcrumb(f.getSection(), 2, Categorizer.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), f.getSection(), null)));
+            }
+            JSONObject breadcrumbs = new JSONObject();
+            breadcrumbs.put("@context", "https://schema.org");
+            breadcrumbs.put("@type", "BreadcrumbList");
+            breadcrumbs.put("itemListElement", itemList);
+            HtmlMeta.addLDJSON(request, breadcrumbs.toJSONString());
             request.getServletContext().getRequestDispatcher(HOME_JSP).forward(request, response);
         }
     }

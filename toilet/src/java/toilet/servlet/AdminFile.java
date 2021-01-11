@@ -35,6 +35,7 @@ public class AdminFile extends ToiletServlet {
             Fileupload deleted = beans.getFile().delete(del.split("\\|")[1]);
             String[] split = splitDirectoryAndName(deleted.getFilename());
             request.setAttribute("opened_dir", split[0]);
+            beans.reset();
             showFileList(request, response, beans.getFile().getFileMetadata(null));
         }
     }
@@ -43,11 +44,9 @@ public class AdminFile extends ToiletServlet {
         request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
         LinkedHashMap<String, List<Filemetadata>> files = new LinkedHashMap<>(uploads.size() * 2);
         List<String> directories = new ArrayList<>();
-
         // root "directory" first
         files.put("", new ArrayList<>());
         directories.add("");
-
         for (Filemetadata f : uploads) {
             String[] split = splitDirectoryAndName(f.getFilename());
             List<Filemetadata> temp = files.get(split[0]);
@@ -59,7 +58,6 @@ public class AdminFile extends ToiletServlet {
             f.setFilename(split[1]);
             temp.add(f);
         }
-
         request.setAttribute("files", files);
         request.setAttribute("directories", directories);
         if (null == request.getAttribute("opened_dir")) {

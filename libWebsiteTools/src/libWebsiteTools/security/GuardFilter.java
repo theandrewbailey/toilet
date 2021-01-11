@@ -116,7 +116,7 @@ public class GuardFilter extends BaseAllBeanAccess implements Filter {
         req.setAttribute(SecurityRepo.BASE_URL, getImeadValue(SecurityRepo.BASE_URL));
         res.setDateHeader(HttpHeaders.DATE, now.getTime());
         if (req.isSecure() && null != subject) {
-            res.addHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("X-Content-Type-Options", "nosniff");
             try {
                 subject.checkValidity();
                 if (now.before(certExpDate)) {
@@ -200,7 +200,7 @@ public class GuardFilter extends BaseAllBeanAccess implements Filter {
             return false;
         }
         String lookup = PageCache.getLookup(beans.getImead(), req);
-        res.addHeader(HttpHeaders.VARY, VARY_HEADER);
+        res.setHeader(HttpHeaders.VARY, VARY_HEADER);
         String ifNoneMatch = req.getHeader(HttpHeaders.IF_NONE_MATCH);
         if (null == ifNoneMatch) {
             ifNoneMatch = "";

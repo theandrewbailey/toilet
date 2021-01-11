@@ -42,13 +42,13 @@ public class Categorizer extends SimpleTagSupport {
         Locale locale = (Locale) req.getAttribute(Local.OVERRIDE_LOCALE_PARAM);
         Object baseURL = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL);
         if (null != baseURL) {
-            getJspContext().setAttribute("_cate_url", getUrl(baseURL.toString(), catName, page, locale));
+            getJspContext().setAttribute("_cate_url", getUrl(baseURL.toString(), catName, page));
             getJspContext().setAttribute("_cate_group", catName);
             getJspBody().invoke(null);
         }
     }
 
-    public static String getUrl(String baseURL, String category, Integer page, Locale lang) {
+    public static String getUrl(String baseURL, String category, Integer page) {
         StringBuilder url = new StringBuilder(70).append(baseURL).append("index/");
         if (null != category && !category.isEmpty()) {
             try {

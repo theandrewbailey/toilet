@@ -82,14 +82,14 @@ public class CommentRss extends AbstractRssFeed implements iDynamicFeed {
         for (Comment c : lComments) {
             RssItem i = new RssItem(c.getPostedhtml());
             entries.addItem(i);
-            i.addCategory(c.getArticleid().getSectionid().getName(), Categorizer.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid().getSectionid().getName(), null, null));
-            i.setLink(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid(), null, "comments"));
+            i.addCategory(c.getArticleid().getSectionid().getName(), Categorizer.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid().getSectionid().getName(), null));
+            i.setLink(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid(), "comments"));
             i.setGuid(HashUtil.getSHA256Hash(c.getPostedname() + c.getPosted().getTime() + c.getPostedhtml()));
             i.setPubDate(c.getPosted());
             i.setTitle(c.getArticleid().getArticletitle());
             i.setAuthor(c.getPostedname());
             if (c.getArticleid().getComments()) {
-                i.setComments(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid(), null, "comments"));
+                i.setComments(ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), c.getArticleid(), "comments"));
             }
         }
         return entries;

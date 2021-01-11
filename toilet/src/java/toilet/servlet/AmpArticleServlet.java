@@ -71,12 +71,12 @@ public class AmpArticleServlet extends ArticleServlet {
             request.setAttribute(Article.class.getSimpleName(), art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            request.setAttribute("canonical", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null, null));
+            request.setAttribute("canonical", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null));
             request.setAttribute("css", new String(beans.getFile().get(beans.getImead().getLocal("site_cssamp", Local.resolveLocales(beans.getImead(), request))).getFiledata(), "UTF-8"));
             HtmlMeta.addNameTag(request, "description", art.getDescription());
             HtmlMeta.addNameTag(request, "author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:title", art.getArticletitle());
-            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null));
             if (null != art.getImageurl()) {
                 HtmlMeta.addPropertyTag(request, "og:image", art.getImageurl());
             }
@@ -89,7 +89,7 @@ public class AmpArticleServlet extends ArticleServlet {
             HtmlMeta.addPropertyTag(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
             HtmlMeta.addPropertyTag(request, "og:article:author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:article:section", art.getSectionid().getName());
-            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null, null));
+            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null));
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
     }

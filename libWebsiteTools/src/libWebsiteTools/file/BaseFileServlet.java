@@ -237,9 +237,9 @@ public abstract class BaseFileServlet extends HttpServlet {
                 responseBytes = c.getFiledata();
             }
             response.getOutputStream().write(responseBytes);
-            PageCache cache = beans.getGlobalCache().getCache(request, response);
-            if (null != cache) {
-                cache.put(PageCache.getLookup(beans.getImead(), request), new CachedContent(beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS), response, responseBytes, PageCache.getLookup(beans.getImead(), request)));
+            PageCache global = beans.getGlobalCache().getCache(request, response);
+            if (null != global) {
+                global.put(PageCache.getLookup(beans.getImead(), request), new CachedContent(beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS), response, responseBytes, PageCache.getLookup(beans.getImead(), request)));
             }
             request.setAttribute(ResponseTag.RENDER_TIME_PARAM, new Date().getTime() - ((Date) request.getAttribute(GuardFilter.TIME_PARAM)).getTime());
         }
@@ -257,12 +257,15 @@ public abstract class BaseFileServlet extends HttpServlet {
                 uploadedfile.setUrl(getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), uploadedfile));
             }
             beans.getFile().upsert(uploadedfiles);
-            beans.getFile().evict();
-            request.setAttribute("uploadedfiles", uploadedfiles);
-            for (Fileupload fileupload : uploadedfiles) {
-                beans.getExec().submit(new Brotlier(beans, fileupload));
-                beans.getExec().submit(new Gzipper(beans, fileupload));
+            PageCache global = beans.getGlobalCache();
+            for (Fileupload uploadedfile : uploadedfiles) {
+                if (null != global) {
+                    global.removeAll(global.searchLookups(uploadedfile.getFilename()));
+                }
+                beans.getExec().submit(new Brotlier(beans, uploadedfile));
+                beans.getExec().submit(new Gzipper(beans, uploadedfile));
             }
+            request.setAttribute("uploadedfiles", uploadedfiles);
         } catch (FileNotFoundException fx) {
             request.setAttribute("ERROR_MESSAGE", "File not sent");
         } catch (EJBException | IOException | ServletException ex) {

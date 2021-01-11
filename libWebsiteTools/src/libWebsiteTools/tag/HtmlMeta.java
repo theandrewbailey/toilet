@@ -13,13 +13,13 @@ import javax.servlet.jsp.JspWriter;
 import javax.servlet.jsp.PageContext;
 import javax.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.AllBeanAccess;
-import libWebsiteTools.BaseAllBeanAccess;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.iDynamicFeed;
 import libWebsiteTools.rss.iFeed;
+import net.minidev.json.JSONObject;
 
 /**
  * puts <meta> and <link> tags on pages, including stylesheets. will link all
@@ -33,6 +33,7 @@ public class HtmlMeta extends SimpleTagSupport {
     public static final String META_NAME_TAGS = "$_HTML_META_NAME_TAGS";
     public static final String META_PROPERTY_TAGS = "$_HTML_META_PROPERTY_TAGS";
     public static final String LINK_TAGS = "$_HTML_LINK_TAGS";
+    public static final String LDJSON = "$_HTML_LDJSON";
     private static final String CSS_INTEGRITY_TEMPLATE = "<link rel=\"stylesheet\" href=\"%1$s\" integrity=\"%2$s-%3$s\"/>";
     private static final String CSS_TEMPLATE = "<link rel=\"stylesheet\" href=\"%1$s\"/>";
     public static final String SITE_CSS_KEY = "site_css";
@@ -71,6 +72,30 @@ public class HtmlMeta extends SimpleTagSupport {
             req.setAttribute(LINK_TAGS, tags);
         }
         tags.add(new AbstractMap.SimpleEntry<>(rel, href));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static void addLDJSON(HttpServletRequest req, String json) {
+        if (null == json) {
+            return;
+        }
+        List jsons = (List) req.getAttribute(LDJSON);
+        if (jsons == null) {
+            jsons = new ArrayList<>();
+            req.setAttribute(LDJSON, jsons);
+        }
+        jsons.add(json);
+    }
+
+    public static JSONObject getLDBreadcrumb(String name, Integer position, String url) {
+        JSONObject crumb = new JSONObject();
+        crumb.put("@type", "ListItem");
+        crumb.put("position", position);
+        crumb.put("name", name);
+        if (null != url) {
+            crumb.put("item", url);
+        }
+        return crumb;
     }
 
     @SuppressWarnings("unchecked")
@@ -162,6 +187,12 @@ public class HtmlMeta extends SimpleTagSupport {
                             beans.getImeadValue(SecurityRepo.BASE_URL), entry.getKey(), entry.getValue(), feed.getMimeType().toString()));
                 }
             }
+        }
+        try {
+            for (Object json: (List) getJspContext().findAttribute(LDJSON)) {
+                output.println(String.format("<script type=\"application/ld+json\">%s</script>", json.toString()));
+            }
+        } catch (NullPointerException n) {
         }
     }
 

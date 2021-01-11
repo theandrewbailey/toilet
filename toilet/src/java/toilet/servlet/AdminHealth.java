@@ -47,7 +47,7 @@ public class AdminHealth extends ToiletServlet {
             for (String command : beans.getImeadValue(AdminLoginServlet.HEALTH_COMMANDS).split("\n")) {
                 processes.put(command, beans.getExec().submit(() -> {
                     try {
-                        return new String(FileUtil.runProcess(command, null, 1000)).trim();
+                        return new String(FileUtil.runProcess(command, null, 1000));
                     } catch (IOException | RuntimeException t) {
                         return t.getLocalizedMessage();
                     }

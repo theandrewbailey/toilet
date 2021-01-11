@@ -26,6 +26,8 @@ import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
+import net.minidev.json.JSONArray;
+import net.minidev.json.JSONObject;
 import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
 import toilet.UtilStatic;
@@ -34,6 +36,7 @@ import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Section;
 import toilet.tag.ArticleUrl;
+import toilet.tag.Categorizer;
 
 @WebServlet(name = "ArticleServlet", description = "Gets a single article from the DB with comments", urlPatterns = {"/article/*"})
 public class ArticleServlet extends ToiletServlet {
@@ -72,7 +75,7 @@ public class ArticleServlet extends ToiletServlet {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-        String properUrl = ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null);
+        String properUrl = ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null);
         String actual = request.getAttribute(AbstractInput.ORIGINAL_REQUEST_URL).toString();
         if (!actual.contains(properUrl) && null == request.getAttribute("searchSuggestion")) {
             request.setAttribute(Article.class.getCanonicalName(), null);
@@ -94,12 +97,14 @@ public class ArticleServlet extends ToiletServlet {
         doHead(request, response);
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null != art && !response.isCommitted()) {
+            request.setAttribute("seeAlso", beans.getExec().submit(() -> {
+                return getArticleSuggestions(beans.getArts(), art);
+            }));
             SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
             request.setAttribute(Article.class.getSimpleName(), art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
             request.setAttribute("seeAlsoTerm", getArticleSuggestionTerm(art));
-            request.setAttribute("seeAlso", getArticleSuggestions(beans.getArts(), art));
             if (art.getComments()) {
                 request.setAttribute("commentForm", getCommentFormUrl(art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
                 SimpleDateFormat timeFormat = new SimpleDateFormat(beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), request)));
@@ -111,7 +116,7 @@ public class ArticleServlet extends ToiletServlet {
             HtmlMeta.addNameTag(request, "description", art.getDescription());
             HtmlMeta.addNameTag(request, "author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:title", art.getArticletitle());
-            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+            HtmlMeta.addPropertyTag(request, "og:url", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
             if (null != art.getImageurl()) {
                 HtmlMeta.addPropertyTag(request, "og:image", art.getImageurl());
             }
@@ -124,8 +129,29 @@ public class ArticleServlet extends ToiletServlet {
             HtmlMeta.addPropertyTag(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
             HtmlMeta.addPropertyTag(request, "og:article:author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:article:section", art.getSectionid().getName());
-            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+            HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
             HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
+            if (null != art.getImageurl()) {
+                JSONArray image = new JSONArray();
+                image.add(art.getImageurl());
+                JSONObject article = new JSONObject();
+                article.put("@context", "https://schema.org");
+                article.put("@type", "Article");
+                article.put("headline", art.getArticletitle());
+                article.put("image", image);
+                article.put("datePublished", htmlFormat.format(art.getPosted()));
+                article.put("dateModified", htmlFormat.format(art.getModified()));
+                HtmlMeta.addLDJSON(request, article.toJSONString());
+            }
+            JSONArray itemList = new JSONArray();
+            itemList.add(HtmlMeta.getLDBreadcrumb(beans.getImead().getLocal("page_title", Local.resolveLocales(beans.getImead(), request)), 1, request.getAttribute(SecurityRepo.BASE_URL).toString()));
+            itemList.add(HtmlMeta.getLDBreadcrumb(art.getSectionid().getName(), 2, Categorizer.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art.getSectionid().getName(), null)));
+            itemList.add(HtmlMeta.getLDBreadcrumb(art.getArticletitle(), 3, ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null)));
+            JSONObject breadcrumbs = new JSONObject();
+            breadcrumbs.put("@context", "https://schema.org");
+            breadcrumbs.put("@type", "BreadcrumbList");
+            breadcrumbs.put("itemListElement", itemList);
+            HtmlMeta.addLDJSON(request, breadcrumbs.toJSONString());
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
     }
@@ -156,7 +182,10 @@ public class ArticleServlet extends ToiletServlet {
         try {
             Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(getArticleSuggestionTerm(art)));
             if (7 > seeAlso.size()) {
-                seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 14));
+                seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 7));
+            }
+            if (7 > seeAlso.size()) {
+                seeAlso.addAll(arts.getBySection(null, 1, 7));
             }
             seeAlso.remove(art);
             List<Article> temp = Arrays.asList(Arrays.copyOf(seeAlso.toArray(new Article[]{}), 6));
@@ -164,7 +193,9 @@ public class ArticleServlet extends ToiletServlet {
             seeAlso.removeAll(Collections.singleton(null));
             // sort articles without images last
             for (Article a : temp) {
-                if (null == a.getImageurl()) {
+                if (null == a) {
+                    break;
+                } else if (null == a.getImageurl()) {
                     seeAlso.remove(a);
                     seeAlso.add(a);
                 }
@@ -245,7 +276,7 @@ public class ArticleServlet extends ToiletServlet {
                 }
                 art = beans.getArts().upsert(Arrays.asList(art)).get(0);
                 beans.reset();
-                response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM), null));
+                response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
                 request.getSession().removeAttribute(Article.class.getSimpleName());
                 beans.getExec().submit(() -> {
                     beans.getArts().refreshSearch();
