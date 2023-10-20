@@ -1,7 +1,7 @@
 package libWebsiteTools.imead;
 
 import java.io.IOException;
-import javax.servlet.jsp.JspException;
+import jakarta.servlet.jsp.JspException;
 
 /**
  *
@@ -17,7 +17,11 @@ public class LocalVar extends Local {
 
     @Override
     public void doTag() throws JspException, IOException {
-        var = var == null ? getKey() : var;
-        getJspContext().setAttribute(var, getValue());
+        try {
+            var = var == null ? getKey() : var;
+            getJspContext().setAttribute(var, getValue());
+        } catch (LocalizedStringNotFoundException lx) {
+            getJspContext().setAttribute(var, var);
+        }
     }
 }

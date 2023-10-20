@@ -6,20 +6,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import javax.ejb.EJB;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.JspWriter;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.json.Json;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.JspWriter;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.imead.Local;
-import libWebsiteTools.rss.iDynamicFeed;
-import libWebsiteTools.rss.iFeed;
-import net.minidev.json.JSONObject;
+import libWebsiteTools.rss.Feed;
+import libWebsiteTools.rss.DynamicFeed;
 
 /**
  * puts <meta> and <link> tags on pages, including stylesheets. will link all
@@ -38,8 +38,6 @@ public class HtmlMeta extends SimpleTagSupport {
     private static final String CSS_TEMPLATE = "<link rel=\"stylesheet\" href=\"%1$s\"/>";
     public static final String SITE_CSS_KEY = "site_css";
     private boolean showCss = true;
-    @EJB
-    private AllBeanAccess beans;
 
     @SuppressWarnings("unchecked")
     public static void addPropertyTag(HttpServletRequest req, String property, String content) {
@@ -87,13 +85,10 @@ public class HtmlMeta extends SimpleTagSupport {
         jsons.add(json);
     }
 
-    public static JSONObject getLDBreadcrumb(String name, Integer position, String url) {
-        JSONObject crumb = new JSONObject();
-        crumb.put("@type", "ListItem");
-        crumb.put("position", position);
-        crumb.put("name", name);
+    public static JsonObjectBuilder getLDBreadcrumb(String name, Integer position, String url) {
+        JsonObjectBuilder crumb = Json.createObjectBuilder().add("@type", "ListItem").add("position", position).add("name", name);
         if (null != url) {
-            crumb.put("item", url);
+            crumb.add("item", url);
         }
         return crumb;
     }
@@ -130,6 +125,8 @@ public class HtmlMeta extends SimpleTagSupport {
     @SuppressWarnings("unchecked")
     public void doTag() throws JspException, IOException {
         JspWriter output = getJspContext().getOut();
+        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
+        AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
         if (showCss) {
             output.println(String.format("<meta charset=\"%s\"/>", ((PageContext) getJspContext()).getResponse().getCharacterEncoding()));
             Object baseURL = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL);
@@ -179,10 +176,9 @@ public class HtmlMeta extends SimpleTagSupport {
             }
         } catch (NullPointerException n) {
         }
-        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
-        for (iFeed feed : beans.getFeeds().getAll(null)) {
-            if (feed instanceof iDynamicFeed) {
-                for (Map.Entry<String, String> entry : ((iDynamicFeed) feed).getFeedURLs(req).entrySet()) {
+        for (Feed feed : beans.getFeeds().getAll(null)) {
+            if (feed instanceof DynamicFeed) {
+                for (Map.Entry<String, String> entry : ((DynamicFeed) feed).getFeedURLs(req).entrySet()) {
                     output.println(String.format("<link rel=\"alternate\" href=\"%srss/%s\" title=\"%s\" type=\"%s\">",
                             beans.getImeadValue(SecurityRepo.BASE_URL), entry.getKey(), entry.getValue(), feed.getMimeType().toString()));
                 }

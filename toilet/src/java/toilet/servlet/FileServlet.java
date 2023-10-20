@@ -2,20 +2,24 @@ package toilet.servlet;
 
 import java.io.IOException;
 import java.util.List;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.MultipartConfig;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.ejb.EJB;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
+import toilet.bean.ToiletBeanAccess;
 
 @WebServlet(name = "FileServlet", description = "Handles uploading files, and serves files through inherited class", urlPatterns = {"/file", "/file/*", "/fileImmutable/*"})
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1024) // 1 gigabyte
 public class FileServlet extends BaseFileServlet {
 
     public static final String DEFAULT_TYPE = "text/html;charset=UTF-8";
+    @EJB
+    protected ToiletBeanAccess allBeans;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -27,11 +31,12 @@ public class FileServlet extends BaseFileServlet {
         super.doPost(request, response);
         try {
             Fileupload uploaded = ((List<Fileupload>) request.getAttribute("uploadedfiles")).get(0);
-            String[] split = AdminFile.splitDirectoryAndName(uploaded.getFilename());
+            String[] split = AdminFileServlet.splitDirectoryAndName(uploaded.getFilename());
             request.setAttribute("opened_dir", split[0]);
         } catch (RuntimeException r) {
         }
-        AdminFile.showFileList(request, response, beans.getFile().getFileMetadata(null));
+        ToiletBeanAccess beans = allBeans.getInstance(request);
+        AdminFileServlet.showFileList(request, response, beans.getFile().getFileMetadata(null));
     }
 
     @Override

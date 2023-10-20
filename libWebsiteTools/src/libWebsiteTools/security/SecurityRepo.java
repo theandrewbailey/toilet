@@ -2,31 +2,24 @@ package libWebsiteTools.security;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.EJB;
-import javax.ejb.LocalBean;
-import javax.ejb.Schedule;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.enterprise.concurrent.ManagedExecutorService;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.NoResultException;
-import javax.persistence.PersistenceUnit;
-import javax.persistence.TypedQuery;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.TypedQuery;
+import jakarta.servlet.http.HttpServletRequest;
 import libWebsiteTools.db.Exceptionevent;
 import libWebsiteTools.db.Honeypot;
 import libWebsiteTools.db.Repository;
@@ -37,10 +30,6 @@ import libWebsiteTools.imead.IMEADHolder;
  *
  * @author alpha
  */
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class SecurityRepo implements Repository<Exceptionevent> {
 
     public static final String LOCAL_NAME = "java:module/ExceptionRepo";
@@ -53,37 +42,36 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     public static final String HONEYPOTS = "security_honeypots";
     private static final String HONEYPOT_INITIAL_BLOCK_TIME = "security_initialBlock";
     private static final Logger LOG = Logger.getLogger(SecurityRepo.class.getName());
-    private static final Long EVENT_HORIZON = 86400000L * 90L;
-    @Resource
-    private ManagedExecutorService exec;
-    @EJB
-    private IMEADHolder imead;
-    @PersistenceUnit
-    private EntityManagerFactory PU;
+    private final EntityManagerFactory PU;
+    private final IMEADHolder imead;
+    private final CertUtil certs = new CertUtil();
 
-    @PostConstruct
-    @Schedule(persistent = false, hour = "1")
+    public SecurityRepo(EntityManagerFactory PU, IMEADHolder imead) {
+        this.PU = PU;
+        this.imead = imead;
+        evict();
+    }
+
     @Override
     public void evict() {
-        exec.submit(() -> {
-            EntityManager em = PU.createEntityManager();
-            try {
-                em.getTransaction().begin();
-                em.createNamedQuery("Honeypot.clean").executeUpdate();
-                em.createNamedQuery("Exceptionevent.clean").setParameter("past", new Date(new Date().getTime() - EVENT_HORIZON)).executeUpdate();
-                em.getTransaction().commit();
-            } finally {
-                em.close();
-            }
-            PU.getCache().evict(Honeypot.class);
-            PU.getCache().evict(Exceptionevent.class);
-        });
+        EntityManager em = PU.createEntityManager();
+        OffsetDateTime localNow = OffsetDateTime.now();
+        try {
+            em.getTransaction().begin();
+            em.createNamedQuery("Honeypot.clean").setParameter("now", localNow).executeUpdate();
+            em.createNamedQuery("Exceptionevent.clean").setParameter("past", localNow.minusDays(90)).executeUpdate();
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+        PU.getCache().evict(Honeypot.class);
+        PU.getCache().evict(Exceptionevent.class);
     }
 
     public void logException(HttpServletRequest req, String title, String desc, Throwable t) {
         LOG.finest("Saving exception");
         if (title == null && req != null) {
-            title = req.getRemoteAddr() + ' ' + req.getMethod() + ' ' + req.getRequestURI();
+            title = getIP(req) + ' ' + req.getMethod() + ' ' + req.getRequestURI();
         } else if (title == null && t != null) {
             title = t.getClass().getName();
         }
@@ -115,7 +103,7 @@ public class SecurityRepo implements Repository<Exceptionevent> {
             additionalDesc.append(w.toString().replace("\n\tat ", SecurityRepo.NEWLINE + " at "));
         }
         desc = additionalDesc.toString();
-        upsert(Arrays.asList(new Exceptionevent(null, new Date(), desc, title)));
+        upsert(Arrays.asList(new Exceptionevent(null, OffsetDateTime.now(), desc, title)));
     }
 
     @Override
@@ -230,10 +218,15 @@ public class SecurityRepo implements Repository<Exceptionevent> {
         throw new UnsupportedOperationException();
     }
 
+    public static String getIP(HttpServletRequest req) {
+        String proxyAddress = req.getHeader("x-forwarded-for");
+        return null == proxyAddress ? req.getRemoteAddr() : proxyAddress;
+    }
+
     public boolean inHoneypot(String ip) {
         EntityManager em = PU.createEntityManager();
         try {
-            em.createNamedQuery("Honeypot.findByIpBeforeNow", Honeypot.class).setParameter("ip", ip).getSingleResult();
+            em.createNamedQuery("Honeypot.findByIpBeforeNow", Honeypot.class).setParameter("ip", ip).setParameter("now", OffsetDateTime.now()).getSingleResult();
             return true;
         } catch (NoResultException n) {
             return false;
@@ -242,27 +235,31 @@ public class SecurityRepo implements Repository<Exceptionevent> {
         }
     }
 
-    public void putInHoneypot(String ip) {
+    public boolean putInHoneypot(String ip) {
+        OffsetDateTime localNow = OffsetDateTime.now();
         Long honeypotFirstBlockTime = Long.valueOf(imead.getValue(HONEYPOT_INITIAL_BLOCK_TIME));
-        Date now = new Date();
         EntityManager em = PU.createEntityManager();
+        boolean created = false;
         try {
             em.getTransaction().begin();
             try {
                 Honeypot h = em.createNamedQuery("Honeypot.findByIp", Honeypot.class).setParameter("ip", ip).getSingleResult();
-                h.setStartedatatime(now);
-                long delta = h.getExpiresatatime().getTime() - now.getTime();
-                long time = now.getTime() + Math.max(delta * 2, honeypotFirstBlockTime);
-                if (time > 9224257554000000L) {
-                    time = 9224257554000000L;
-                }
-                h.setExpiresatatime(new Date(time));
+                h.setStartedatatime(localNow);
+                long delta = Duration.between(h.getExpiresatatime(), localNow).abs().getSeconds();
+                long time = localNow.getLong(ChronoField.INSTANT_SECONDS) + Math.max(delta * 2, honeypotFirstBlockTime);
+                h.setExpiresatatime(OffsetDateTime.of(LocalDateTime.ofEpochSecond(time, 0, ZoneOffset.from(localNow)), ZoneOffset.from(localNow)));
             } catch (NoResultException n) {
-                em.persist(new Honeypot(null, new Date(now.getTime() + honeypotFirstBlockTime), ip, now));
+                em.persist(new Honeypot(null, localNow.plusSeconds(honeypotFirstBlockTime), ip, localNow));
+                created = true;
             }
             em.getTransaction().commit();
         } finally {
             em.close();
         }
+        return created;
+    }
+
+    public CertUtil getCerts() {
+        return certs;
     }
 }

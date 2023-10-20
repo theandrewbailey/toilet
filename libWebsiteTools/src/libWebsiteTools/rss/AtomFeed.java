@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.w3c.dom.Document;
@@ -16,7 +16,7 @@ import org.w3c.dom.DOMException;
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-public abstract class AtomFeed extends AtomCommonAttribs implements iFeed, iPublishable {
+public abstract class AtomFeed extends AtomCommonAttribs implements Feed, Publishable {
 
     private final List<AtomPerson> authors = new ArrayList<>();
     private final List<AtomCategory> categories = new ArrayList<>();
@@ -223,32 +223,32 @@ public abstract class AtomFeed extends AtomCommonAttribs implements iFeed, iPubl
     }
 
     @Override
-    public iFeed postWrite(HttpServletRequest req) {
+    public Feed postWrite(HttpServletRequest req) {
         return this;
     }
 
     @Override
-    public iFeed preAdd() {
+    public Feed preAdd() {
         return this;
     }
 
     @Override
-    public iFeed postAdd() {
+    public Feed postAdd() {
         return this;
     }
 
     @Override
-    public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
+    public Feed doHead(HttpServletRequest req, HttpServletResponse res) {
         return this;
     }
 
     @Override
-    public iFeed preRemove() {
+    public Feed preRemove() {
         return this;
     }
 
     @Override
-    public iFeed postRemove() {
+    public Feed postRemove() {
         return this;
     }
 }

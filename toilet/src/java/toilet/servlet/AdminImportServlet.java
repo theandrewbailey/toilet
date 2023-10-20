@@ -1,23 +1,25 @@
 package toilet.servlet;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.zip.ZipInputStream;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.MultipartConfig;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
-import toilet.FirstTimeDetector;
+import toilet.UtilStatic;
 import toilet.bean.BackupDaemon;
+import toilet.bean.ToiletBeanAccess;
 
 @WebServlet(name = "AdminImportServlet", description = "Inserts articles, comments, and files via zip file upload", urlPatterns = {"/adminImport"})
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1000) // 1000 megabytes
@@ -30,6 +32,7 @@ public class AdminImportServlet extends ToiletServlet {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + beans.getBackup().getZipName());
         response.setContentType("application/zip");
         beans.getBackup().createZip(response.getOutputStream(), Arrays.asList(BackupDaemon.BackupTypes.values()));
@@ -37,7 +40,8 @@ public class AdminImportServlet extends ToiletServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (FirstTimeDetector.FIRST_TIME_SETUP.equals(getServletContext().getAttribute(FirstTimeDetector.FIRST_TIME_SETUP))) {
+        ToiletBeanAccess beans = allBeans.getInstance(request);
+        if (AdminImeadServlet.FIRST_TIME_SETUP.equals(getServletContext().getAttribute(AdminImeadServlet.FIRST_TIME_SETUP))) {
             // this is OK
         } else if (!AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
                 || !HashUtil.verifyArgon2Hash(beans.getImeadValue(AdminLoginServlet.ADD_ARTICLE), AbstractInput.getParameter(request, "words"))) {
@@ -45,20 +49,16 @@ public class AdminImportServlet extends ToiletServlet {
             return;
         }
         try {
-            beans.getExec().submit(() -> {
-                try {
-                    ZipInputStream zip = new ZipInputStream(AbstractInput.getPart(request, "zip").getInputStream());
-                    beans.getBackup().restoreFromZip(zip);
-                    if (!FirstTimeDetector.isFirstTime(beans)) {
-                        request.getServletContext().removeAttribute(FirstTimeDetector.FIRST_TIME_SETUP);
-                    }
-                    Date start = (Date) request.getAttribute(GuardFilter.TIME_PARAM);
-                    Long time = new Date().getTime() - start.getTime();
-                    log("Backup restored in " + time + " milliseconds.");
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-            }).get();
+            Part p = AbstractInput.getPart(request, "zip");
+            InputStream i = p.getInputStream();
+            ZipInputStream zip = new ZipInputStream(i);
+            beans.getBackup().restoreFromZip(zip);
+            if (!UtilStatic.isFirstTime(beans)) {
+                request.getServletContext().removeAttribute(AdminImeadServlet.FIRST_TIME_SETUP);
+            }
+            OffsetDateTime start = GuardFilter.getRequestTime(request);
+            Duration d=Duration.between(start, OffsetDateTime.now()).abs();
+            log("Backup restored in " + d.toMillis() + " milliseconds.");
         } catch (Exception ex) {
             beans.getError().logException(request, "Restore from zip failed", null, ex);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);

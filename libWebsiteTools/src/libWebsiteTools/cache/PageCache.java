@@ -1,14 +1,15 @@
 package libWebsiteTools.cache;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.cache.Cache;
 import javax.cache.CacheManager;
 import javax.cache.configuration.CacheEntryListenerConfiguration;
@@ -17,10 +18,11 @@ import javax.cache.integration.CompletionListener;
 import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.CacheControl;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.CacheControl;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.ext.RuntimeDelegate;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.imead.Local;
@@ -36,10 +38,12 @@ public class PageCache implements Cache<String, CachedPage> {
     private Map<String, CachedPage> cache;
     private final CacheManager cman;
     private final String name;
-    private Date lastFlush = new Date();
+    private OffsetDateTime lastFlush = OffsetDateTime.now();
+    private final AtomicInteger totalHits=new AtomicInteger();
+    private final AtomicInteger totalPages=new AtomicInteger();
 
     public PageCache() {
-        cache = Collections.synchronizedMap(new InternalCache(10000));
+        cache = Collections.synchronizedMap(new InternalCache(100));
         cman = null;
         name = null;
     }
@@ -90,7 +94,7 @@ public class PageCache implements Cache<String, CachedPage> {
     public PageCache getCache(HttpServletRequest req, HttpServletResponse res) {
         int status = res.getStatus();
         if (200 == status || 404 == status || 410 == status) {
-            CacheControl cc = CacheControl.valueOf(res.getHeader(HttpHeaders.CACHE_CONTROL));
+            CacheControl cc = RuntimeDelegate.getInstance().createHeaderDelegate(CacheControl.class).fromString(res.getHeader(HttpHeaders.CACHE_CONTROL));
             if (cc.isNoCache() || cc.isNoStore() || null != req.getParameter("nocache")) {
                 return null;
             }
@@ -121,6 +125,7 @@ public class PageCache implements Cache<String, CachedPage> {
     @Override
     public void put(String lookup, CachedPage page) {
         cache.put(lookup, page);
+        incrementTotalPage();
     }
 
     @Override
@@ -222,8 +227,10 @@ public class PageCache implements Cache<String, CachedPage> {
 
     @Override
     public void clear() {
-        lastFlush = new Date();
+        lastFlush = OffsetDateTime.now();
         cache.clear();
+        totalHits.set(0);
+        totalPages.set(0);
     }
 
     @Override
@@ -260,7 +267,7 @@ public class PageCache implements Cache<String, CachedPage> {
     private class InternalCache extends LinkedHashMap<String, CachedPage> {
 
         private final int capacity;
-        private Date lastFlush = new Date();
+        private OffsetDateTime lastFlush = OffsetDateTime.now();
 
         public InternalCache(int capacity) {
             super(capacity * 2, 0.8f, true);
@@ -270,7 +277,7 @@ public class PageCache implements Cache<String, CachedPage> {
         @Override
         public void clear() {
             super.clear();
-            lastFlush = new Date();
+            lastFlush = OffsetDateTime.now();
         }
 
         @Override
@@ -278,8 +285,24 @@ public class PageCache implements Cache<String, CachedPage> {
             return entry.getValue().isExpired(getLastFlush()) || size() > capacity;
         }
 
-        public Date getLastFlush() {
+        public OffsetDateTime getLastFlush() {
             return lastFlush;
         }
+    }
+
+    public Integer getTotalHits() {
+        return totalHits.get();
+    }
+
+    public void incrementTotalHit() {
+        totalHits.incrementAndGet();
+    }
+
+    public Integer getTotalPages() {
+        return totalPages.get();
+    }
+
+    public void incrementTotalPage() {
+        totalPages.incrementAndGet();
     }
 }

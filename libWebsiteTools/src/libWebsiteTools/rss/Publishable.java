@@ -6,7 +6,7 @@ import org.w3c.dom.Element;
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-public interface iPublishable {
+public interface Publishable {
 
     /**
      * adds this object's information to the given XML element if adding

@@ -1,7 +1,8 @@
 package libWebsiteTools;
 
-import javax.ejb.Local;
-import javax.enterprise.concurrent.ManagedExecutorService;
+import jakarta.ejb.Local;
+import jakarta.enterprise.concurrent.ManagedExecutorService;
+import jakarta.servlet.http.HttpServletRequest;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCacheProvider;
@@ -10,6 +11,7 @@ import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.security.SecurityRepo;
+import libWebsiteTools.sitemap.SiteMapper;
 
 /**
  * Easy way to ensure static functions have access to requisite bean classes.
@@ -18,6 +20,8 @@ import libWebsiteTools.security.SecurityRepo;
  */
 @Local
 public interface AllBeanAccess {
+
+    public AllBeanAccess getInstance(HttpServletRequest req);
 
     public ManagedExecutorService getExec();
 
@@ -32,6 +36,8 @@ public interface AllBeanAccess {
     }
 
     public FeedBucket getFeeds();
+
+    public SiteMapper getMapper();
 
     public PageCacheProvider getPageCacheProvider();
 

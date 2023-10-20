@@ -8,14 +8,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.Part;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.tag.AbstractInput;
 
@@ -38,12 +38,15 @@ public class FileUtil {
             String fileName = filepart.getHeader("content-disposition").split("filename=\"")[1];
             String dir = getParam(req, "directory");
             dir = dir == null ? "" : dir;
+            if (0 != dir.length() && !dir.endsWith("/")) {
+                dir += "/";
+            }
             fileName = dir + fileName.substring(0, fileName.length() - 1);
             try (DataInputStream dis = new DataInputStream(filepart.getInputStream())) {
                 dis.readFully(tehFile);
             }
             Fileupload file = new Fileupload();
-            file.setAtime(new Date());
+            file.setAtime(OffsetDateTime.now());
             file.setEtag(HashUtil.getSHA256Hash(tehFile));
             file.setFiledata(tehFile);
             file.setFilename(fileName);

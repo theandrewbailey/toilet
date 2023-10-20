@@ -3,29 +3,32 @@ package toilet.servlet;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.imead.Local;
-import libWebsiteTools.rss.iDynamicFeed;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.IndexFetcher;
 import toilet.UtilStatic;
+import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.rss.CommentRss;
+import libWebsiteTools.rss.DynamicFeed;
 
 /**
  *
@@ -39,11 +42,12 @@ public class CommentServlet extends ToiletServlet {
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
         try {
             Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
             request.setAttribute(Article.class.getCanonicalName(), art);
-            return spamSuspected ? art.getModified().getTime() - 10000 : art.getModified().getTime();
+            return spamSuspected ? art.getModified().toInstant().toEpochMilli() - 10000 : art.getModified().toInstant().toEpochMilli();
         } catch (RuntimeException ex) {
 
         }
@@ -54,6 +58,7 @@ public class CommentServlet extends ToiletServlet {
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         if (null == art) {
             try {
                 art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
@@ -68,7 +73,7 @@ public class CommentServlet extends ToiletServlet {
             return;
         }
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
-        response.setDateHeader(HttpHeaders.DATE, spamSuspected ? art.getModified().getTime() - 10000 : art.getModified().getTime());
+        response.setDateHeader(HttpHeaders.DATE, spamSuspected ? art.getModified().toInstant().toEpochMilli() - 10000 : art.getModified().toInstant().toEpochMilli());
         request.setAttribute("spamSuspected", spamSuspected);
         response.setHeader(HttpHeaders.CACHE_CONTROL, spamSuspected ? "no-cache" : "private, must-revalidate, max-age=600");
         String ifNoneMatch = request.getHeader(HttpHeaders.IF_NONE_MATCH);
@@ -109,6 +114,7 @@ public class CommentServlet extends ToiletServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Matcher validator = AbstractInput.DEFAULT_REGEXP.matcher("");
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         switch (AbstractInput.getParameter(request, "submit-type")) {
             case "comment":     // submitted comment
                 String postName = AbstractInput.getParameter(request, "name");
@@ -145,9 +151,9 @@ public class CommentServlet extends ToiletServlet {
                 // prevent posting from old page
                 String postRequest = AbstractInput.getParameter(request, "original-request-time");
                 if (null != postRequest) {
-                    Date postRequestDate = new Date(Long.valueOf(postRequest) + 100);
+                    OffsetDateTime postRequestDate = Instant.ofEpochMilli(Long.valueOf(postRequest) + 100).atZone(ZoneId.systemDefault()).toOffsetDateTime();
                     for (Comment existingComment : art.getCommentCollection()) {
-                        if ((existingComment.getPostedname().equals(newComment.getPostedname())) && existingComment.getPosted().after(postRequestDate)
+                        if ((existingComment.getPostedname().equals(newComment.getPostedname())) && existingComment.getPosted().isAfter(postRequestDate)
                                 || existingComment.getPostedhtml().equals(newComment.getPostedhtml())) {
                             response.setStatus(HttpServletResponse.SC_CONFLICT);
                             request.getSession().setAttribute("LastPostedName", postName);
@@ -165,7 +171,7 @@ public class CommentServlet extends ToiletServlet {
                 beans.getExec().submit(() -> {
                     PageCache global = beans.getGlobalCache();
                     global.removeAll(global.searchLookups("/" + refreshedArt.getArticleid().toString() + "/"));
-                    for (String url : ((iDynamicFeed) beans.getFeeds().get(CommentRss.NAME)).getFeedURLs(request).keySet()) {
+                    for (String url : ((DynamicFeed) beans.getFeeds().get(CommentRss.NAME)).getFeedURLs(request).keySet()) {
                         global.removeAll(global.searchLookups("rss/" + url));
                     }
                 });

@@ -3,7 +3,6 @@ package libWebsiteTools.cache;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -12,11 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPOutputStream;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.WriteListener;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.WriteListener;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.JVMNotSupportedError;
 
 /**
@@ -105,7 +104,7 @@ public class ServletOutputWrapper<ALT extends ServletOutputStream> extends HttpS
 
         private final GZIPOutputStream gzipStream;
         private final AtomicBoolean open = new AtomicBoolean(true);
-        private final OutputStream output;
+        private final ServletOutputStream output;
 
         public GZIPOutput(HttpServletResponse res) throws IOException {
             res.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
@@ -149,11 +148,12 @@ public class ServletOutputWrapper<ALT extends ServletOutputStream> extends HttpS
 
         @Override
         public boolean isReady() {
-            return open.get();
+            return output.isReady() && open.get();
         }
 
         @Override
-        public void setWriteListener(WriteListener writeListener) {
+        public void setWriteListener(WriteListener wl) {
+            output.setWriteListener(wl);
         }
 
     }

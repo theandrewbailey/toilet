@@ -1,24 +1,22 @@
 package libWebsiteTools.file;
 
 import java.io.Serializable;
-import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Cacheable;
-import javax.persistence.Column;
-import javax.persistence.ConstraintMode;
-import javax.persistence.Entity;
-import javax.persistence.ForeignKey;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.Lob;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToOne;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import java.time.OffsetDateTime;
+import jakarta.persistence.Basic;
+import jakarta.persistence.Cacheable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ConstraintMode;
+import jakarta.persistence.Entity;
+import jakarta.persistence.ForeignKey;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  *
@@ -42,9 +40,8 @@ public class Fileupload implements Serializable {
     private String filename;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "atime", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date atime;
+    @Column(name = "atime", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime atime;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 250)
@@ -82,11 +79,11 @@ public class Fileupload implements Serializable {
         this.filename = filename;
     }
 
-    public Date getAtime() {
+    public OffsetDateTime getAtime() {
         return atime;
     }
 
-    public void setAtime(Date atime) {
+    public void setAtime(OffsetDateTime atime) {
         this.atime = atime;
     }
 
@@ -186,7 +183,7 @@ public class Fileupload implements Serializable {
     }
 
     /**
-     * @param filesize the filesize to set
+     * @param filemetadata
      */
     public void setFilemetadata(Filemetadata filemetadata) {
         this.filemetadata = filemetadata;

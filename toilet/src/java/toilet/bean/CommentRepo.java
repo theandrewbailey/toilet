@@ -1,22 +1,16 @@
 package toilet.bean;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.LocalBean;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.PersistenceUnit;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.TypedQuery;
 import libWebsiteTools.db.Repository;
 import toilet.db.Article;
 import toilet.db.Comment;
@@ -25,15 +19,14 @@ import toilet.db.Comment;
  *
  * @author alpha
  */
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class CommentRepo implements Repository<Comment> {
 
     private static final Logger LOG = Logger.getLogger(CommentRepo.class.getName());
-    @PersistenceUnit
-    private EntityManagerFactory toiletPU;
+    private final EntityManagerFactory toiletPU;
+
+    public CommentRepo(EntityManagerFactory toiletPU) {
+        this.toiletPU = toiletPU;
+    }
 
     /**
      * only supports adding comments.
@@ -51,7 +44,7 @@ public class CommentRepo implements Repository<Comment> {
             for (Comment c : entities) {
                 Article art = em.find(Article.class, c.getArticleid().getArticleid());
                 if (c.getPosted() == null) {
-                    c.setPosted(new Date());
+                    c.setPosted(OffsetDateTime.now());
                 }
                 c.setArticleid(art);
                 em.persist(c);

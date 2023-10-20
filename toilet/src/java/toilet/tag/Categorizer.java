@@ -3,15 +3,12 @@ package toilet.tag;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.Locale;
-import javax.ejb.EJB;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.imead.Local;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Section;
 
@@ -21,8 +18,6 @@ import toilet.db.Section;
  */
 public class Categorizer extends SimpleTagSupport {
 
-    @EJB
-    private ToiletBeanAccess beans;
     private String category;
     private Integer page;
 
@@ -32,14 +27,14 @@ public class Categorizer extends SimpleTagSupport {
             execute(category);
             return;
         }
-        for (Section sect : beans.getSects().getAll(null)) {
+        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
+        ToiletBeanAccess beans = (ToiletBeanAccess) req.getAttribute(libWebsiteTools.AllBeanAccess.class.getCanonicalName());
+        for (Section sect : beans.getInstance(req).getSects().getAll(null)) {
             execute(sect.getName());
         }
     }
 
     private void execute(String catName) throws JspException, IOException {
-        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
-        Locale locale = (Locale) req.getAttribute(Local.OVERRIDE_LOCALE_PARAM);
         Object baseURL = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL);
         if (null != baseURL) {
             getJspContext().setAttribute("_cate_url", getUrl(baseURL.toString(), catName, page));
@@ -58,7 +53,7 @@ public class Categorizer extends SimpleTagSupport {
                 throw new JVMNotSupportedError(ex);
             }
         }
-        if (null != page) {
+        if (null != page && 1 != page) {
             url.append(page);
         }
         return url.toString();

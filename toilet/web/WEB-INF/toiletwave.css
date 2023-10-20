@@ -210,11 +210,11 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   clear: both;
 }main{
   float: left;
-}html:not([amp]) aside{
+}html aside{
   float: right;
   width: calc(200px - 0.3rem);
   margin: 0.3rem 0rem 0.3rem 0.3rem;
-}html:not([amp])>body>div>aside{
+}html>body>div>aside{
   margin-left: -200px;
 }.asideCollide{
   max-width: calc(100% - 200px);

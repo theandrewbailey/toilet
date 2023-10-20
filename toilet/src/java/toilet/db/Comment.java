@@ -1,23 +1,21 @@
 package toilet.db;
 
 import java.io.Serializable;
-import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Cacheable;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import java.time.OffsetDateTime;
+import jakarta.persistence.Basic;
+import jakarta.persistence.Cacheable;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  *
@@ -39,9 +37,8 @@ public class Comment implements Serializable {
     private Integer commentid;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "posted", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date posted;
+    @Column(name = "posted", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime posted;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 10000000)
@@ -70,7 +67,7 @@ public class Comment implements Serializable {
         this.commentid = commentid;
     }
 
-    public Comment(Integer commentid, Date posted, String postedhtml, String postedname) {
+    public Comment(Integer commentid, OffsetDateTime posted, String postedhtml, String postedname) {
         this.commentid = commentid;
         this.posted = posted;
         this.postedhtml = postedhtml;
@@ -85,11 +82,11 @@ public class Comment implements Serializable {
         this.commentid = commentid;
     }
 
-    public Date getPosted() {
+    public OffsetDateTime getPosted() {
         return posted;
     }
 
-    public void setPosted(Date posted) {
+    public void setPosted(OffsetDateTime posted) {
         this.posted = posted;
     }
 

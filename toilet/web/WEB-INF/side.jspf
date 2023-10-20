@@ -5,7 +5,7 @@
         <li><c:choose><c:when test="${_cate_group == curGroup}">${_cate_group}</c:when><c:otherwise><a href="${_cate_url}">${_cate_group}</a></c:otherwise></c:choose></li></t:categorizer>
     </ul></nav><h:localVar key="page_patternMismatch" var="patternMismatch"/><h:localVar key="page_valueMissing" var="valueMissing"/>
     <form class="search" action="search" method="GET" accept-charset="UTF-8">
-        <input type="search" id="searchTerm" name="searchTerm" size="20" required="required" data-valuemissing="${valueMissing}" data-patternmismatch="${patternMismatch}" aria-label="Search"/>
+        <input type="search" name="searchTerm" size="20" required="required" data-valuemissing="${valueMissing}" data-patternmismatch="${patternMismatch}" aria-label="Search" autocomplete="off"/>
         <input type="submit" value="Search"/>
     </form>
     <t:sentence><a href="spruce" class="spruceBox"><span class="spruceQuote">${spruce_sentence}</span>

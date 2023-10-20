@@ -1,22 +1,15 @@
 package toilet.bean;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.EJB;
-import javax.ejb.LocalBean;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.NoResultException;
-import javax.persistence.PersistenceUnit;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.NoResultException;
 import libWebsiteTools.db.Repository;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.UtilStatic;
@@ -27,17 +20,16 @@ import toilet.db.Section;
  *
  * @author alpha
  */
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class SectionRepo implements Repository<Section> {
 
-    @PersistenceUnit
-    private EntityManagerFactory toiletPU;
-    @EJB
-    private IMEADHolder imead;
+    private final EntityManagerFactory toiletPU;
+    private final IMEADHolder imead;
     private List<Section> allSections;
+
+    public SectionRepo(EntityManagerFactory toiletPU, IMEADHolder imead) {
+        this.toiletPU = toiletPU;
+        this.imead = imead;
+    }
 
     @Override
     public Collection<Section> upsert(Collection<Section> entities) {
@@ -79,14 +71,14 @@ public class SectionRepo implements Repository<Section> {
             try {
                 List<Object[]> sectionsByArticlesPosted = em.createNamedQuery("Section.byArticlesPosted").getResultList();
                 em.close();
-                double now = new Date().getTime();
+                double now = OffsetDateTime.now().toInstant().toEpochMilli();
                 TreeMap<Double, Section> popularity = new TreeMap<>();
                 for (Object[] data : sectionsByArticlesPosted) {
                     Section section = (Section) data[0];
                     if (section.getName().equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
                         continue;
                     }
-                    double years = (now - ((Date) data[1]).getTime()) / 31536000000.0;
+                    double years = (now - ((OffsetDateTime) data[1]).toInstant().toEpochMilli()) / 31536000000.0;
                     double points = ((Long) data[2]).doubleValue();
                     // score = average posts per year since category first started
                     double score = UtilStatic.score(points, years, 1.8);
@@ -130,7 +122,8 @@ public class SectionRepo implements Repository<Section> {
 
     @Override
     public Long count() {
-        return new Long(getAll(null).size());
+        long count = getAll(null).size();
+        return count;
     }
 
 }

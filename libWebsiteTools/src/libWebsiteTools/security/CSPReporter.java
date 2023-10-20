@@ -1,18 +1,18 @@
 package libWebsiteTools.security;
 
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.Map;
-import javax.ejb.EJB;
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
-import javax.json.JsonValue;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.imead.IMEADHolder;
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
+import jakarta.json.JsonValue;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import libWebsiteTools.AllBeanAccess;
 
 /**
  *
@@ -21,20 +21,26 @@ import libWebsiteTools.imead.IMEADHolder;
 @WebServlet(name = "CSP Reporter", description = "Receives and logs Content Security Policy reports", urlPatterns = {"/report"})
 public class CSPReporter extends HttpServlet {
 
-    @EJB
-    protected SecurityRepo error;
-    @EJB
-    protected IMEADHolder imead;
-
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        StringBuilder report = new StringBuilder(1000);
+        StringBuilder report = new StringBuilder(1000).append("IP: ").append(SecurityRepo.getIP(request)).append(SecurityRepo.NEWLINE);
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            Enumeration<String> headers = request.getHeaders(headerName);
+            while (headers.hasMoreElements()) {
+                String header = headers.nextElement();
+                report.append(headerName).append(": ").append(SecurityRepo.htmlFormat(header)).append(SecurityRepo.NEWLINE);
+            }
+        }
+        report.append(SecurityRepo.NEWLINE).append(SecurityRepo.NEWLINE).append("csp-report:").append(SecurityRepo.NEWLINE);
         JsonReader read = Json.createReader(request.getInputStream());
         JsonObject reportObject = read.readObject().getJsonObject("csp-report");
         for (Map.Entry<String, JsonValue> field : reportObject.entrySet()) {
-            report.append(SecurityRepo.htmlFormat(field.getKey())).append(": ").append(SecurityRepo.htmlFormat(field.getValue().toString())).append("<br/>");
+            report.append(SecurityRepo.htmlFormat(field.getKey())).append(": ").append(SecurityRepo.htmlFormat(field.getValue().toString())).append(SecurityRepo.NEWLINE);
         }
-        error.logException(null, "Content Security Policy violation", report.toString(), null);
+        AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
+        beans.getError().logException(null, "Content Security Policy violation", report.toString(), null);
     }
 
     @Override

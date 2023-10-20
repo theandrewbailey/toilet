@@ -4,21 +4,22 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.tag.AbstractInput;
+import toilet.bean.ToiletBeanAccess;
 
 /**
  *
  * @author alpha
  */
 @WebServlet(name = "adminFile", description = "Performs admin stuff on file uploads", urlPatterns = {"/adminFile"})
-public class AdminFile extends ToiletServlet {
+public class AdminFileServlet extends ToiletServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -27,6 +28,7 @@ public class AdminFile extends ToiletServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         String del = AbstractInput.getParameter(request, "action");
         String answer = AbstractInput.getParameter(request, "answer");
         if (answer != null && HashUtil.verifyArgon2Hash(beans.getImeadValue(AdminLoginServlet.FILES), answer)) {

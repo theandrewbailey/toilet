@@ -5,21 +5,23 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.URLDecoder;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.ejb.EJB;
-import javax.ejb.EJBException;
-import javax.persistence.NoResultException;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.ejb.EJBException;
+import jakarta.persistence.NoResultException;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.HttpMethod;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.tag.ResponseTag;
@@ -41,8 +43,6 @@ public abstract class BaseFileServlet extends HttpServlet {
     private static final String CROSS_SITE_REQUEST = "error_cross_site_request";
     // [ origin, timestamp for immutable requests (guaranteed null if not immutable), file path, query string ]
     private static final Pattern FILE_URL = Pattern.compile("^(.*?)file(?:Immutable/([^/]+))?/([^\\?]+)\\??(.*)?");
-    @EJB
-    protected AllBeanAccess beans;
 
     public static String getNameFromURL(CharSequence URL) {
         try {
@@ -76,7 +76,7 @@ public abstract class BaseFileServlet extends HttpServlet {
             throw new IllegalArgumentException("no modified time for " + f.getFilename());
         }
         return new StringBuilder(300).append(baseURL).append("fileImmutable/")
-                .append(Base64.getUrlEncoder().encodeToString(BigInteger.valueOf(f.getAtime().getTime()).toByteArray()))
+                .append(Base64.getUrlEncoder().encodeToString(BigInteger.valueOf(f.getAtime().toInstant().toEpochMilli()).toByteArray()))
                 .append("/").append(f.getFilename()).toString();
     }
 
@@ -100,6 +100,7 @@ public abstract class BaseFileServlet extends HttpServlet {
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
+        AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         Fileupload c;
         try {
             c = beans.getFile().get(getNameFromURL(request.getRequestURL()));
@@ -108,12 +109,13 @@ public abstract class BaseFileServlet extends HttpServlet {
         } catch (Exception ex) {
             return -1;
         }
-        return c.getAtime().getTime() / 1000 * 1000;
+        return c.getAtime().withOffsetSameInstant(ZoneOffset.UTC).getLong(ChronoField.INSTANT_SECONDS);
     }
 
     @Override
     protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getHeader("Origin"));
+        AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         if (null == request.getHeader("Origin")
                 || (null == request.getHeader("Access-Control-Request-Method")
                 && null == request.getHeader("Access-Control-Request-Headers"))) {
@@ -135,7 +137,9 @@ public abstract class BaseFileServlet extends HttpServlet {
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        OffsetDateTime localNow = OffsetDateTime.now();
         Fileupload c = (Fileupload) request.getAttribute(BaseFileServlet.class.getCanonicalName());
+        AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         if (null == c) {
             try {
                 String name = getNameFromURL(request.getRequestURL());
@@ -146,7 +150,7 @@ public abstract class BaseFileServlet extends HttpServlet {
                 request.setAttribute(BaseFileServlet.class.getCanonicalName(), c);
             } catch (FileNotFoundException ex) {
                 response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + MAX_AGE_SECONDS);
-                response.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + MAX_AGE_MILLISECONDS);
+                response.setDateHeader(HttpHeaders.EXPIRES, localNow.toInstant().toEpochMilli());
                 if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(request, beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS))) {
                     request.setAttribute(GuardFilter.HANDLED_ERROR, true);
                 }
@@ -154,35 +158,23 @@ public abstract class BaseFileServlet extends HttpServlet {
                 return;
             }
         }
-
         if (!isAuthorized(request, c.getMimetype(), beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS))) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             beans.getError().logException(request, null, beans.getImead().getLocal(CROSS_SITE_REQUEST, Local.resolveLocales(beans.getImead(), request)), null);
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             return;
         }
-
-//        if (null != request.getHeader("Referer")) {
-//            Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getHeader("Referer"));
-//            if (null != imead.getPatterns(SecurityRepo.ACCEPTABLE_CONTENT_DOMAINS)
-//                    && SecurityRepo.matchesAny(request.getHeader("Referer"), imead.getPatterns(SecurityRepo.ACCEPTABLE_CONTENT_DOMAINS)) && originMatcher.matches()) {
-//                response.setHeader("Access-Control-Allow-Origin", originMatcher.group(1));
-//            } else if (null != guard.getCanonicalOrigin()) {
-//                response.setHeader("Access-Control-Allow-Origin", guard.getCanonicalOrigin());
-//            }
-//        } else {
         Matcher canonicalMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(request.getAttribute(SecurityRepo.BASE_URL).toString());
         canonicalMatcher.matches();
         response.setHeader("Access-Control-Allow-Origin", canonicalMatcher.group(1));
-//        }
         if (isImmutableURL(request.getRequestURL())) {
             response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + YEAR_SECONDS + ", immutable");
-            response.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + (YEAR_SECONDS * 1000));
+            response.setDateHeader(HttpHeaders.EXPIRES, localNow.plusYears(1).toInstant().toEpochMilli());
         } else {
             response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + MAX_AGE_SECONDS);
-            response.setDateHeader(HttpHeaders.EXPIRES, new Date().getTime() + MAX_AGE_MILLISECONDS);
+            response.setDateHeader(HttpHeaders.EXPIRES, localNow.toInstant().toEpochMilli() + MAX_AGE_MILLISECONDS);
         }
-        response.setDateHeader(HttpHeaders.LAST_MODIFIED, c.getAtime().getTime());
+        response.setDateHeader(HttpHeaders.LAST_MODIFIED, c.getAtime().toInstant().toEpochMilli());
         response.setContentType(c.getMimetype());
         if (!c.getMimetype().startsWith("text")) {
             response.setCharacterEncoding(null);
@@ -213,11 +205,13 @@ public abstract class BaseFileServlet extends HttpServlet {
             response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
         }
         response.setHeader("Accept-Ranges", "none");
+        response.setHeader(HttpHeaders.VARY, HttpHeaders.ACCEPT_ENCODING);
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         doHead(request, response);
+        AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         Fileupload c = (Fileupload) request.getAttribute(BaseFileServlet.class.getCanonicalName());
         byte[] responseBytes;
         if (HttpServletResponse.SC_OK == response.getStatus() && null != c) {
@@ -241,12 +235,14 @@ public abstract class BaseFileServlet extends HttpServlet {
             if (null != global) {
                 global.put(PageCache.getLookup(beans.getImead(), request), new CachedContent(beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS), response, responseBytes, PageCache.getLookup(beans.getImead(), request)));
             }
-            request.setAttribute(ResponseTag.RENDER_TIME_PARAM, new Date().getTime() - ((Date) request.getAttribute(GuardFilter.TIME_PARAM)).getTime());
+            Duration d = Duration.between((OffsetDateTime) GuardFilter.getRequestTime(request), OffsetDateTime.now()).abs();
+            request.setAttribute(ResponseTag.RENDER_TIME_PARAM, d.toMillis());
         }
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         try {
             List<Fileupload> uploadedfiles = FileUtil.getFilesFromRequest(request, "filedata");
             for (Fileupload uploadedfile : uploadedfiles) {

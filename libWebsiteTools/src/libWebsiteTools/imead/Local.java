@@ -7,13 +7,15 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import javax.ejb.EJB;
-import javax.ejb.EJBException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
-import javax.ws.rs.core.HttpHeaders;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import jakarta.ejb.EJBException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.ws.rs.core.HttpHeaders;
+import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.NullWriter;
 
 /**
@@ -34,8 +36,7 @@ public class Local extends SimpleTagSupport {
      * overridden locale, default behavior will be used.
      */
     public static final String OVERRIDE_LOCALE_PARAM = "$_LIBIMEAD_OVERRIDE_LOCALE";
-    @EJB
-    protected IMEADHolder imead;
+    public static final Pattern LANG_URL_PATTERN = Pattern.compile("^/([A-Za-z\\-]{2})(?:(/.*?))?$");
     private String key;
     private List<String> params = new ArrayList<>();
 
@@ -59,33 +60,35 @@ public class Local extends SimpleTagSupport {
     public static List<Locale> resolveLocales(IMEADHolder imead, HttpServletRequest req) {
         List<Locale> out = (List<Locale>) req.getAttribute(LOCALE_PARAM);
         if (null == out) {
+            Collection<Locale> locales = imead.getLocales();
             LinkedHashSet<Locale> lset = new LinkedHashSet<>();
             Locale override = (Locale) req.getAttribute(OVERRIDE_LOCALE_PARAM);
-            if (override != null && !lset.contains(override)) {
-                lset.add(override);
+            if (null != req.getSession(false) && null != req.getSession(false).getAttribute(OVERRIDE_LOCALE_PARAM)) {
+                override = (Locale) req.getSession(false).getAttribute(OVERRIDE_LOCALE_PARAM);
             }
-            Collection<Locale> locales = imead.getLocales();
-            String header = req.getHeader(HttpHeaders.ACCEPT_LANGUAGE);
-            if (null != header) {
-                List<Locale.LanguageRange> ranges = Locale.LanguageRange.parse(header);
-                for (Locale l : Locale.filter(ranges, locales)) {
-                    if (locales.contains(l)) {
-                        lset.add(l);
+            Matcher langMatcher = LANG_URL_PATTERN.matcher(req.getServletPath());
+            if (null == override) {
+                if (langMatcher.find()) {
+                    override = Locale.forLanguageTag(langMatcher.group(1));
+                    if (null != override && !Locale.ROOT.equals(override) && imead.getLocales().contains(override)) {
+                        req.setAttribute(Local.OVERRIDE_LOCALE_PARAM, override);
                     }
                 }
             }
-            if (lset.isEmpty()) {
-                if (locales.contains(Locale.getDefault()) && !lset.contains(Locale.getDefault())) {
-                    lset.add(Locale.getDefault());
+            if (null != override && !lset.contains(override)) {
+                lset.add(override);
+            } else if (null != req.getHeader(HttpHeaders.ACCEPT_LANGUAGE)) {
+                List<Locale.LanguageRange> ranges = Locale.LanguageRange.parse(req.getHeader(HttpHeaders.ACCEPT_LANGUAGE));
+                for (Locale l : Locale.filter(ranges, locales)) {
+                    if (locales.contains(l)) {
+                        lset.add(l);
+                        break;
+                    }
                 }
-                Locale generic = Locale.forLanguageTag(Locale.getDefault().getLanguage());
-                if (locales.contains(generic) && !generic.equals(Locale.getDefault()) && !lset.contains(generic)) {
-                    lset.add(generic);
-                }
+            } else if (locales.contains(Locale.forLanguageTag(Locale.getDefault().getLanguage()))) {
+                lset.add(Locale.getDefault());
             }
-            if (!lset.contains(Locale.ROOT)) {
-                lset.add(Locale.ROOT);
-            }
+            lset.add(Locale.ROOT);
             out = new ArrayList<>(lset);
             req.setAttribute(LOCALE_PARAM, out);
         }
@@ -106,11 +109,13 @@ public class Local extends SimpleTagSupport {
             getJspBody().invoke(new NullWriter());
         } catch (Exception n) {
         }
+        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
+        AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
         try {
             if (locale != null) {
-                return MessageFormat.format(imead.getLocal(getKey(), locale), getParams().toArray());
+                return MessageFormat.format(beans.getImead().getLocal(getKey(), locale), getParams().toArray());
             }
-            return MessageFormat.format(imead.getLocal(getKey(), resolveLocales(imead, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())), getParams().toArray());
+            return MessageFormat.format(beans.getImead().getLocal(getKey(), resolveLocales(beans.getImead(), (HttpServletRequest) ((PageContext) getJspContext()).getRequest())), getParams().toArray());
         } catch (EJBException e) {
             if (!(e.getCause() instanceof LocalizedStringNotFoundException)) {
                 throw e;

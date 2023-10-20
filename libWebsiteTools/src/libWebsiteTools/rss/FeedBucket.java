@@ -1,5 +1,16 @@
 package libWebsiteTools.rss;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.chrono.IsoChronology;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
+import java.time.format.SignStyle;
+import java.time.format.TextStyle;
+import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -9,12 +20,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.PreDestroy;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.LocalBean;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
+import jakarta.annotation.PreDestroy;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
@@ -28,15 +34,53 @@ import libWebsiteTools.db.Repository;
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
-public class FeedBucket implements Repository<iFeed> {
+public class FeedBucket implements Repository<Feed> {
 
     public static final String TIME_FORMAT = "EEE, dd MMM yyyy HH:mm:ss z";
     private static final Logger LOG = Logger.getLogger(FeedBucket.class.getName());
-    private final Map<String, iFeed> feeds = Collections.synchronizedMap(new HashMap<>());
+    private final Map<String, Feed> feeds = Collections.synchronizedMap(new HashMap<>());
+    public final static DateTimeFormatter RFC1123;
+
+    static {
+        Map<Long, String> dow = new HashMap<>();
+        dow.put(1L, "Mon");
+        dow.put(2L, "Tue");
+        dow.put(3L, "Wed");
+        dow.put(4L, "Thu");
+        dow.put(5L, "Fri");
+        dow.put(6L, "Sat");
+        dow.put(7L, "Sun");
+        Map<Long, String> moy = new HashMap<>();
+        moy.put(1L, "Jan");
+        moy.put(2L, "Feb");
+        moy.put(3L, "Mar");
+        moy.put(4L, "Apr");
+        moy.put(5L, "May");
+        moy.put(6L, "Jun");
+        moy.put(7L, "Jul");
+        moy.put(8L, "Aug");
+        moy.put(9L, "Sep");
+        moy.put(10L, "Oct");
+        moy.put(11L, "Nov");
+        moy.put(12L, "Dec");
+        RFC1123 = new DateTimeFormatterBuilder().parseCaseInsensitive().parseLenient()
+                .optionalStart().appendText(ChronoField.DAY_OF_WEEK, dow).appendLiteral(", ").optionalEnd()
+                .appendValue(ChronoField.DAY_OF_MONTH, 1, 2, SignStyle.NOT_NEGATIVE).appendLiteral(' ')
+                .appendText(ChronoField.MONTH_OF_YEAR, moy).appendLiteral(' ')
+                .appendValue(ChronoField.YEAR, 4).appendLiteral(' ')
+                .appendValue(ChronoField.HOUR_OF_DAY, 2).appendLiteral(':')
+                .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+                .optionalStart().appendLiteral(':').appendValue(ChronoField.SECOND_OF_MINUTE, 2).optionalEnd()
+                .appendLiteral(' ')
+                .optionalStart().appendZoneText(TextStyle.SHORT).optionalEnd()
+                .optionalStart().appendOffset("+HHMM", "GMT")
+                .toFormatter().withResolverStyle(ResolverStyle.SMART).withChronology(IsoChronology.INSTANCE);
+    }
+
+    public static OffsetDateTime parseTimeFormat(DateTimeFormatter formatter, String dateTimeStr) {
+        TemporalAccessor t = formatter.parse(dateTimeStr);
+        return Instant.from(t).atZone(ZoneId.from(t)).toOffsetDateTime();
+    }
 
     /**
      * returns an XML factory good to use.
@@ -67,8 +111,8 @@ public class FeedBucket implements Repository<iFeed> {
      * @see libRssServlet.Feed
      */
     @Override
-    public List<iFeed> upsert(Collection<iFeed> entities) {
-        for (iFeed feed : entities) {
+    public List<Feed> upsert(Collection<Feed> entities) {
+        for (Feed feed : entities) {
             if (feeds.containsKey(feed.getName())) {
                 continue;
             }
@@ -92,12 +136,12 @@ public class FeedBucket implements Repository<iFeed> {
      * @return iFeed
      */
     @Override
-    public iFeed get(Object name) {
+    public Feed get(Object name) {
         if (feeds.containsKey(name.toString())) {
             return feeds.get(name.toString());
         }
-        for (iFeed feed : feeds.values()) {
-            if (feed instanceof iDynamicFeed && ((iDynamicFeed) feed).willHandle(name.toString())) {
+        for (Feed feed : feeds.values()) {
+            if (feed instanceof DynamicFeed && ((DynamicFeed) feed).willHandle(name.toString())) {
                 return feed;
             }
         }
@@ -105,12 +149,12 @@ public class FeedBucket implements Repository<iFeed> {
     }
 
     @Override
-    public List<iFeed> getAll(Integer limit) {
+    public List<Feed> getAll(Integer limit) {
         return new ArrayList<>(feeds.values());
     }
 
     @Override
-    public void processArchive(Consumer<iFeed> operation, Boolean transaction) {
+    public void processArchive(Consumer<Feed> operation, Boolean transaction) {
         feeds.values().stream().forEachOrdered(operation);
     }
 
@@ -129,11 +173,11 @@ public class FeedBucket implements Repository<iFeed> {
      * @param name name of feed to remove
      */
     @Override
-    public iFeed delete(Object name) {
+    public Feed delete(Object name) {
         if (!feeds.containsKey(name.toString())) {
             throw new IllegalStateException(String.format("Feed doesn't exist, name: %1s", name));
         }
-        iFeed feed = get(name);
+        Feed feed = get(name);
         synchronized (feed) {
             feed.preRemove();
             feeds.remove(name.toString()).postRemove();

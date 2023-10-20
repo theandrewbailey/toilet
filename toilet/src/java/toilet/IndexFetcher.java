@@ -19,15 +19,13 @@ public class IndexFetcher {
 
     public static final String POSTS_PER_PAGE = "pagenation_post_count";
     public static final String PAGES_AROUND_CURRENT = "pagenation_around_current";
-    public static final Pattern INDEX_PATTERN = Pattern.compile(".*?/index(?:/(\\D*?))?(?:/([0-9]*)(?:\\?.*)?)?$");
+    public static final Pattern INDEX_PATTERN = Pattern.compile(".*?(?:/index)?(?:/(\\D*?))?(?:/([0-9]*)(?:\\?.*)?)?$");
     public static final Pattern ARTICLE_PATTERN = Pattern.compile(".*?/(?:(?:article)|(?:comments)|(?:amp)|(?:edit))/([0-9]*)(?:/[\\w\\-\\.\\(\\)\\[\\]\\{\\}\\+,%_]*/?)?(?:\\?.*)?(?:#.*)?$");
     private int page = 1;
     private String section = null;
     private int count = 0;
     private int first = 1;
     private final int pagesAroundCurrent;
-    private final String siteTitle;
-    private final String siteTagline;
     private List<Article> articles = Collections.<Article>emptyList();
 
     /**
@@ -104,8 +102,6 @@ public class IndexFetcher {
             }
             section = getCategoryFromURI(URI, beans.getImeadValue(ArticleRepo.DEFAULT_CATEGORY));
         } catch (RuntimeException e) {
-            siteTitle = null;
-            siteTagline = null;
             return;
         }
         try {
@@ -135,9 +131,10 @@ public class IndexFetcher {
         if (first < 1) {
             first = 1;
         }
-        siteTitle = beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en");
-        siteTagline = beans.getImead().getLocal(ToiletServlet.TAGLINE, "en");
-        articles = beans.getArts().getBySection(section, page, ppp);
+        articles = beans.getArts().getBySection(section, page, ppp, null);
+        if (null != section && articles.size() > 0) {
+            section = articles.get(0).getSectionid().getName();
+        }
     }
 
     public List<Article> getArticles() {
@@ -154,18 +151,6 @@ public class IndexFetcher {
 
     public int getLast() {
         return Math.min(first + pagesAroundCurrent * 2, count);
-    }
-
-    public String getDescription() {
-        StringBuilder d = new StringBuilder(70).append(siteTitle);
-        if (null == section && 1 != page) {
-            d.append(", all categories, page ").append(page);
-        } else if (null != section) {
-            d.append(", ").append(section).append(" category, page ").append(page);
-        } else {
-            d.append(", ").append(siteTagline);
-        }
-        return d.toString();
     }
 
     public boolean isValid() {

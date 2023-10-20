@@ -1,11 +1,11 @@
 package toilet.servlet;
 
 import java.io.IOException;
-import javax.ejb.EJB;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.ejb.EJB;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.imead.Local;
 import toilet.bean.ToiletBeanAccess;
 
@@ -22,7 +22,7 @@ public abstract class ToiletServlet extends HttpServlet {
     public static final String SITE_TITLE = "page_title";
     public static final String TAGLINE = "page_tagline";
     @EJB
-    protected ToiletBeanAccess beans;
+    protected ToiletBeanAccess allBeans;
 
     /**
      * tells the client to go to a new location. WHY is this not included in the
@@ -46,6 +46,7 @@ public abstract class ToiletServlet extends HttpServlet {
 
     protected void showError(HttpServletRequest req, HttpServletResponse res, Integer errorCode) {
         req.setAttribute("title", "ERROR " + errorCode);
+        ToiletBeanAccess beans = allBeans.getInstance(req);
         showError(req, res, beans.getImead().getLocal(ERROR_PREFIX + errorCode, Local.resolveLocales(beans.getImead(), req)));
     }
 

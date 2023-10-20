@@ -10,10 +10,10 @@ import org.w3c.dom.Element;
  */
 public class AtomEntry extends AtomCommonAttribs {
 
-    private List<AtomPerson> authors = new ArrayList<AtomPerson>();
-    private List<AtomCategory> categorys = new ArrayList<AtomCategory>();
-    private List<AtomPerson> contributors = new ArrayList<AtomPerson>();
-    private List<AtomLink> links = new ArrayList<AtomLink>();
+    private final List<AtomPerson> authors = new ArrayList<>();
+    private final List<AtomCategory> categorys = new ArrayList<>();
+    private final List<AtomPerson> contributors = new ArrayList<>();
+    private final List<AtomLink> links = new ArrayList<>();
     private AtomText content;
     private AtomId id;
     private AtomDate published;

@@ -1,27 +1,25 @@
 package toilet.db;
 
 import java.io.Serializable;
+import java.time.OffsetDateTime;
 import java.util.Collection;
-import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Cacheable;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.OneToMany;
-import javax.persistence.OrderBy;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.persistence.Basic;
+import jakarta.persistence.Cacheable;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  *
@@ -31,10 +29,8 @@ import javax.validation.constraints.Size;
 @Cacheable(true)
 @Table(name = "article", schema = "toilet")
 @NamedQueries({
-    @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.findSummaries", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary, a.imageurl) FROM Article a ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.findSummariesBySection", query = "SELECT NEW toilet.db.Article(a.articleid, a.articletitle, a.etag, a.posted, a.modified, a.summary, a.imageurl) FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
-    @NamedQuery(name = "Article.findBySection", query = "SELECT a FROM Article a WHERE a.sectionid.name=:section ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findAll", query = "SELECT a FROM Article a WHERE a.articleid NOT IN :exclude ORDER BY a.posted DESC"),
+    @NamedQuery(name = "Article.findBySection", query = "SELECT a FROM Article a WHERE a.sectionid.name=:section AND a.articleid NOT IN :exclude ORDER BY a.posted DESC"),
     @NamedQuery(name = "Article.count", query = "SELECT COUNT(a) FROM Article a"),
     @NamedQuery(name = "Article.countBySection", query = "SELECT COUNT(a) FROM Article a WHERE a.sectionid.name=:section")})
 public class Article implements Serializable, Comparable<Article> {
@@ -57,14 +53,12 @@ public class Article implements Serializable, Comparable<Article> {
     private String etag;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "modified", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date modified;
+    @Column(name = "modified", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime modified;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "posted", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date posted;
+    @Column(name = "posted", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime posted;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 10000000)
@@ -75,9 +69,6 @@ public class Article implements Serializable, Comparable<Article> {
     @Size(min = 1, max = 10000000)
     @Column(name = "postedmarkdown", nullable = false, length = 10000000)
     private String postedmarkdown;
-    @Size(min = 1, max = 10000000)
-    @Column(name = "postedamp", nullable = false, length = 10000000)
-    private String postedamp;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 250)
@@ -97,6 +88,9 @@ public class Article implements Serializable, Comparable<Article> {
     @Size(max = 1000)
     @Column(name = "url", length = 1000)
     private String url;
+    @Size(max = 250)
+    @Column(name = "suggestion", length = 250)
+    private String suggestion;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "articleid")
     @OrderBy("posted ASC")
     private Collection<Comment> commentCollection;
@@ -111,7 +105,7 @@ public class Article implements Serializable, Comparable<Article> {
         this.articleid = articleid;
     }
 
-    public Article(Integer articleid, String articletitle, String etag, Date posted, Date modified, String summary, String imageurl) {
+    public Article(Integer articleid, String articletitle, String etag, OffsetDateTime posted, OffsetDateTime modified, String summary, String imageurl) {
         this.articleid = articleid;
         this.articletitle = articletitle;
         this.etag = etag;
@@ -145,19 +139,19 @@ public class Article implements Serializable, Comparable<Article> {
         this.etag = etag;
     }
 
-    public Date getModified() {
+    public OffsetDateTime getModified() {
         return modified;
     }
 
-    public void setModified(Date modified) {
+    public void setModified(OffsetDateTime modified) {
         this.modified = modified;
     }
 
-    public Date getPosted() {
+    public OffsetDateTime getPosted() {
         return posted;
     }
 
-    public void setPosted(Date posted) {
+    public void setPosted(OffsetDateTime posted) {
         this.posted = posted;
     }
 
@@ -241,6 +235,14 @@ public class Article implements Serializable, Comparable<Article> {
         this.sectionid = sectionid;
     }
 
+    public String getSuggestion() {
+        return suggestion;
+    }
+
+    public void setSuggestion(String suggestion) {
+        this.suggestion = suggestion;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -262,16 +264,6 @@ public class Article implements Serializable, Comparable<Article> {
     @Override
     public String toString() {
         return "toilet.db.Article, id:" + articleid + ", title: " + articletitle;
-    }
-
-    @Deprecated
-    public String getPostedamp() {
-        return postedamp;
-    }
-
-    @Deprecated
-    public void setPostedamp(String postedamp) {
-        this.postedamp = postedamp;
     }
 
     @Override

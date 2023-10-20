@@ -133,7 +133,14 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -203,7 +210,7 @@
             <description>date to be formatted</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
-            <type>java.util.Date</type>
+            <type>java.time.OffsetDateTime</type>
         </attribute>
         <attribute>
             <name>pattern</name>
@@ -211,13 +218,6 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
-        </attribute>
-        <attribute>
-            <name>pubdate</name>
-            <description>is this the date time this thing was published?</description>
-            <required>false</required>
-            <rtexprvalue>true</rtexprvalue>
-            <type>java.lang.Boolean</type>
         </attribute>
     </tag>
     <tag>
@@ -293,8 +293,8 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
-            <required>true</required>
+            <description>html id attribute</description>
+            <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
@@ -306,11 +306,25 @@
             <type>java.lang.String</type>
         </attribute>
         <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
             <name>labelNextLine</name>
             <description>place a &lt;br/&gt; between label and control</description>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Boolean</type>
+        </attribute>
+        <attribute>
+            <name>placeholder</name>
+            <description>placeholder text</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
         </attribute>
         <attribute>
             <name>size</name>
@@ -396,8 +410,8 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
-            <required>true</required>
+            <description>html id attribute</description>
+            <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
@@ -411,7 +425,7 @@
         <attribute>
             <name>label</name>
             <description>label</description>
-            <required>true</required>
+            <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
@@ -437,6 +451,13 @@
             <type>java.lang.Integer</type>
         </attribute>
         <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
             <name>pattern</name>
             <description>regex to validate field</description>
             <required>false</required>
@@ -446,6 +467,13 @@
         <attribute>
             <name>patternMismatch</name>
             <description>error to display when regex fails</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>placeholder</name>
+            <description>placeholder text</description>
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -513,7 +541,14 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -545,6 +580,13 @@
             <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.Integer</type>
+        </attribute>
+        <attribute>
+            <name>placeholder</name>
+            <description>placeholder text</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
         </attribute>
         <attribute>
             <name>size</name>
@@ -623,7 +665,14 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -705,7 +754,14 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -808,7 +864,14 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -911,7 +974,14 @@
         </attribute>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -919,7 +989,7 @@
         <attribute>
             <name>label</name>
             <description>label</description>
-            <required>true</required>
+            <required>false</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
         </attribute>
@@ -993,7 +1063,14 @@
         <body-content>empty</body-content>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>
@@ -1012,7 +1089,14 @@
         <body-content>empty</body-content>
         <attribute>
             <name>id</name>
-            <description>id and name</description>
+            <description>html id attribute</description>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>name</name>
+            <description>html name attribute</description>
             <required>true</required>
             <rtexprvalue>true</rtexprvalue>
             <type>java.lang.String</type>

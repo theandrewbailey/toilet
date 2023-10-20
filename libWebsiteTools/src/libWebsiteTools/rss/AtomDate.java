@@ -1,7 +1,7 @@
 package libWebsiteTools.rss;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.OffsetDateTime;
 import org.w3c.dom.Element;
 
 /**
@@ -10,7 +10,7 @@ import org.w3c.dom.Element;
  */
 public class AtomDate extends AtomCommonAttribs {
 
-    private Date dateTime;
+    private OffsetDateTime dateTime;
 
     @Override
     public Element publish(Element xml) {
@@ -22,14 +22,14 @@ public class AtomDate extends AtomCommonAttribs {
     /**
      * @return the dateTime
      */
-    public Date getDateTime() {
+    public OffsetDateTime getDateTime() {
         return dateTime;
     }
 
     /**
      * @param dateTime the dateTime to set
      */
-    public void setDateTime(Date dateTime) {
+    public void setDateTime(OffsetDateTime dateTime) {
         this.dateTime = dateTime;
     }
 

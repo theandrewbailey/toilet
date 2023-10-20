@@ -2,21 +2,24 @@ package toilet.servlet;
 
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Collection;
-import java.util.Date;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.HttpMethod;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
-import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
-import toilet.FirstTimeDetector;
 import toilet.IndexFetcher;
+import toilet.UtilStatic;
+import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.tag.Categorizer;
 
@@ -26,6 +29,7 @@ public class IndexServlet extends ToiletServlet {
     public static final String HOME_JSP = "/WEB-INF/category.jsp";
 
     private IndexFetcher getIndexFetcher(HttpServletRequest req) {
+        ToiletBeanAccess beans = allBeans.getInstance(req);
         String URI = req.getRequestURI();
         if (URI.startsWith(getServletContext().getContextPath())) {
             URI = URI.substring(getServletContext().getContextPath().length());
@@ -35,15 +39,18 @@ public class IndexServlet extends ToiletServlet {
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
-        Date latest = new Date(0);
-        IndexFetcher f = getIndexFetcher(request);
-        request.setAttribute(IndexFetcher.class.getCanonicalName(), f);
-        for (Article a : f.getArticles()) {
-            if (a.getModified().after(latest)) {
-                latest = a.getModified();
+        OffsetDateTime latest = OffsetDateTime.of(2000, 1, 1, 1, 1, 1, 1, ZoneOffset.UTC);
+        try {
+            IndexFetcher f = getIndexFetcher(request);
+            request.setAttribute(IndexFetcher.class.getCanonicalName(), f);
+            for (Article a : f.getArticles()) {
+                if (a.getModified().isAfter(latest)) {
+                    latest = a.getModified();
+                }
             }
+        } catch (NumberFormatException n) {
         }
-        return latest.getTime();
+        return latest.toInstant().toEpochMilli();
     }
 
     @Override
@@ -75,7 +82,8 @@ public class IndexServlet extends ToiletServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (FirstTimeDetector.isFirstTime(beans)) {
+        ToiletBeanAccess beans = allBeans.getInstance(request);
+        if (UtilStatic.isFirstTime(beans)) {
             request.getRequestDispatcher("adminImead").forward(request, response);
             return;
         }
@@ -83,6 +91,9 @@ public class IndexServlet extends ToiletServlet {
         IndexFetcher f = (IndexFetcher) request.getAttribute(IndexFetcher.class.getCanonicalName());
         if (null != f && !response.isCommitted()) {
             Collection<Article> articles = f.getArticles();
+            articles.stream().limit(2).forEach((art) -> {
+                art.setSummary(art.getSummary().replaceAll(" loading=\"lazy\"", ""));
+            });
             // dont bother if there is only 1 page total
             if (f.getCount() > 1) {
                 request.setAttribute("pagen_first", f.getFirst());
@@ -109,31 +120,32 @@ public class IndexServlet extends ToiletServlet {
                     break;
                 }
             }
-            HtmlMeta.addPropertyTag(request, "og:description", f.getDescription());
-            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en"));
+
+            StringBuilder description = new StringBuilder(70).append(beans.getImead().getLocal(ToiletServlet.SITE_TITLE, Local.resolveLocales(beans.getImead(), request)));
+            if (null == f.getSection() && 1 != f.getPage()) {
+                description.append(", all categories, page ").append(f.getPage());
+            } else if (null != f.getSection()) {
+                description.append(", ").append(f.getSection()).append(" category, page ").append(f.getPage());
+            } else {
+                description.append(", ").append(beans.getImead().getLocal(ToiletServlet.TAGLINE, Local.resolveLocales(beans.getImead(), request)));
+            }
+
+            HtmlMeta.addPropertyTag(request, "og:description", description.toString());
+            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, Local.resolveLocales(beans.getImead(), request)));
             HtmlMeta.addPropertyTag(request, "og:type", "website");
-            HtmlMeta.addNameTag(request, "description", f.getDescription());
-            JSONArray itemList = new JSONArray();
+            HtmlMeta.addNameTag(request, "description", description.toString());
+            HtmlMeta.addLink(request, "canonical", Categorizer.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), f.getSection(), f.getPage()));
+            JsonArrayBuilder itemList = Json.createArrayBuilder();
             itemList.add(HtmlMeta.getLDBreadcrumb(beans.getImead().getLocal("page_title", Local.resolveLocales(beans.getImead(), request)), 1, request.getAttribute(SecurityRepo.BASE_URL).toString()));
             if (null == f.getSection() && 1 == f.getPage() && null == request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)) {
-                JSONObject potentialAction = new JSONObject();
-                potentialAction.put("@type", "SearchAction");
-                potentialAction.put("target", beans.getImeadValue(SecurityRepo.BASE_URL) + "search?searchTerm={search_term_string}");
-                potentialAction.put("query-input", "required name=search_term_string");
-                JSONObject search = new JSONObject();
-                search.put("@context", "https://schema.org");
-                search.put("@type", "WebSite");
-                search.put("url", beans.getImeadValue(SecurityRepo.BASE_URL));
-                search.put("potentialAction", potentialAction);
-                HtmlMeta.addLDJSON(request, search.toJSONString());
+                JsonObjectBuilder potentialAction = Json.createObjectBuilder().add("@type", "SearchAction").add("target", beans.getImeadValue(SecurityRepo.BASE_URL) + "search?searchTerm={search_term_string}").add("query-input", "required name=search_term_string");
+                JsonObjectBuilder search = Json.createObjectBuilder().add("@context", "https://schema.org").add("@type", "WebSite").add("url", beans.getImeadValue(SecurityRepo.BASE_URL)).add("potentialAction", potentialAction.build());
+                HtmlMeta.addLDJSON(request, search.build().toString());
             } else if (null != f.getSection()) {
                 itemList.add(HtmlMeta.getLDBreadcrumb(f.getSection(), 2, Categorizer.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), f.getSection(), null)));
             }
-            JSONObject breadcrumbs = new JSONObject();
-            breadcrumbs.put("@context", "https://schema.org");
-            breadcrumbs.put("@type", "BreadcrumbList");
-            breadcrumbs.put("itemListElement", itemList);
-            HtmlMeta.addLDJSON(request, breadcrumbs.toJSONString());
+            JsonObjectBuilder breadcrumbs = Json.createObjectBuilder().add("@context", "https://schema.org").add("@type", "BreadcrumbList").add("itemListElement", itemList.build());
+            HtmlMeta.addLDJSON(request, breadcrumbs.build().toString());
             request.getServletContext().getRequestDispatcher(HOME_JSP).forward(request, response);
         }
     }

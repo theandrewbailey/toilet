@@ -1,10 +1,10 @@
 package libWebsiteTools.cache;
 
 import java.net.URI;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import javax.cache.Cache;
 import javax.cache.CacheManager;
@@ -36,14 +36,15 @@ public final class PageCaches implements CacheManager {
      * Checks all caches for expired pages.
      */
     public void sweep() {
-        Long now = new Date().getTime();
+        OffsetDateTime now = OffsetDateTime.now();
         for (PageCache cache : caches.values()) {
-            for (Map.Entry<String, CachedPage> entry : cache.getAll(null).entrySet()) {
-                CachedPage page = cache.get(entry.getKey());
+            for (String entry : new ArrayList<>(cache.getAll(null).keySet())) {
+                CachedPage page = cache.get(entry);
                 // hasn't been used more than once per hour? drop it
+                Duration d = Duration.between(page.getCreated(), now).abs();
                 if (null != page
-                        && Math.max(Double.valueOf(page.getHits()), 1.0) / ((now - page.getCreated().getTime()) / 3600000.0) < 1.0) {
-                    cache.remove(entry.getKey());
+                        && Math.max(Double.valueOf(page.getHits()), 1.0) / d.toHours() < 1.0) {
+                    cache.remove(entry);
                 }
             }
         }
@@ -75,7 +76,7 @@ public final class PageCaches implements CacheManager {
         if (!String.class.equals(c.getKeyType()) || !CachedPage.class.equals(c.getValueType())) {
             throw new IllegalArgumentException("This cache only supports <String,libWebsiteTools.cache.CachedPage>.");
         }
-        PageCache output = new PageCache(this, name, DEFAULT_URI.equals(name) ? 10000 : 100);
+        PageCache output = new PageCache(this, name, DEFAULT_URI.equals(name) ? 100 : 100);
         caches.put(name, output);
         return (Cache<K, V>) output;
     }

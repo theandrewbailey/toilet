@@ -18,8 +18,20 @@ public class ToiletRssItem extends RssItem {
     private static final String TAB_METADESC_NAME = "metadescription";
     public static final String TAB_METADESC_ELEMENT_NAME = ToiletRssItem.TAB_NAMESPACE + ":" + ToiletRssItem.TAB_METADESC_NAME;
 
+    private static final String SUGGESTION_NAME = "articleSuggestionTerm";
+    public static final String SUGGESTION_ELEMENT_NAME = ToiletRssItem.TAB_NAMESPACE + ":" + ToiletRssItem.SUGGESTION_NAME;
+
+    private static final String SUMMARY_NAME = "summary";
+    public static final String SUMMARY_ELEMENT_NAME = ToiletRssItem.TAB_NAMESPACE + ":" + ToiletRssItem.SUMMARY_NAME;
+
+    private static final String IMAGEURL_NAME = "imageURL";
+    public static final String IMAGEURL_ELEMENT_NAME = ToiletRssItem.TAB_NAMESPACE + ":" + ToiletRssItem.IMAGEURL_NAME;
+
     private String markdownSource;
     private String metadescription;
+    private String suggestion;
+    private String summary;
+    private String imageURL;
 
     /**
      * default constructor please do not use
@@ -39,7 +51,7 @@ public class ToiletRssItem extends RssItem {
     @Override
     public Element publish(Element chan) {
         Element item = super.publish(chan);
-        if (markdownSource != null) {
+        if (null != markdownSource) {
             Element n = chan.getOwnerDocument().createElementNS(TAB_URI, MARKDOWN_NAME);
             n.setPrefix(TAB_NAMESPACE);
             n.appendChild(chan.getOwnerDocument().createCDATASection(getMarkdownSource()));
@@ -49,6 +61,24 @@ public class ToiletRssItem extends RssItem {
             Element n = chan.getOwnerDocument().createElementNS(TAB_URI, TAB_METADESC_NAME);
             n.setPrefix(TAB_NAMESPACE);
             n.appendChild(chan.getOwnerDocument().createCDATASection(getMetadescription()));
+            item.appendChild(n);
+        }
+        if (null != suggestion) {
+            Element n = chan.getOwnerDocument().createElementNS(TAB_URI, SUGGESTION_ELEMENT_NAME);
+            n.setPrefix(TAB_NAMESPACE);
+            n.appendChild(chan.getOwnerDocument().createCDATASection(getSuggestion()));
+            item.appendChild(n);
+        }
+        if (null != summary) {
+            Element n = chan.getOwnerDocument().createElementNS(TAB_URI, SUMMARY_ELEMENT_NAME);
+            n.setPrefix(TAB_NAMESPACE);
+            n.appendChild(chan.getOwnerDocument().createCDATASection(getSummary()));
+            item.appendChild(n);
+        }
+        if (null != imageURL) {
+            Element n = chan.getOwnerDocument().createElementNS(TAB_URI, IMAGEURL_ELEMENT_NAME);
+            n.setPrefix(TAB_NAMESPACE);
+            n.appendChild(chan.getOwnerDocument().createCDATASection(getImageURL()));
             item.appendChild(n);
         }
         return item;
@@ -62,18 +92,36 @@ public class ToiletRssItem extends RssItem {
         this.markdownSource = markdownSource;
     }
 
-    /**
-     * @return the metadescription
-     */
     public String getMetadescription() {
         return metadescription;
     }
 
-    /**
-     * @param metadescription the metadescription to set
-     */
     public void setMetadescription(String metadescription) {
         this.metadescription = metadescription;
+    }
+
+    public String getSuggestion() {
+        return suggestion;
+    }
+
+    public void setSuggestion(String suggestion) {
+        this.suggestion = suggestion;
+    }
+
+    public String getSummary() {
+        return summary;
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
+
+    public String getImageURL() {
+        return imageURL;
+    }
+
+    public void setImageURL(String imageURL) {
+        this.imageURL = imageURL;
     }
 
 }

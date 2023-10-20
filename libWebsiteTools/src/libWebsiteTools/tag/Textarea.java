@@ -8,8 +8,10 @@ public class Textarea extends AbstractInput {
     public String createTag() {
         StringBuilder out = label(new StringBuilder(1000));
 
-        out.append("<textarea id=\"").append(getId());
-        out.append("\" name=\"").append(getId());
+        out.append("<textarea name=\"").append(getName());
+        if (null != getId()) {
+            out.append("\" id=\"").append(getId());
+        }
         if (null != height) {
             out.append("\" rows=\"").append(height.toString());
         } else if (null == height && null != getValue()) {

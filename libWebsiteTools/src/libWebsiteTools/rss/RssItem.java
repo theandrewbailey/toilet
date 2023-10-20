@@ -1,18 +1,19 @@
 package libWebsiteTools.rss;
 
 import java.io.Serializable;
-import java.text.SimpleDateFormat;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Date;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 /**
  * represents a single entry in an rss channel (article, post, podcast...)
  * shouldn't need to extend unless you are adding a namespace to the feed
+ *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-public class RssItem implements Serializable, iPublishable {
+public class RssItem implements Serializable, Publishable {
 
     private String title;           // standard RSS parameters
     private String link;
@@ -25,18 +26,19 @@ public class RssItem implements Serializable, iPublishable {
     private String enclosure;       // enclosure parameters
     private String eMime;
     private Integer eLength;
-    private Date pubDate = new Date();
+    private OffsetDateTime pubDate = OffsetDateTime.now();
     private boolean guidPermaLink = true;
     private final ArrayList<RssCategory> cats = new ArrayList<>();
 
     /**
-     * default constructor
-     * please do not use
+     * default constructor please do not use
      */
-    public RssItem(){}
+    public RssItem() {
+    }
 
     /**
      * use this constructor
+     *
      * @param iDesc description of the item in the feed (required)
      */
     public RssItem(String iDesc) {
@@ -45,6 +47,7 @@ public class RssItem implements Serializable, iPublishable {
 
     /**
      * add a category to this item
+     *
      * @param name
      * @param domain
      */
@@ -79,7 +82,7 @@ public class RssItem implements Serializable, iPublishable {
             }
         }
         if (getPubDate() != null) {
-            RssChannel.cdataTextNode(item, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()));
+            RssChannel.cdataTextNode(item, "pubDate", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(getPubDate()));
         }
         if (getSrc() != null) {
             n = RssChannel.cdataTextNode(item, "source", getSrc());
@@ -246,14 +249,14 @@ public class RssItem implements Serializable, iPublishable {
     /**
      * @return the pubDate
      */
-    public Date getPubDate() {
+    public OffsetDateTime getPubDate() {
         return pubDate;
     }
 
     /**
      * @param pubDate the pubDate to set
      */
-    public void setPubDate(Date pubDate) {
+    public void setPubDate(OffsetDateTime pubDate) {
         this.pubDate = pubDate;
     }
 

@@ -1,158 +1,150 @@
 package libWebsiteTools.security;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
-import java.security.cert.X509Certificate;
-import java.util.Date;
-import java.util.List;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoField;
 import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.annotation.WebFilter;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.HttpMethod;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.ejb.EJB;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.annotation.WebFilter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.HttpMethod;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.AllBeanAccess;
-import libWebsiteTools.BaseAllBeanAccess;
 import libWebsiteTools.cache.CachedPage;
+import libWebsiteTools.cache.JspFilter;
 import libWebsiteTools.cache.PageCache;
+import libWebsiteTools.cache.ServletOutputWrapper;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;
 
-@WebFilter(description = "DoS preventer (maybe) and reverse proxy", filterName = "GuardFilter", dispatcherTypes = {DispatcherType.REQUEST}, urlPatterns = {"/*"})
-public class GuardFilter extends BaseAllBeanAccess implements Filter {
+@WebFilter(description = "DoS preventer (maybe) and reverse proxy", filterName = "GuardFilter", dispatcherTypes = {DispatcherType.REQUEST}, urlPatterns = {"/*"}, asyncSupported = true)
+public class GuardFilter implements Filter {
 
     public static final String STRICT_TRANSPORT_SECURITY = "Strict-Transport-Security";
     public static final String KILLED_REQUEST = "$_LIBWEBSITETOOLS_KILLED_REQUEST";
     public static final String HANDLED_ERROR = "$_LIBWEBSITETOOLS_HANDLED_ERROR";
-    public static final String ORIGINAL_DOMAIN = "$_LIBWEBSITETOOLS_ORIGINAL_DOMAIN";
     public static final String TIME_PARAM = "$_LIBWEBSITETOOLS_REQUEST_START_TIME";
     public static final String CERTIFICATE_NAME = "security_certificateName";
     public static final String DEFAULT_REQUEST_ENCODING = "UTF-8";
     public static final String DEFAULT_RESPONSE_ENCODING = "UTF-8";
-    public static final String VARY_HEADER = String.join(", ", new String[]{
-        HttpHeaders.ACCEPT_ENCODING, HttpHeaders.ACCEPT_LANGUAGE});
+    public static final String VARY_HEADER = String.join(", ", new String[]{HttpHeaders.ACCEPT_ENCODING});
     private static final String VIA_HEADER = "site_via";
     private static final Logger LOG = Logger.getLogger(GuardFilter.class.getName());
-    private static final Pattern LANG_URL_PATTERN = Pattern.compile("^/([A-Za-z\\-]+?)(?:(/.*?))?$");
-    private X509Certificate subject;
-    private Date certExpDate;
-
-    @Override
-    public void init(FilterConfig conf) throws ServletException {
-        try {
-            if (null != getImeadValue(CERTIFICATE_NAME)) {
-                CertUtil certs = new CertUtil();
-                List<CertPath<X509Certificate>> serverCertificateChain = certs.getServerCertificateChain(getImeadValue(CERTIFICATE_NAME));
-                subject = serverCertificateChain.get(0).getCertificates().get(0);
-                if (!CertUtil.isValid(subject)) {
-                    throw new RuntimeException(String.format("Your server's certificate has expired.\n%s", new Object[]{subject.getSubjectX500Principal().toString()}));
-                }
-                certExpDate = CertUtil.getEarliestExperation(serverCertificateChain);
-                conf.getServletContext().setAttribute(CertUtil.CERTIFICATE_CHAIN, certs);
-            } else {
-                throw new RuntimeException("No certificate name set.");
-            }
-        } catch (RuntimeException ex) {
-            certExpDate = null;
-            LOG.log(Level.WARNING, "High security not available: {0}", ex.getMessage());
-            getError().logException(null, "High security not available: " + ex.getMessage(), null, ex);
-        }
-    }
+    @EJB
+    private AllBeanAccess allBeans;
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        Date now = new Date();
+        OffsetDateTime localNow = OffsetDateTime.now();
         HttpServletRequest req = (HttpServletRequest) request;
         req.setCharacterEncoding(DEFAULT_REQUEST_ENCODING);
         HttpServletResponse res = (HttpServletResponse) response;
         response.setCharacterEncoding(DEFAULT_RESPONSE_ENCODING);
         res.setStatus(HttpServletResponse.SC_OK);
+        AllBeanAccess beans = allBeans.getInstance(req);
+        req.setAttribute(TIME_PARAM, localNow);
+        AbstractInput.getTokenURL(req);
         // kill suspicious requests
         if (null == req.getSession(false) || req.getSession().isNew()) {
-            if (getError().inHoneypot(request.getRemoteAddr())) {
-                killInHoney(request, response);
-                getError().logException((HttpServletRequest) request, null, "IP already in honeypot", null);
+            if (beans.getError().inHoneypot(SecurityRepo.getIP(req))) {
+                req.setAttribute(SpinnerServlet.REASON, "IP already in honeypot");
+                req.getRequestDispatcher("/spin").forward(request, response);
+                return;
+            }
+            if (IMEADHolder.matchesAny(req.getRequestURL(), beans.getImead().getPatterns(SecurityRepo.HONEYPOTS))) {
+                req.setAttribute(SpinnerServlet.REASON, "IP added to honeypot: Illegal URL");
+                req.getRequestDispatcher("/spin").forward(request, response);
                 return;
             }
             String userAgent = req.getHeader("User-Agent");
-            if (userAgent != null && IMEADHolder.matchesAny(userAgent, getImead().getPatterns(SecurityRepo.DENIED_USER_AGENTS))) {
-                killInHoney(request, response);
-                getError().logException((HttpServletRequest) request, null, "IP added to honeypot: Illegal User-Agent", null);
-                return;
-            }
-            if (IMEADHolder.matchesAny(req.getRequestURL(), getImead().getPatterns(SecurityRepo.HONEYPOTS))) {
-                killInHoney(request, response);
-                getError().logException((HttpServletRequest) request, null, "IP added to honeypot: Illegal URL", null);
+            if (userAgent != null && IMEADHolder.matchesAny(userAgent, beans.getImead().getPatterns(SecurityRepo.DENIED_USER_AGENTS))) {
+                req.setAttribute(SpinnerServlet.REASON, "IP added to honeypot: Illegal User-Agent");
+                req.getRequestDispatcher("/spin").forward(request, response);
                 return;
             }
         }
-        if (!"GET".equalsIgnoreCase(req.getMethod())
-                && !"POST".equalsIgnoreCase(req.getMethod())
-                && !"HEAD".equalsIgnoreCase(req.getMethod())
-                && !"OPTIONS".equalsIgnoreCase(req.getMethod())) {
-            killInHoney(request, response);
-            getError().logException((HttpServletRequest) request, null, "IP added to honeypot: Illegal method", null);
-            return;
+        switch (req.getMethod().toUpperCase()) {
+            case "GET":
+            case "POST":
+            case "HEAD":
+            case "OPTIONS":
+            case "PUT":
+            case "DELETE":
+                break;
+            default:
+                killInHoney(req, res);
+                beans.getError().logException((HttpServletRequest) request, null, "IP added to honeypot: Illegal method", null);
+                return;
         }
         // set variables and headers
-        String forwardURL = null;
-        AbstractInput.getTokenURL(req);
-        req.setAttribute(TIME_PARAM, now);
-        req.setAttribute(SecurityRepo.BASE_URL, getImeadValue(SecurityRepo.BASE_URL));
-        res.setDateHeader(HttpHeaders.DATE, now.getTime());
-        if (req.isSecure() && null != subject) {
-            res.setHeader("X-Content-Type-Options", "nosniff");
+        req.setAttribute(SecurityRepo.BASE_URL, beans.getImeadValue(SecurityRepo.BASE_URL));
+        res.setDateHeader(HttpHeaders.DATE, localNow.toInstant().toEpochMilli());
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader(HttpHeaders.VARY, VARY_HEADER);
+        CertUtil certs = beans.getError().getCerts();
+        if (isSecure(req) && null != certs.getSubject()) {
             try {
-                subject.checkValidity();
-                if (now.before(certExpDate)) {
-                    long difference = certExpDate.getTime() - now.getTime();
-                    difference /= 1000;
-                    res.setHeader(STRICT_TRANSPORT_SECURITY, "max-age=" + difference + "; includeSubDomains");
+                certs.getSubject().checkValidity();
+                OffsetDateTime expInstant = certs.getCertExpDate().toInstant().atOffset(ZoneOffset.UTC);
+                if (localNow.isBefore(expInstant)) {
+                    Duration d = Duration.between(localNow, expInstant).abs();
+                    res.setHeader(STRICT_TRANSPORT_SECURITY, "max-age=" + d.getSeconds() + "; includeSubDomains");
                 }
             } catch (CertificateExpiredException | CertificateNotYetValidException | RuntimeException ex) {
-                getError().logException(req, "High security misconfigured", null, ex);
-                subject = null;
-                certExpDate = null;
+                beans.getError().logException(req, "High security misconfigured", null, ex);
+                try {
+                    certs.verifyCertificate(beans.getImeadValue(CERTIFICATE_NAME));
+                } catch (Exception rx) {
+                }
             }
         }
         if (null == res.getHeader(HttpHeaders.CACHE_CONTROL)) {
-            res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=200000");
-            res.setDateHeader(HttpHeaders.EXPIRES, now.getTime() + 200000000);
+            res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=200000, s-maxage=100");
+            res.setDateHeader(HttpHeaders.EXPIRES, localNow.toInstant().toEpochMilli() + 200000000);
         }
         // set request language
-        Matcher langMatcher = LANG_URL_PATTERN.matcher(req.getServletPath());
-        if (langMatcher.find()) {
-            Locale selected = Locale.forLanguageTag(langMatcher.group(1));
-            if (null != selected && !Locale.ROOT.equals(selected) && getImead().getLocales().contains(selected)) {
-                req.setAttribute(Local.OVERRIDE_LOCALE_PARAM, selected);
-                req.setAttribute(SecurityRepo.BASE_URL, getImeadValue(SecurityRepo.BASE_URL) + langMatcher.group(1) + "/");
-                forwardURL = langMatcher.group(2);
-                if (null == forwardURL) {
-                    forwardURL = "/";
-                }
+        String forwardURL = null;
+        Locale selected = Local.resolveLocales(beans.getImead(), req).get(0);
+        String servletPath = req.getServletPath();
+        if (null != selected && !Locale.ROOT.equals(selected) && beans.getImead().getLocales().contains(selected)) {
+            req.setAttribute(SecurityRepo.BASE_URL, beans.getImeadValue(SecurityRepo.BASE_URL) + selected.toString() + "/");
+            String rootPath = "/" + selected.toString();
+            if (!servletPath.startsWith(rootPath + "/") && !servletPath.equals(rootPath)) {
+                forwardURL = req.getContextPath() + "/" + selected.toString() + req.getRequestURI().substring(req.getContextPath().length());
                 if (null != req.getQueryString()) {
                     forwardURL += "?" + req.getQueryString();
                 }
+                res.sendRedirect(forwardURL);
+                return;
+            }
+            forwardURL = req.getRequestURI().substring(req.getContextPath().length() + selected.toString().length() + 1);
+            if (forwardURL.equals("")) {
+                forwardURL = "/";
+            }
+            if (null != req.getQueryString()) {
+                forwardURL += "?" + req.getQueryString();
             }
         }
         // carry on
         try {
-            if (!reverseProxy(this, req, res)) {
+            if (!reverseProxy(beans, req, res)) {
                 if (null != forwardURL) {
                     req.getServletContext().getRequestDispatcher(forwardURL).forward(request, response);
                 } else {
@@ -160,28 +152,36 @@ public class GuardFilter extends BaseAllBeanAccess implements Filter {
                 }
             }
             if (res.getStatus() >= 400 && req.getAttribute(HANDLED_ERROR) == null) {
-                getError().logException(req, null, null, null);
+                beans.getError().logException(req, null, null, null);
             }
+            res.flushBuffer();
         } catch (IOException | ServletException x) {
-            LOG.log(Level.SEVERE, "Exception caught in OdysseyFilter", x);
-            getError().logException(req, null, null, x);
+            LOG.log(Level.SEVERE, "Exception caught in GuardFilter", x);
+            beans.getError().logException(req, null, null, x);
         }
-        res.flushBuffer();
     }
 
-    public void killInHoney(ServletRequest request, ServletResponse response) throws IOException {
-        kill(request, response);
-        getError().putInHoneypot(request.getRemoteAddr());
+    public static boolean isSecure(HttpServletRequest req) {
+        return req.isSecure() || "https".equals(req.getHeader("x-forwarded-proto"));
     }
 
-    public static void kill(ServletRequest request, ServletResponse response) throws IOException {
+    public boolean killInHoney(HttpServletRequest req, HttpServletResponse res) {
+        kill(req, res);
+        return allBeans.getInstance(req).getError().putInHoneypot(SecurityRepo.getIP(req));
+    }
+
+    public static void kill(ServletRequest request, ServletResponse response) {
         request.setAttribute(KILLED_REQUEST, KILLED_REQUEST);
-        request.getInputStream().close();
-        response.getOutputStream().close();
+        try {
+            request.getInputStream().close();
+            response.getOutputStream().close();
+        } catch (IOException ex) {
+            // I dont give a flip
+        }
     }
 
-    public static Date getRequestTime(HttpServletRequest req) {
-        return (Date) req.getAttribute(TIME_PARAM);
+    public static OffsetDateTime getRequestTime(HttpServletRequest req) {
+        return (OffsetDateTime) req.getAttribute(TIME_PARAM);
     }
 
     /**
@@ -200,7 +200,6 @@ public class GuardFilter extends BaseAllBeanAccess implements Filter {
             return false;
         }
         String lookup = PageCache.getLookup(beans.getImead(), req);
-        res.setHeader(HttpHeaders.VARY, VARY_HEADER);
         String ifNoneMatch = req.getHeader(HttpHeaders.IF_NONE_MATCH);
         if (null == ifNoneMatch) {
             ifNoneMatch = "";
@@ -220,6 +219,7 @@ public class GuardFilter extends BaseAllBeanAccess implements Filter {
                     out.flush();
                     res.flushBuffer();
                     page.hit();
+                    beans.getGlobalCache().incrementTotalHit();
                     return true;
                 }
                 res.setHeader(HttpHeaders.ETAG, PageCache.getETag(beans.getImead(), req));
@@ -232,6 +232,7 @@ public class GuardFilter extends BaseAllBeanAccess implements Filter {
                     }
                     writeHeaders(beans.getImead(), res, page);
                     page.hit();
+                    beans.getGlobalCache().incrementTotalHit();
                     return true;
                 }
                 res.setHeader(HttpHeaders.ETAG, PageCache.getETag(beans.getImead(), req));

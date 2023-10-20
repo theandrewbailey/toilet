@@ -9,17 +9,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.ejb.EJB;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import libWebsiteTools.AllBeanAccess;
 import org.w3c.dom.Document;
 
 /**
@@ -35,41 +35,40 @@ public class RssServlet extends HttpServlet {
 
     public static final String INDENT = "RSS.indent";
     public static final Pattern RSS_NAME_REGEX = Pattern.compile("^.+?/rss/([^\\?]+?)(?:\\?.*)?$");
-    private static final Map<iFeed.MimeType, String> MIME_TYPE_JSP = Collections.unmodifiableMap(new HashMap<iFeed.MimeType, String>() {
+    private static final Map<Feed.MimeType, String> MIME_TYPE_JSP = Collections.unmodifiableMap(new HashMap<Feed.MimeType, String>() {
         {
-            put(iFeed.MimeType.RSS, "/RssOut.jsp");
-            put(iFeed.MimeType.ATOM, "/AtomOut.jsp");
+            put(Feed.MimeType.RSS, "/RssOut.jsp");
+            put(Feed.MimeType.ATOM, "/AtomOut.jsp");
         }
     });
     private static final Logger LOG = Logger.getLogger(RssServlet.class.getName());
     private final TransformerFactory xFormFact = TransformerFactory.newInstance();
-    @EJB
-    private FeedBucket bucket;
 
     public static String getRssName(String URL) {
         Matcher matcher = RSS_NAME_REGEX.matcher(URL);
         return matcher.find() ? matcher.group(1) : null;
     }
 
-    public iFeed getFeed(HttpServletRequest req) {
-        iFeed feed = (iFeed) req.getAttribute(iFeed.class.getCanonicalName());
+    public Feed getFeed(HttpServletRequest req) {
+        Feed feed = (Feed) req.getAttribute(Feed.class.getCanonicalName());
         if (null != feed) {
             return feed;
         }
         String name = getRssName(req.getRequestURL().toString());
         req.setAttribute(RssServlet.class.getSimpleName(), name);
-        feed = bucket.get(name);
+        AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
+        feed = beans.getFeeds().get(name);
         if (feed == null) {
             LOG.log(Level.FINE, "RSS feed {0} not found", name);
             return null;
         }
-        req.setAttribute(iFeed.class.getCanonicalName(), feed);
+        req.setAttribute(Feed.class.getCanonicalName(), feed);
         return feed;
     }
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
-        iFeed feed = getFeed(request);
+        Feed feed = getFeed(request);
         if (feed == null) {
             LOG.log(Level.FINE, "RSS feed {0} not found", getRssName(request.getRequestURI()));
             return -1;
@@ -79,7 +78,7 @@ public class RssServlet extends HttpServlet {
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        iFeed feed = getFeed(request);
+        Feed feed = getFeed(request);
         if (feed == null) {
             LOG.log(Level.FINE, "RSS feed {0} not found", getRssName(request.getRequestURI()));
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -103,10 +102,8 @@ public class RssServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         try {
-            doHead(request, response);
-            iFeed feed = getFeed(request);
+            Feed feed = getFeed(request);
             if (null == feed) {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }

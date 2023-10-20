@@ -1,10 +1,12 @@
 package libWebsiteTools;
 
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.script.ScriptEngine;
+import javax.script.ScriptEngineFactory;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
@@ -24,7 +26,7 @@ public class Markdowner {
                 while (true) {
                     try {
                         if (null == processor) {
-                            processor = new ScriptEngineManager().getEngineByName("JavaScript");
+                            processor = new ScriptEngineManager().getEngineByMimeType("text/javascript");
                             processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/marked.js")));
                             processor.eval(new InputStreamReader(Markdowner.class.getClassLoader().getResourceAsStream("libWebsiteTools/markdown-it.js")));
                         }

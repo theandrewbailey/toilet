@@ -12,9 +12,10 @@ public class Button extends AbstractInput {
 
     @Override
     public String createTag() {
-        StringBuilder out = new StringBuilder(400).append("<button type=\"").append(getType());
-        out.append("\" id=\"").append(getId());
-        out.append("\" name=\"").append(getId());
+        StringBuilder out = new StringBuilder(400).append("<button type=\"").append(getType()).append("\" name=\"").append(getName());
+        if (null != getId()) {
+            out.append("\" id=\"").append(getId());
+        }
         if (null != getAccesskey()) {
             out.append("\" accesskey=\"").append(getAccesskey());
         }

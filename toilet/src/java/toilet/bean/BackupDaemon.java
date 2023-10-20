@@ -12,10 +12,17 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -35,13 +42,6 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.EJB;
-import javax.ejb.LocalBean;
-import javax.ejb.Schedule;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -58,7 +58,6 @@ import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.file.Gzipper;
 import libWebsiteTools.imead.Localization;
 import libWebsiteTools.rss.FeedBucket;
-import libWebsiteTools.rss.SimpleRssFeed;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -70,27 +69,27 @@ import toilet.db.Section;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
 import toilet.rss.ToiletRssItem;
-import toilet.servlet.ToiletServlet;
+import libWebsiteTools.rss.Feed;
 
 /**
  * so I can sleep at night, knowing my stuff is being backed up
  *
  * @author alpha
  */
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class BackupDaemon implements Runnable {
 
     public final static String MIMES_TXT = "mimes.txt";
     private final static String MASTER_DIR = "file_backup";
     private final static String CONTENT_DIR = "content";
+//    private final static String CONTENT_ALT_DIR = "contentAlt";
     private final static Logger LOG = Logger.getLogger(BackupDaemon.class.getName());
     private final static Pattern IMEAD_BACKUP_FILE = Pattern.compile("IMEAD(?:-(.+?))?\\.properties");
-    private final static Integer PROCESSING_CHUNK_SIZE = 16;
-    @EJB
-    private ToiletBeanAccess beans;
+    public final static Integer PROCESSING_CHUNK_SIZE = 16;
+    private final ToiletBeanAccess beans;
+
+    public BackupDaemon(ToiletBeanAccess beans) {
+        this.beans = beans;
+    }
 
     public static enum BackupTypes {
         ARTICLES, COMMENTS, LOCALIZATIONS, FILES;
@@ -98,75 +97,163 @@ public class BackupDaemon implements Runnable {
 
     @Override
     public void run() {
+        cleanupZips();
         backup();
+        backupToZip();
+    }
+
+    public void cleanupZips() {
+        LOG.entering(BackupDaemon.class
+                .getName(), "cleanupZips");
+        LOG.info("Cleaning up zip backups");
+        String master = beans.getImeadValue(MASTER_DIR);
+        final String zipStem = getZipStem();
+        File zipDir = new File(master);
+        List<File> siteZips = Arrays.asList(zipDir.listFiles((File file)
+                -> file.getName().startsWith(zipStem) && file.getName().endsWith(".zip")));
+        Pattern datePattern = Pattern.compile(".*?(\\d{8})\\.zip$");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        // set files last modified dates by looking at filename timestamp
+        for (File z : siteZips) {
+            try {
+                GregorianCalendar zipDay = new GregorianCalendar();
+                Matcher dateMatcher = datePattern.matcher(z.getName());
+                dateMatcher.find();
+                zipDay.setTime(dateFormat.parse(dateMatcher.group(1)));
+                GregorianCalendar actual = new GregorianCalendar();
+                actual.setTime(new java.util.Date(z.lastModified()));
+                if (zipDay.get(Calendar.YEAR) != actual.get(Calendar.YEAR)
+                        || zipDay.get(Calendar.MONTH) != actual.get(Calendar.MONTH)
+                        || zipDay.get(Calendar.DAY_OF_MONTH) != actual.get(Calendar.DAY_OF_MONTH)) {
+                    z.setLastModified(zipDay.getTimeInMillis());
+                }
+            } catch (ParseException ex) {
+            }
+        }
+        // sort by last modified date
+        Collections.sort(siteZips, (File f, File g)
+                -> Long.compare(f.lastModified(), g.lastModified()));
+        // keep 1 backup per month for 2 years
+        GregorianCalendar monthlies = new GregorianCalendar();
+        monthlies.add(Calendar.YEAR, -2);
+        monthlies.set(Calendar.DAY_OF_MONTH, 1);
+        monthlies.set(Calendar.HOUR_OF_DAY, 0);
+        monthlies.set(Calendar.MINUTE, 0);
+        monthlies.set(Calendar.SECOND, 0);
+        monthlies.set(Calendar.MILLISECOND, 0);
+        // keep daily backups for 1 month
+        GregorianCalendar dailies = new GregorianCalendar();
+        dailies.add(Calendar.MONTH, -1);
+        dailies.set(Calendar.HOUR_OF_DAY, 0);
+        dailies.set(Calendar.MINUTE, 0);
+        dailies.set(Calendar.SECOND, 0);
+        dailies.set(Calendar.MILLISECOND, 0);
+        for (File f : siteZips) {
+            if (f.lastModified() >= dailies.getTimeInMillis()) {
+                // this is a daily backup, watch for next day
+                dailies.add(Calendar.DAY_OF_MONTH, 1);
+            } else if (f.lastModified() >= monthlies.getTimeInMillis()) {
+                // this is a monthly backup, watch for next month
+                monthlies.add(Calendar.MONTH, 1);
+            } else {
+                // not a daily or monthly, so delete
+                LOG.log(Level.INFO, "Deleting backup {0}", f.getName());
+                f.delete();
+            }
+        }
+        LOG.exiting(BackupDaemon.class
+                .getName(), "cleanupZips");
     }
 
     /**
      * dumps articles, comments, and uploaded files to a directory (specified by
      * site_backup key in beans.getImead().keyValue)
      */
-    @Schedule(persistent = false, hour = "1")
-    @SuppressWarnings("StringBufferMayBeStringBuilder")
     public void backup() {
-        LOG.entering(BackupDaemon.class.getName(), "backup");
+        LOG.entering(BackupDaemon.class
+                .getName(), "backup");
         LOG.info("Backup procedure initiating");
         beans.getImead().evict();
         beans.getArts().evict();
         beans.getFile().evict();
-        Future<Boolean> zipTask = beans.getExec().submit(() -> {
-            backupToZip();
-            return true;
-        });
-        String master = beans.getImeadValue(MASTER_DIR);
-        if (null == master) {
+        if (null == beans.getImeadValue(MASTER_DIR)) {
             throw new IllegalArgumentException(MASTER_DIR + " not configured.");
         }
+        final String master = beans.getImeadValue(MASTER_DIR) + getZipStem() + File.separator;
         String content = master + CONTENT_DIR + File.separator;
         File contentDir = new File(content);
         if (!contentDir.exists()) {
             contentDir.mkdirs();
         }
-        StringBuffer mimes = new StringBuffer(1048576);
-        beans.getFile().processArchive((f) -> {
-            if (shouldFileBeBackedUp(f)) {
-                String fn = content + f.getFilename();
-                try {   // file exists in db, different hash or file not backed up yet
-                    LOG.log(Level.FINE, "Writing file {0}", f.getFilename());
-                    writeFile(fn, f.getFiledata());
-                } catch (IOException ex) {
-                    LOG.log(Level.SEVERE, "Error writing " + f.getFilename(), ex);
-                    beans.getError().logException(null, "Backup failure", ex.getMessage() + SecurityRepo.NEWLINE + "while backing up " + fn, null);
+        final OffsetDateTime localNow = OffsetDateTime.now();
+        final Queue<Future> backupTasks = new ConcurrentLinkedQueue<>();
+        backupTasks.add(beans.getExec().submit(() -> {
+            beans.getFile().processArchive((f) -> {
+                if (shouldFileBeBackedUp(f)) {
+                    String fn = content + f.getFilename();
+                    try {
+                        LOG.log(Level.FINE, "Writing file {0}", f.getFilename());
+                        writeFile(fn, f.getAtime(), f.getFiledata());
+                    } catch (IOException ex) {
+                        LOG.log(Level.SEVERE, "Error writing " + f.getFilename(), ex);
+                        beans.getError().logException(null, "Backup failure", ex.getMessage() + SecurityRepo.NEWLINE + "while backing up " + fn, null);
+                    }
                 }
-                mimes.append(f.getFilename()).append(": ").append(f.getMimetype()).append('\n');
+            }, false);
+        }));
+        backupTasks.add(beans.getExec().submit(() -> {
+            try {
+                LOG.log(Level.FINE, "Writing Articles.rss");
+                writeFile(master + File.separator + ArticleRss.NAME, localNow, xmlToBytes(new ArticleRss().createFeed(beans, null, null)));
+            } catch (IOException ex) {
+                LOG.log(Level.SEVERE, "Error writing Articles.rss to file: " + master + File.separator + ArticleRss.NAME, ex);
+                beans.getError().logException(null, "Backup failure", "Error writing Articles.rss to file: " + master + File.separator + ArticleRss.NAME, ex);
             }
-        }, false);
-        try {
-            LOG.log(Level.FINE, "Writing mimes.txt");
-            writeFile(master + MIMES_TXT, mimes.toString().getBytes("UTF-8"));
-        } catch (IOException ex) {
-            LOG.log(Level.SEVERE, "Error writing mimes.txt: " + master + MIMES_TXT, ex);
-            beans.getError().logException(null, "Backup failure", "Error writing mimes.txt: " + master + MIMES_TXT, ex);
-        }
-        try {
-            LOG.log(Level.FINE, "Writing Articles.rss");
-            writeFile(master + File.separator + ArticleRss.NAME, xmlToBytes(new ArticleRss(beans).createFeed(null, null)));
-        } catch (IOException ex) {
-            LOG.log(Level.SEVERE, "Error writing Articles.rss to file: " + master + File.separator + ArticleRss.NAME, ex);
-            beans.getError().logException(null, "Backup failure", "Error writing Articles.rss to file: " + master + File.separator + ArticleRss.NAME, ex);
-        }
-        try {
-            LOG.log(Level.FINE, "Writing Comments.rss");
-            writeFile(master + File.separator + CommentRss.NAME, xmlToBytes(SimpleRssFeed.refreshFeed(Arrays.asList(new CommentRss(beans).createChannel(beans.getComms().getAll(null))))));
-        } catch (IOException ex) {
-            LOG.log(Level.SEVERE, "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
-            beans.getError().logException(null, "Backup failure", "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
-        }
-        try {
-            zipTask.get();
-        } catch (InterruptedException | ExecutionException ex) {
-        }
+        }));
+        backupTasks.add(beans.getExec().submit(() -> {
+            try {
+                LOG.log(Level.FINE, "Writing Comments.rss");
+                writeFile(master + File.separator + CommentRss.NAME, localNow, xmlToBytes(Feed.refreshFeed(Arrays.asList(new CommentRss().createChannel(beans, beans.getComms().getAll(null))))));
+            } catch (IOException ex) {
+                LOG.log(Level.SEVERE, "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
+                beans.getError().logException(null, "Backup failure", "Error writing Comments.rss to file: " + master + File.separator + CommentRss.NAME, ex);
+            }
+        }));
+        backupTasks.add(beans.getExec().submit(() -> {
+            @SuppressWarnings("StringBufferMayBeStringBuilder")
+            StringBuffer mimes = new StringBuffer(1000000);
+            beans.getFile().processArchive((f) -> {
+                if (shouldFileBeBackedUp(f)) {
+                    mimes.append(f.getFilename()).append(": ").append(f.getMimetype()).append('\n');
+                }
+            }, false);
+            try {
+                LOG.log(Level.FINE, "Writing mimes.txt");
+                writeFile(master + MIMES_TXT, localNow, mimes.toString().getBytes("UTF-8"));
+            } catch (IOException ex) {
+                LOG.log(Level.SEVERE, "Error writing mimes.txt: " + master + MIMES_TXT, ex);
+                beans.getError().logException(null, "Backup failure", "Error writing mimes.txt: " + master + MIMES_TXT, ex);
+            }
+        }));
+        backupTasks.add(beans.getExec().submit(() -> {
+            Map<Locale, Properties> propMap = beans.getImead().getProperties();
+            Map<String, String> localeFiles = new HashMap<>(propMap.size() * 2);
+            for (Locale l : propMap.keySet()) {
+                try {
+                    StringWriter propertiesContent = new StringWriter(10000);
+                    propMap.get(l).store(propertiesContent, null);
+                    String name = l != Locale.ROOT ? "IMEAD-" + l.toLanguageTag() + ".properties" : "IMEAD.properties";
+                    writeFile(master + name, localNow, propertiesContent.toString().getBytes("UTF-8"));
+                } catch (IOException ex) {
+                    beans.getError().logException(null, "Can't backup properties", "Can't backup properties for locale " + l.toLanguageTag(), ex);
+                }
+            }
+            return localeFiles;
+        }));
+        UtilStatic.finish(backupTasks);
         LOG.info("Backup procedure finished");
-        LOG.exiting(BackupDaemon.class.getName(), "backup");
+        LOG.exiting(BackupDaemon.class
+                .getName(), "backup");
     }
 
     /**
@@ -176,10 +263,11 @@ public class BackupDaemon implements Runnable {
      */
     public void restoreFromZip(ZipInputStream zip) {
         final Map<String, String> mimes = new ConcurrentHashMap<>(1000);
-        final Queue<Future<Fileupload>> fileTasks = new ConcurrentLinkedQueue<>();
+        final Queue<Future> fileTasks = new ConcurrentLinkedQueue<>();
         final Queue<Future> altTasks = new ConcurrentLinkedQueue<>();
         Future<Queue<Future<Article>>> masterArticleTask = null;
         Future<List<Comment>> masterCommentTask = null;
+        List<Fileupload> files = Collections.synchronizedList(new ArrayList<>(PROCESSING_CHUNK_SIZE * 2));
         try {
             for (ZipEntry zipFile = zip.getNextEntry(); zipFile != null; zipFile = zip.getNextEntry()) {
                 if (zipFile.isDirectory()) {
@@ -205,7 +293,7 @@ public class BackupDaemon implements Runnable {
                                         art.setArticletitle(component.getTextContent().trim());
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "pubDate")) {
-                                        art.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent().trim()));
+                                        art.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, component.getTextContent().trim()));
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "category")) {
                                         art.setSectionid(new Section(null, component.getTextContent().trim()));
@@ -228,6 +316,15 @@ public class BackupDaemon implements Runnable {
                                     }
                                     for (Node component : new XmlNodeSearcher(item, "description")) {
                                         art.setPostedhtml(component.getTextContent().trim());
+                                    }
+                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.SUGGESTION_ELEMENT_NAME)) {
+                                        art.setSuggestion(component.getTextContent().trim());
+                                    }
+                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.SUMMARY_ELEMENT_NAME)) {
+                                        art.setSummary(component.getTextContent().trim());
+                                    }
+                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.IMAGEURL_ELEMENT_NAME)) {
+                                        art.setImageurl(component.getTextContent().trim());
                                     }
                                     art.setCommentCollection(null);
                                     // conversion
@@ -254,7 +351,7 @@ public class BackupDaemon implements Runnable {
                                     comm.setPostedhtml(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
                                 }
                                 for (Node component : new XmlNodeSearcher(item, "pubDate")) {
-                                    comm.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(component.getTextContent()));
+                                    comm.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, component.getTextContent().trim()));
                                 }
                                 for (Node component : new XmlNodeSearcher(item, "author")) {
                                     comm.setPostedname(component.getTextContent());
@@ -303,10 +400,10 @@ public class BackupDaemon implements Runnable {
                                 }
                                 return props;
                             }));
-                        } else {
+                        } else if (zipFile.getName().startsWith(CONTENT_DIR)) {
                             Fileupload incomingFile = new Fileupload();
-                            incomingFile.setAtime(new Date(zipFile.getTime()));
-                            incomingFile.setFilename(zipFile.getName().replace("content/", ""));
+                            incomingFile.setAtime(Instant.ofEpochMilli(zipFile.getTime()).atOffset(ZoneOffset.UTC));
+                            incomingFile.setFilename(zipFile.getName().replace(CONTENT_DIR + "/", ""));
                             incomingFile.setMimetype(zipFile.getComment());
                             incomingFile.setFiledata(FileUtil.getByteArray(zip));
                             fileTasks.add(beans.getExec().submit(() -> {
@@ -318,11 +415,18 @@ public class BackupDaemon implements Runnable {
                                     incomingFile.setMimetype(FileRepo.DEFAULT_MIME_TYPE);
                                 }
                                 Fileupload existingFile = beans.getFile().get(incomingFile.getFilename());
-                                if (null == existingFile) {
-                                    return incomingFile;
-                                } else if (!incomingFile.getEtag().equals(existingFile.getEtag())) {
+                                if (null == existingFile || !incomingFile.getEtag().equals(existingFile.getEtag())) {
                                     LOG.log(Level.INFO, "Existing file different, updating {0}", incomingFile.getFilename());
-                                    return incomingFile;
+                                    files.add(incomingFile);
+                                    synchronized (files) {
+                                        if (files.size() > PROCESSING_CHUNK_SIZE) {
+                                            final List<Fileupload> fileChunk = new ArrayList<>(files);
+                                            altTasks.add(beans.getExec().submit(() -> {
+                                                beans.getFile().upsert(fileChunk);
+                                            }));
+                                            files.clear();
+                                        }
+                                    }
                                 }
                                 return null;
                             }));
@@ -336,40 +440,46 @@ public class BackupDaemon implements Runnable {
         }
         if (!fileTasks.isEmpty()) {
             UtilStatic.finish(altTasks).clear();
+            UtilStatic.finish(fileTasks).clear();
             altTasks.add(beans.getExec().submit(() -> {
-                ArrayList<Fileupload> files = new ArrayList<>(PROCESSING_CHUNK_SIZE);
-                for (Future<Fileupload> task : fileTasks) {
-                    try {
-                        Fileupload file = task.get();
-                        if (null != file) {
-                            if (mimes.containsKey(file.getFilename())) {
-                                file.setMimetype(mimes.get(file.getFilename()));
-                            }
-                            String fileUrl = BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), file);
-                            file.setUrl(fileUrl);
-                            files.add(file);
-                        }
-                    } catch (InterruptedException | ExecutionException ex) {
-                        LOG.log(Level.SEVERE, "Tried to process a bunch of files, but couldn't.", ex);
-                    }
-                    if (files.size() > PROCESSING_CHUNK_SIZE) {
-                        final ArrayList<Fileupload> fileChunk = new ArrayList<>(files);
-                        altTasks.add(beans.getExec().submit(() -> {
-                            beans.getFile().upsert(fileChunk);
-                        }));
-                        files.clear();
-                    }
+                if (!files.isEmpty()) {
+                    final List<Fileupload> fileChunk = new ArrayList<>(files);
+                    altTasks.add(beans.getExec().submit(() -> {
+                        beans.getFile().upsert(fileChunk);
+                    }));
+                    files.clear();
                 }
-                altTasks.add(beans.getExec().submit(() -> {
-                    beans.getFile().upsert(files);
-                }));
-                fileTasks.clear();
-            }, false));
+                beans.getFile().processArchive((file) -> {
+                    if (mimes.containsKey(file.getFilename()) && !file.getMimetype().equals(mimes.get(file.getFilename()))) {
+                        file.setMimetype(mimes.get(file.getFilename()));
+                    }
+                    String fileUrl = BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), file);
+                    if (!fileUrl.equals(file.getUrl())) {
+                        file.setUrl(fileUrl);
+                    }
+                    files.add(file);
+                    synchronized (files) {
+                        if (files.size() > PROCESSING_CHUNK_SIZE) {
+                            final List<Fileupload> fileChunk = new ArrayList<>(files);
+                            altTasks.add(beans.getExec().submit(() -> {
+                                beans.getFile().upsert(fileChunk);
+                            }));
+                            files.clear();
+                        }
+                    }
+                }, false);
+                if (!files.isEmpty()) {
+                    final List<Fileupload> fileChunk = new ArrayList<>(files);
+                    altTasks.add(beans.getExec().submit(() -> {
+                        beans.getFile().upsert(fileChunk);
+                    }));
+                    files.clear();
+                }
+            }, true));
         }
         try {
             if (null != masterArticleTask) {
                 List<Article> articles = new ArrayList<>();
-                UtilStatic.finish(UtilStatic.finish(altTasks)).clear();
                 for (Future<Article> task : masterArticleTask.get()) {
                     Article art = task.get();
                     if (null != art) {
@@ -377,7 +487,6 @@ public class BackupDaemon implements Runnable {
                     }
                 }
                 masterArticleTask.get().clear();
-                // to do a job right, do it yourself.
                 articles.sort((Article a, Article r) -> {
                     if (null != a.getArticleid() && null != r.getArticleid()) {
                         return a.getArticleid() - r.getArticleid();
@@ -389,6 +498,7 @@ public class BackupDaemon implements Runnable {
                     return 0;
                 });
                 Queue<Future<Article>> articleTasks = new ConcurrentLinkedQueue<>();
+                UtilStatic.finish(altTasks).clear();
                 for (Article art : articles) {
                     articleTasks.add(beans.getExec().submit(new ArticleProcessor(beans, art)));
                 }
@@ -434,7 +544,8 @@ public class BackupDaemon implements Runnable {
      * @see BackupDaemon.createZip(OutputStream wrapped)
      */
     public void backupToZip() {
-        LOG.entering(BackupDaemon.class.getName(), "backupToZip");
+        LOG.entering(BackupDaemon.class
+                .getName(), "backupToZip");
         LOG.info("Backup to zip procedure initiating");
         String master = beans.getImeadValue(MASTER_DIR);
         String zipName = getZipName();
@@ -446,7 +557,8 @@ public class BackupDaemon implements Runnable {
             LOG.log(Level.SEVERE, "Error writing zip file: " + fn, ex);
             beans.getError().logException(null, "Backup failure", ex.getMessage() + SecurityRepo.NEWLINE + "while backing up " + fn, null);
         }
-        LOG.exiting(BackupDaemon.class.getName(), "backupToZip");
+        LOG.exiting(BackupDaemon.class
+                .getName(), "backupToZip");
     }
 
     /**
@@ -458,29 +570,25 @@ public class BackupDaemon implements Runnable {
      */
     public void createZip(OutputStream wrapped, List<BackupTypes> types) {
         final Queue<Future> altTasks = new ConcurrentLinkedQueue<>();
-        long time = new Date().getTime();
+        OffsetDateTime localNow = OffsetDateTime.now();
         try (ZipOutputStream zip = new ZipOutputStream(wrapped)) {
             if (types.contains(BackupTypes.ARTICLES)) {
                 altTasks.add(beans.getExec().submit(() -> {
-                    byte[] xmlBytes = xmlToBytes(new ArticleRss(beans).createFeed(null, null));
-                    synchronized (zip) {
-                        try {
-                            addFileToZip(zip, ArticleRss.NAME, "text/xml", time, xmlBytes);
-                        } catch (IOException ix) {
-                            throw new RuntimeException(ix);
-                        }
+                    byte[] xmlBytes = xmlToBytes(new ArticleRss().createFeed(beans, null, null));
+                    try {
+                        addFileToZip(zip, ArticleRss.NAME, "text/xml", localNow, xmlBytes);
+                    } catch (IOException ix) {
+                        throw new RuntimeException(ix);
                     }
                 }));
             }
             if (types.contains(BackupTypes.COMMENTS)) {
                 altTasks.add(beans.getExec().submit(() -> {
-                    byte[] xmlBytes = xmlToBytes(SimpleRssFeed.refreshFeed(Arrays.asList(new CommentRss(beans).createChannel(beans.getComms().getAll(null)))));
-                    synchronized (zip) {
-                        try {
-                            addFileToZip(zip, CommentRss.NAME, "text/xml", time, xmlBytes);
-                        } catch (IOException ix) {
-                            throw new RuntimeException(ix);
-                        }
+                    byte[] xmlBytes = xmlToBytes(Feed.refreshFeed(Arrays.asList(new CommentRss().createChannel(beans, beans.getComms().getAll(null)))));
+                    try {
+                        addFileToZip(zip, CommentRss.NAME, "text/xml", localNow, xmlBytes);
+                    } catch (IOException ix) {
+                        throw new RuntimeException(ix);
                     }
                 }));
             }
@@ -498,56 +606,45 @@ public class BackupDaemon implements Runnable {
                             beans.getError().logException(null, "Can't backup properties", "Can't backup properties for locale " + l.toLanguageTag(), ex);
                         }
                     }
-                    synchronized (zip) {
-                        for (Map.Entry<String, String> locale : localeFiles.entrySet()) {
-                            String name = 0 == locale.getKey().length() ? "IMEAD.properties" : "IMEAD-" + locale.getKey() + ".properties";
-                            addFileToZip(zip, name, "text/plain", time, locale.getValue().getBytes());
-                        }
+                    for (Map.Entry<String, String> locale : localeFiles.entrySet()) {
+                        String name = 0 == locale.getKey().length() ? "IMEAD.properties" : "IMEAD-" + locale.getKey() + ".properties";
+                        addFileToZip(zip, name, "text/plain", localNow, locale.getValue().getBytes());
                     }
                     return localeFiles;
                 }));
             }
             if (types.contains(BackupTypes.FILES)) {
                 altTasks.add(beans.getExec().submit(() -> {
-                    StringBuilder mimes = new StringBuilder(1048576);
+                    @SuppressWarnings("StringBufferMayBeStringBuilder")
+                    StringBuffer mimes = new StringBuffer(1000000);
                     beans.getFile().processArchive((f) -> {
                         if (shouldFileBeBackedUp(f)) {
                             mimes.append(f.getFilename()).append(": ").append(f.getMimetype()).append('\n');
                         }
                     }, false);
-                    synchronized (zip) {
-                        try {
-                            addFileToZip(zip, MIMES_TXT, "text/plain", time, mimes.toString().getBytes("UTF-8"));
-                        } catch (IOException ix) {
-                            throw new RuntimeException(ix);
-                        }
+                    try {
+                        addFileToZip(zip, MIMES_TXT, "text/plain", localNow, mimes.toString().getBytes("UTF-8"));
+                    } catch (IOException ix) {
+                        throw new RuntimeException(ix);
                     }
                 }));
                 altTasks.add(beans.getExec().submit(() -> {
-                    List<String> directories = new ArrayList<>();
+                    //List<String> directories = new ArrayList<>();
                     beans.getFile().processArchive((f) -> {
                         if (shouldFileBeBackedUp(f)) {
                             try {
-                                String insideFilename = CONTENT_DIR + "/" + f.getFilename();
-                                String[] dirs = insideFilename.split("/");
-                                dirs = Arrays.copyOf(dirs, dirs.length - 1);
-                                StringBuilder subdir = new StringBuilder();
-                                synchronized (zip) {
-                                    for (String d : dirs) {
-                                        subdir.append(d).append("/");
-                                        if (!directories.contains(subdir.toString())) {
-                                            zip.putNextEntry(new ZipEntry(subdir.toString()));
-                                            zip.closeEntry();
-                                            directories.add(subdir.toString());
-                                        }
-                                    }
-                                    addFileToZip(zip, insideFilename, f.getMimetype(), f.getAtime().getTime(), f.getFiledata());
-                                }
+                                addFileToZip(zip, CONTENT_DIR + "/" + f.getFilename(), f.getMimetype(), f.getAtime(), f.getFiledata());
+//                                if (null != f.getGzipdata()) {
+//                                    addFileToZip(zip, CONTENT_ALT_DIR + "/" + f.getFilename() + ".gz", f.getMimetype(), f.getAtime(), f.getGzipdata());
+//                                }
+//                                if (null != f.getBrdata()) {
+//                                    addFileToZip(zip, CONTENT_ALT_DIR + "/" + f.getFilename() + ".br", f.getMimetype(), f.getAtime(), f.getBrdata());
+//                                }
                             } catch (IOException ix) {
                                 throw new RuntimeException(ix);
                             }
                         }
-                    }, true);
+                    }, false);
                 }));
             }
             UtilStatic.finish(altTasks);
@@ -562,7 +659,16 @@ public class BackupDaemon implements Runnable {
      * + ".zip"
      */
     public String getZipName() {
-        return beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en").replaceAll("[^\\w]", "") + new SimpleDateFormat("yyyyMMdd'.zip'").format(new Date());
+        return getZipStem() + OffsetDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd'.zip'"));
+    }
+
+    /**
+     * @return site title (a-zA-Z_0-9 only)
+     */
+    public String getZipStem() {
+        Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(beans.getImead().getValue(SecurityRepo.BASE_URL));
+        originMatcher.find();
+        return originMatcher.group(3).replace(".", "-");
     }
 
     /**
@@ -573,16 +679,20 @@ public class BackupDaemon implements Runnable {
      * @param mime file type
      * @param time modified time (from Date.getTime), defaults to -1
      * @param content file contents
+     * @return the created entry
      * @throws IOException something went wrong
      */
-    private void addFileToZip(ZipOutputStream zip, String name, String mime, long time, byte[] content) throws IOException {
+    private ZipEntry addFileToZip(ZipOutputStream zip, String name, String mime, OffsetDateTime time, byte[] content) throws IOException {
         ZipEntry out = new ZipEntry(name);
         out.setMethod(ZipEntry.DEFLATED);
-        out.setTime(time);
+        out.setTime(time.toInstant().toEpochMilli());
         out.setComment(mime);
-        zip.putNextEntry(out);
-        zip.write(content);
-        zip.closeEntry();
+        synchronized (zip) {
+            zip.putNextEntry(out);
+            zip.write(content);
+            zip.closeEntry();
+        }
+        return out;
     }
 
     /**
@@ -613,7 +723,7 @@ public class BackupDaemon implements Runnable {
      * @param content what it contains
      * @throws IOException something went boom
      */
-    private void writeFile(String filename, byte[] content) throws IOException {
+    private void writeFile(String filename, OffsetDateTime time, byte[] content) throws IOException {
         File f = new File(filename);
         if (!f.exists()) {
             List<String> parts = Arrays.asList(filename.split("/"));
@@ -628,12 +738,22 @@ public class BackupDaemon implements Runnable {
                 d.mkdirs();
             }
             f.createNewFile();
-        }
-        try (FileOutputStream tempStr = new FileOutputStream(f, false)) {
-            tempStr.write(content);
+            try (FileOutputStream tempStr = new FileOutputStream(f, false)) {
+                tempStr.write(content);
+            }
+        } else if (!Instant.ofEpochMilli(f.lastModified()).equals(time.toInstant())) {
+            try (FileOutputStream tempStr = new FileOutputStream(f, false)) {
+                tempStr.write(content);
+            }
         }
     }
 
+    /**
+     * filter out any temporary cached files. currently none.
+     *
+     * @param f
+     * @return true if this should be included in backups
+     */
     private static boolean shouldFileBeBackedUp(Fileupload f) {
         return true;
     }

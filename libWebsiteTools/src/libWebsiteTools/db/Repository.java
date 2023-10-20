@@ -46,10 +46,11 @@ public interface Repository<Entity> {
     public List<Entity> getAll(Integer limit);
 
     /**
-     * Execute an operation on every stored entity.
+     * Execute an operation on every stored entity. Depending on implementation,
+     * may be processed in parallel and in no specific order.
      *
-     * @param operation
-     * @param transaction
+     * @param operation function to perform on all entities.
+     * @param transaction should these operations be performed in a transaction?
      */
     public void processArchive(Consumer<Entity> operation, Boolean transaction);
 

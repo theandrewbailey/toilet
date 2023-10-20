@@ -2,9 +2,12 @@ package toilet;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
@@ -12,9 +15,11 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
+import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.Markdowner;
 import libWebsiteTools.file.BaseFileServlet;
+import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.file.Fileupload;
 import toilet.db.Article;
 import toilet.tag.ArticleUrl;
@@ -26,18 +31,21 @@ import toilet.tag.ArticleUrl;
  */
 public class ArticleProcessor implements Callable<Article> {
 
-    private static final Logger LOG = Logger.getLogger(ArticleProcessor.class.getName());
+    public static final String FORMAT_PRIORITY = "entry_imagePriority";
     public static final Pattern IMG_ATTRIB_PATTERN = Pattern.compile("<img (.+?)\\s?/?>");
-    private static final Pattern IMG_X2 = Pattern.compile("^(.+)(\\..+)$");
+    // "toilet.css" -> ["toilet", null, "css"]
+    // "post/2019_MEAndromedaCombat×2.avif" -> ["post/2019_MEAndromedaCombat", "2", "avif"]
+    public static final Pattern IMG_X2 = Pattern.compile("^(.+?)(?:×(\\d+))?\\.(.+)$");
     public static final Pattern ATTRIB_PATTERN = Pattern.compile("([^\\s=]+)(?:=['|\\\"](.*?)['|\\\"])?");
-    private static final Pattern PARA_PATTERN = Pattern.compile(".*?(<p>.*?</p>).*");
-    private static final Pattern A_PATTERN = Pattern.compile("</?a(?:\\s.*?)?>");
-    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<.+?>");
+    public static final Pattern PARA_PATTERN = Pattern.compile(".*?(<p>.*?</p>).*");
+    public static final Pattern A_PATTERN = Pattern.compile("</?a(?:\\s.*?)?>");
+    public static final Pattern HTML_TAG_PATTERN = Pattern.compile("<.+?>");
     // !?\["?(.+?)"?\]\(\S+?(?:\s"?(.+?)"?)?\)
-    private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[\"?(.+?)\"?\\]\\(\\S+?(?:\\s\"?(.+?)\"?)?\\)");
+    public static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("!?\\[\"?(.+?)\"?\\]\\(\\S+?(?:\\s\"?(.+?)\"?)?\\)");
 
+    private static final Logger LOG = Logger.getLogger(ArticleProcessor.class.getName());
     private final AllBeanAccess beans;
-    public Article art;
+    private final Article art;
 
     public ArticleProcessor(AllBeanAccess beans, Article art) {
         this.art = art;
@@ -82,86 +90,99 @@ public class ArticleProcessor implements Callable<Article> {
         }
         if (null == art.getPostedhtml() || null == art.getPostedmarkdown()) {
             convert(art);
-        }
-        String html = art.getPostedhtml();
-        String paragraph = "";
-        Matcher paraMatcher = PARA_PATTERN.matcher(html);
-        while (paraMatcher.find()) {
-            if (!paraMatcher.group(1).startsWith("<p><img ")) {
-                paragraph = paraMatcher.group(1);
-                paragraph = A_PATTERN.matcher(paragraph).replaceAll("");
-                break;
-            }
-        }
-        String ampHtml = html;
-        Matcher imgAttribMatcher = IMG_ATTRIB_PATTERN.matcher(html);
-        art.setSummary(null);
-        art.setImageurl(null);
-        while (imgAttribMatcher.find()) {
-            HashMap<String, String> origAttribs = new HashMap<>();
-            Matcher attribMatcher = ATTRIB_PATTERN.matcher(imgAttribMatcher.group(1));
-            while (attribMatcher.find()) {
-                origAttribs.put(attribMatcher.group(1), attribMatcher.group(2));
-            }
-            String imageURL = origAttribs.get("src");
-            Map<String, String> baseAttribs = getImageInfo(imageURL, new HashMap<>(origAttribs));
-            Map<String, String> doubleAttribs = null;
-            Map<String, String> avifAttribs = null;
-            try {
-                Matcher doubleMatcher = IMG_X2.matcher(imageURL);
-                if (doubleMatcher.find()) {
-                    doubleAttribs = getImageInfo(URLDecoder.decode(doubleMatcher.group(1) + "×2" + doubleMatcher.group(2), "UTF-8"), new HashMap<>(origAttribs));
-                    avifAttribs = getImageInfo(URLDecoder.decode(doubleMatcher.group(1) + "×2.avif", "UTF-8"), new HashMap<>(origAttribs));
+        } else if (null == art.getSummary() || null == art.getImageurl()) {
+            String html = art.getPostedhtml();
+            String paragraph = "";
+            Matcher paraMatcher = PARA_PATTERN.matcher(html);
+            while (paraMatcher.find()) {
+                if (!paraMatcher.group(1).startsWith("<p><img ")) {
+                    paragraph = paraMatcher.group(1);
+                    paragraph = A_PATTERN.matcher(paragraph).replaceAll("");
+                    break;
                 }
-            } catch (UnsupportedEncodingException | NullPointerException ex) {
             }
-            Map<String, String> ampAttribs = new HashMap<>(null != doubleAttribs ? doubleAttribs : baseAttribs);
-
-            StringBuilder pictureTag = new StringBuilder(500).append("<picture>");
-            if (null != avifAttribs) {
-                String srcset = avifAttribs.remove("src");
-                String type = avifAttribs.remove("type");
-                avifAttribs = new HashMap<>();
-                avifAttribs.put("srcset", srcset);
-                avifAttribs.put("type", type);
-                pictureTag.append(createTag("source", avifAttribs).append("/>"));
-            }
-            {
-                Map<String, String> baseset = new HashMap<>();
-                baseset.put("type", baseAttribs.get("type"));
-                String srcset = baseAttribs.get("src") + " 1x";
-                if (null != doubleAttribs) {
-                    srcset += ", " + doubleAttribs.get("src") + " 2x";
+            Matcher imgAttribMatcher = IMG_ATTRIB_PATTERN.matcher(html);
+            art.setSummary(null);
+            art.setImageurl(null);
+            while (imgAttribMatcher.find()) {
+                try {
+                    HashMap<String, String> origAttribs = new HashMap<>();
+                    Matcher attribMatcher = ATTRIB_PATTERN.matcher(imgAttribMatcher.group(1));
+                    while (attribMatcher.find()) {
+                        origAttribs.put(attribMatcher.group(1), attribMatcher.group(2));
+                    }
+                    getImageInfo(URLDecoder.decode(origAttribs.get("src"), "UTF-8"), origAttribs);
+                    StringBuilder pictureTag = new StringBuilder(500).append("<picture>");
+                    String tempImageURL = URLDecoder.decode(origAttribs.get("src"), "UTF-8").replaceAll(beans.getImeadValue(SecurityRepo.BASE_URL), "");
+                    Matcher stemmer = IMG_X2.matcher(tempImageURL);
+                    if (stemmer.find()) {
+                        String name = BaseFileServlet.getNameFromURL(stemmer.group(1));
+                        List<Filemetadata> files = beans.getFile().search(name);
+                        for (String mime : beans.getImeadValue(FORMAT_PRIORITY).replaceAll("\r", "").split("\n")) {
+                            List<String> srcset = new ArrayList<>();
+                            Map<String, String> attribs = new HashMap<>();
+                            files.stream().filter((file) -> {
+                                if (mime.equals(file.getMimetype())) {
+                                    Matcher sorter = IMG_X2.matcher(file.getFilename());
+                                    if (sorter.find()) {
+                                        return name.equals(sorter.group(1));
+                                    }
+                                }
+                                return false;
+                            }).sorted((file1, file2) -> {
+                                Matcher sort1 = IMG_X2.matcher(file1.getFilename());
+                                Matcher sort2 = IMG_X2.matcher(file2.getFilename());
+                                if (sort1.find() && sort2.find()) {
+                                    int x1 = null != sort1.group(2) ? Integer.parseInt(sort1.group(2)) : 1;
+                                    int x2 = null != sort2.group(2) ? Integer.parseInt(sort2.group(2)) : 1;
+                                    return x1 - x2;
+                                }
+                                return 0;
+                            }).forEach((file) -> {
+                                Integer width = UtilStatic.parseInt(origAttribs.get("width"), 0);
+                                try {
+                                    attribs.put("type", file.getMimetype());
+                                    Matcher namer = IMG_X2.matcher(file.getFilename());
+                                    namer.find();
+                                    Integer multiplier = UtilStatic.parseInt(namer.group(2), 1);
+                                    if (0 != width) {
+                                        //srcset.add(file.getUrl() + " " + (width * multiplier) + "w");
+                                        srcset.add(file.getUrl() + " " + Double.valueOf(Math.floor(width * (multiplier + 0.5))).intValue() + "w");
+                                    } else {
+                                        srcset.add(file.getUrl() + " " + multiplier + "x");
+                                    }
+                                } catch (Exception x) {
+                                    srcset.add(file.getUrl() + (0 != width ? " " + width + "w" : " 1x"));
+                                }
+                            });
+                            if (!srcset.isEmpty()) {
+                                attribs.clear();
+                                attribs.put("type", mime);
+                                attribs.put("srcset", String.join(", ", srcset));
+                                pictureTag.append(createTag("source", attribs).append("/>"));
+                            }
+                        }
+                    }
+                    origAttribs.remove("type");
+                    html = html.replace(imgAttribMatcher.group(0),
+                            new StringBuilder(500).append(pictureTag).append(createTag("img", origAttribs).append("/>")).append("</picture>"));
+                    if (null == art.getSummary() && Integer.parseInt(origAttribs.get("width")) >= 600 && Integer.parseInt(origAttribs.get("height")) >= 300) {
+                        art.setImageurl(origAttribs.get("src"));
+                        origAttribs.put("loading", "lazy");
+                        art.setSummary(String.format("<article class=\"article%s\"><a class=\"withFigure\" href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
+                                art.getArticleid(), ArticleUrl.getUrl("", art, null),
+                                pictureTag.append(createTag("img", origAttribs).append("/>")).append("</picture>").toString(), art.getArticletitle(), paragraph
+                        ));
+                    }
+                } catch (UnsupportedEncodingException enc) {
+                    throw new JVMNotSupportedError(enc);
                 }
-                baseset.put("srcset", srcset);
-                pictureTag.append(createTag("source", baseset).append("/>"));
             }
-
-            baseAttribs.remove("type");
-            String imgTag = createTag("img", baseAttribs).append("/>").toString();
-            pictureTag.append(imgTag).append("</picture>");
-            String pictureString = pictureTag.toString();
-
-            ampAttribs.remove("type");
-            ampAttribs.put("layout", "responsive");
-            String ampTag = createTag("amp-img", ampAttribs).append("><noscript>").append(imgTag).append("></noscript></amp-img>").toString();
-            ampHtml = ampHtml.replace(imgAttribMatcher.group(0), ampTag);
-
-            html = html.replace(imgAttribMatcher.group(0), pictureString);
-            if (null == art.getSummary() && Integer.parseInt(baseAttribs.get("width")) >= 600 && Integer.parseInt(baseAttribs.get("height")) >= 300) {
-                if (null == art.getImageurl()) {
-                    art.setImageurl(baseAttribs.get("src"));
-                }
-                art.setSummary(String.format("<article class=\"article%s\"><a class=\"withFigure\" href=\"%s\"><figure>%s<figcaption><h1>%s</h1></figcaption></figure></a>%s</article>",
-                        art.getArticleid(), ArticleUrl.getUrl("", art, null), pictureString, art.getArticletitle(), paragraph
-                ));
+            art.setPostedhtml(html);
+            if (null == art.getSummary()) {
+                art.setSummary(String.format("<article class=\"article%s\"><header><a href=\"%s\"><h1>%s</h1></a></header>%s</article>",
+                        art.getArticleid(), ArticleUrl.getUrl("", art, null), art.getArticletitle(), paragraph));
             }
-        }
-        art.setPostedhtml(html);
-        art.setPostedamp(ampHtml);
-        if (null == art.getSummary()) {
-            art.setSummary(String.format("<article class=\"article%s\"><header><a href=\"%s\"><h1>%s</h1></a></header>%s</article>",
-                    art.getArticleid(), ArticleUrl.getUrl("", art, null), art.getArticletitle(), paragraph));
         }
         return art;
     }
@@ -171,20 +192,21 @@ public class ArticleProcessor implements Callable<Article> {
         if (null == attributes) {
             attributes = new HashMap<>();
         }
-        Fileupload fileUpload = beans.getFile().get(BaseFileServlet.getNameFromURL(url));
-        attributes.put("src", BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileUpload));
-        attributes.put("type", fileUpload.getMimetype());
         try {
+            Fileupload fileUpload = beans.getFile().get(BaseFileServlet.getNameFromURL(url));
+            attributes.put("src", BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileUpload));
+            attributes.put("type", fileUpload.getMimetype());
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileUpload.getFiledata()));
             attributes.put("width", Integer.toString(image.getWidth()));
             attributes.put("height", Integer.toString(image.getHeight()));
-        } catch (Exception e) {
+            //} catch (NoResultException nre) {            return null;
+        } catch (IOException e) {
         }
         return attributes;
     }
 
     /**
-     * 
+     *
      * @param tagname
      * @param attributes
      * @return an unterminated opening tag with the given tagname and attributes

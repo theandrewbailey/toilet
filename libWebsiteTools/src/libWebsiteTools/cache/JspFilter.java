@@ -3,20 +3,22 @@ package libWebsiteTools.cache;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.annotation.WebFilter;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.HttpHeaders;
-import libWebsiteTools.BaseAllBeanAccess;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.annotation.WebFilter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
+import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.imead.LocalizedStringNotFoundException;
+import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
 
@@ -25,30 +27,38 @@ import libWebsiteTools.tag.HtmlTime;
  * @author alpha
  */
 @WebFilter(description = "Adds security headers and potentially adds to cache.", filterName = "JspFilter", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD}, urlPatterns = {"*.jsp"})
-public class JspFilter extends BaseAllBeanAccess implements Filter {
+public class JspFilter implements Filter {
 
     public static final String CONTENT_SECURITY_POLICY = "security_csp";
     public static final String FEATURE_POLICY = "security_features";
+    public static final String PERMISSIONS_POLICY = "security_permissions";
     public static final String REFERRER_POLICY = "security_referrer";
     public static final String PRIMARY_LOCALE_PARAM = "$_LIBIMEAD_PRIMARY_LOCALE";
+    public static final String GZIP = "gzip";
+    public static final String VARY_HEADER = String.join(", ", new String[]{
+        HttpHeaders.ACCEPT_ENCODING, HttpHeaders.ACCEPT_LANGUAGE});
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest req = ((HttpServletRequest) request);
         HttpServletResponse res = (HttpServletResponse) response;
-        Locale primaryLocale = Local.resolveLocales(getImead(), req).get(0);
+        AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
+        Locale primaryLocale = Local.resolveLocales(beans.getImead(), req).get(0);
+        if (Locale.ROOT.equals(primaryLocale)) {
+            primaryLocale = Locale.getDefault();
+        }
         request.setAttribute(PRIMARY_LOCALE_PARAM, primaryLocale);
-        HtmlMeta.addNameTag(req, "viewport", getImeadValue("site_viewport"));
-        HtmlMeta.addLink(req, "shortcut icon", getImeadValue("site_favicon"));
+        HtmlMeta.addNameTag(req, "viewport", beans.getImeadValue("site_viewport"));
+        HtmlMeta.addLink(req, "shortcut icon", beans.getImeadValue("site_favicon"));
         try {
-            String icon = getImeadValue("site_appleTouchIcon");
+            String icon = beans.getImeadValue("site_appleTouchIcon");
             if (null != icon) {
-                HtmlMeta.addLink(req, "apple-touch-icon", getFile().getFileMetadata(Arrays.asList(icon)).get(0).getUrl());
+                HtmlMeta.addLink(req, "apple-touch-icon", beans.getFile().getFileMetadata(Arrays.asList(icon)).get(0).getUrl());
             }
         } catch (Exception x) {
         }
         try {
-            String theme = getImeadValue("site_themeColor");
+            String theme = beans.getImeadValue("site_themeColor");
             if (null != theme) {
                 HtmlMeta.addNameTag(req, "theme-color", theme);
             }
@@ -56,20 +66,32 @@ public class JspFilter extends BaseAllBeanAccess implements Filter {
         }
         Object csp = request.getAttribute(CONTENT_SECURITY_POLICY);
         res.setHeader("Accept-Ranges", "none");
+        res.setHeader(HttpHeaders.VARY, VARY_HEADER);
         res.setHeader(HttpHeaders.CONTENT_LANGUAGE, primaryLocale.toLanguageTag());
-        res.setHeader("Content-Security-Policy", null == csp ? getImeadValue(CONTENT_SECURITY_POLICY) : csp.toString());
-        res.setHeader("Feature-Policy", getImeadValue(FEATURE_POLICY));
-        res.setHeader("Referrer-Policy", getImeadValue(REFERRER_POLICY));
+        res.setHeader("Content-Security-Policy", null == csp ? beans.getImeadValue(CONTENT_SECURITY_POLICY) : csp.toString());
+        if (null != beans.getImeadValue(FEATURE_POLICY)) {
+            res.setHeader("Feature-Policy", beans.getImeadValue(FEATURE_POLICY));
+        }
+        if (null != beans.getImeadValue(PERMISSIONS_POLICY)) {
+            res.setHeader("Permissions-Policy", beans.getImeadValue(PERMISSIONS_POLICY));
+        }
+        if (null != beans.getImeadValue(REFERRER_POLICY)) {
+            res.setHeader("Referrer-Policy", beans.getImeadValue(REFERRER_POLICY));
+        }
         // unnecessary for modern browsers
         //res.setHeader("X-Frame-Options", "SAMEORIGIN");
         //res.setHeader("X-Xss-Protection", "1; mode=block");
         if (null == request.getAttribute(HtmlTime.FORMAT_VAR)) {
-            request.setAttribute(HtmlTime.FORMAT_VAR, getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(getImead(), (HttpServletRequest) request)));
+            try {
+                request.setAttribute(HtmlTime.FORMAT_VAR, beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), (HttpServletRequest) request)));
+            } catch (LocalizedStringNotFoundException lx) {
+                request.setAttribute(HtmlTime.FORMAT_VAR, FeedBucket.TIME_FORMAT);
+            }
         }
-        PageCache cache = getGlobalCache().getCache(req, res);
+        PageCache cache = beans.getGlobalCache().getCache(req, res);
         if (null != cache) {
             CachedPage page = capturePage(chain, req, res);
-            cache.put(PageCache.getLookup(getImead(), req), page);
+            cache.put(PageCache.getLookup(beans.getImead(), req), page);
         } else {
             compressBody(chain, req, res);
         }
@@ -77,12 +99,13 @@ public class JspFilter extends BaseAllBeanAccess implements Filter {
     }
 
     private CachedPage capturePage(FilterChain chain, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
-        if ("gzip".equals(getCompression(req))) {
-            res.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
+        AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
+        if (GZIP.equals(getCompression(req))) {
+            res.setHeader(HttpHeaders.CONTENT_ENCODING, GZIP);
         }
         String etag = res.getHeader(HttpHeaders.ETAG);
         if (null == etag) {
-            etag = PageCache.getETag(getImead(), req);
+            etag = PageCache.getETag(beans.getImead(), req);
             res.setHeader(HttpHeaders.ETAG, etag);
         }
         ServletOutputWrapper<ServletOutputWrapper.ByteArrayOutput> wrap = new ServletOutputWrapper<>(ServletOutputWrapper.ByteArrayOutput.class, res);
@@ -95,11 +118,11 @@ public class JspFilter extends BaseAllBeanAccess implements Filter {
             out.flush();
         } catch (IOException ix) {
         }
-        return new CachedPage(res, responseBytes, PageCache.getLookup(getImead(), req));
+        return new CachedPage(res, responseBytes, PageCache.getLookup(beans.getImead(), req));
     }
 
     private void compressBody(FilterChain chain, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
-        if ("gzip".equals(getCompression(req))) {
+        if (GZIP.equals(getCompression(req))) {
             try (ServletOutputWrapper<ServletOutputWrapper.GZIPOutput> gzWrap = new ServletOutputWrapper<>(ServletOutputWrapper.GZIPOutput.class, (HttpServletResponse) res)) {
                 chain.doFilter(req, gzWrap);
                 gzWrap.flushBuffer();
@@ -119,7 +142,7 @@ public class JspFilter extends BaseAllBeanAccess implements Filter {
         String encoding = req.getHeader(HttpHeaders.ACCEPT_ENCODING);
         if (null != encoding) {
             if (BaseFileServlet.GZIP_PATTERN.matcher(encoding).find()) {
-                return "gzip";
+                return GZIP;
                 //} else if (BR_PATTERN.matcher(encoding).find()) {
                 //  return "br";
             }

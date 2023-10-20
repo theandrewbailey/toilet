@@ -2,9 +2,12 @@ package libWebsiteTools.tag;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 
 /**
  *
@@ -15,26 +18,24 @@ public class HtmlTime extends SimpleTagSupport {
     public static final String FORMAT_VAR = "$_LIBWEBSITETOOLS_DATETIME_FORMAT";
     public static final String SITE_DATEFORMAT_LONG = "site_dateFormatLong";
     private String pattern;
-    private Date datetime;
-    private Boolean pubdate = false;
+    private OffsetDateTime datetime;
     private final SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 
     @Override
     public void doTag() throws JspException, IOException {
+        ZonedDateTime z = datetime.toZonedDateTime();
         StringBuilder out = new StringBuilder("<time datetime=\"");
-        out.append(htmlFormat.format(datetime));
-//        if (pubdate)
-//            out.append("\" pubdate=\"pubdate");
+        out.append(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(z));
         out.append("\" >");
         Object uniFormat = getJspContext().findAttribute(FORMAT_VAR);
         if (pattern != null) {
             htmlFormat.applyPattern(pattern);
-            out.append(htmlFormat.format(datetime));
+            out.append(htmlFormat.format(Date.from(datetime.toInstant())));
         } else if (uniFormat != null) {
             htmlFormat.applyPattern(uniFormat.toString());
-            out.append(htmlFormat.format(datetime));
+            out.append(htmlFormat.format(Date.from(datetime.toInstant())));
         } else {
-            out.append(new SimpleDateFormat().format(datetime));
+            out.append(new SimpleDateFormat().format(Date.from(datetime.toInstant())));
         }
         out.append("</time>");
         getJspContext().getOut().print(out.toString());
@@ -57,28 +58,14 @@ public class HtmlTime extends SimpleTagSupport {
     /**
      * @return the datetime
      */
-    public Date getDatetime() {
+    public OffsetDateTime getDatetime() {
         return datetime;
     }
 
     /**
      * @param datetime the datetime to set
      */
-    public void setDatetime(Date datetime) {
+    public void setDatetime(OffsetDateTime datetime) {
         this.datetime = datetime;
-    }
-
-    /**
-     * @return the pubdate
-     */
-    public Boolean getPubdate() {
-        return pubdate;
-    }
-
-    /**
-     * @param pubdate the pubdate to set
-     */
-    public void setPubdate(Boolean pubdate) {
-        this.pubdate = pubdate;
     }
 }

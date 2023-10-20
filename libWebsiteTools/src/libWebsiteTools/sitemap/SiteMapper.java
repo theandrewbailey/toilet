@@ -1,17 +1,12 @@
 package libWebsiteTools.sitemap;
 
-import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.LocalBean;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.w3c.dom.Document;
@@ -21,14 +16,10 @@ import org.w3c.dom.Element;
  *
  * @author alpha
  */
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
-public class SiteMaster {
+public class SiteMapper {
 
     private final Set<Iterable<UrlMap>> sources = Collections.synchronizedSet(new HashSet<>());
-    private static final Logger LOG = Logger.getLogger(SiteMaster.class.getName());
+    private static final Logger LOG = Logger.getLogger(SiteMapper.class.getName());
 
     public void addSource(Iterable<UrlMap> src) {
         sources.add(src);
@@ -41,7 +32,7 @@ public class SiteMaster {
         int urlcount = 0;
         int size = 71;
         try {
-            ArrayList<UrlMap> urls=new ArrayList<>(100);
+            ArrayList<UrlMap> urls = new ArrayList<>(100);
             for (Iterable<UrlMap> page : new ArrayList<>(sources)) {
                 for (UrlMap u : page) {
                     urls.add(u);
@@ -53,7 +44,7 @@ public class SiteMaster {
             root.setAttributeNS("http://www.w3.org/2001/XMLSchema-instance", "xsi:schemaLocation", "http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd");
             xml.appendChild(root);
 
-            for (UrlMap u:urls){
+            for (UrlMap u : urls) {
                 Element newUrl = xml.createElement("url");
                 Integer newSize = write(u, newUrl, renderLevel);
                 if (newSize != null && size + newSize > 10480000) {
@@ -84,7 +75,7 @@ public class SiteMaster {
         urlnode.appendChild(n);
 
         if (url.getLastmod() != null) {
-            String lastmod = new SimpleDateFormat("yyyy-MM-dd").format(url.getLastmod());
+            String lastmod = DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(url.getLastmod());
             count += 19 + lastmod.length();
             n = xml.createElement("lastmod");
             n.setTextContent(lastmod);

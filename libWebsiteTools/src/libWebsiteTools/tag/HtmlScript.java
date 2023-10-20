@@ -4,12 +4,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.ejb.EJB;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.AllBeanAccess;
-import libWebsiteTools.BaseAllBeanAccess;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.imead.Local;
@@ -23,8 +21,6 @@ public class HtmlScript extends SimpleTagSupport {
     public static final String SITE_JAVASCRIPT_KEY = "site_javascript";
     private static final String INTEGRITY_TEMPLATE = "<script type=\"%s\" src=\"%s\" async=\"async\" integrity=\"%s-%s\"></script>";
     private static final String TEMPLATE = "<script type=\"%s\" src=\"%s\" async=\"async\"></script>";
-    @EJB
-    private AllBeanAccess beans;
 
     @SuppressWarnings("unchecked")
     public static List<Filemetadata> getJavascriptFiles(AllBeanAccess beans, HttpServletRequest req) {
@@ -56,6 +52,8 @@ public class HtmlScript extends SimpleTagSupport {
 
     @Override
     public void doTag() throws IOException {
+        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
+        AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
         for (Filemetadata f : getJavascriptFiles(beans, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())) {
             // TOTAL HACK: this assumes that the CSS is hosted locally 
             try {

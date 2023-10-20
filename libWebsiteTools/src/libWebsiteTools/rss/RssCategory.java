@@ -8,7 +8,7 @@ import org.w3c.dom.Element;
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-public class RssCategory implements Serializable, iPublishable {
+public class RssCategory implements Serializable, Publishable {
 
     private String name = "Replace this name";
     private String domain;

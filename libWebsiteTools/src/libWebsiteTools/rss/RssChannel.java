@@ -1,9 +1,9 @@
 package libWebsiteTools.rss;
 
 import java.io.Serializable;
-import java.text.SimpleDateFormat;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Date;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -13,7 +13,7 @@ import org.w3c.dom.Element;
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-public class RssChannel implements Serializable, iPublishable {
+public class RssChannel implements Serializable, Publishable {
 
     public final String generator = "praetor_alpha's libRssServlet v2.0";
     protected final String docs = "http://cyber.law.harvard.edu/tech/rss";
@@ -46,8 +46,8 @@ public class RssChannel implements Serializable, iPublishable {
     private String tName;
     private String tLink;
 
-    private Date pubDate;
-    private Date lastBuildDate;
+    private OffsetDateTime pubDate;
+    private OffsetDateTime lastBuildDate;
     private Integer ttl = 720;            // semi-daily
     private boolean[] skipHours = new boolean[24];
     private boolean[] skipDays = new boolean[7];
@@ -111,7 +111,7 @@ public class RssChannel implements Serializable, iPublishable {
         title = iTitle;
         link = iLink;
         description = iDesc;
-        pubDate = new Date();
+        pubDate = OffsetDateTime.now();
     }
 
     /**
@@ -126,7 +126,7 @@ public class RssChannel implements Serializable, iPublishable {
         if (limit > 0 && items.size() > limit) {
             items.remove(limit);
         }
-        lastBuildDate = new Date();
+        lastBuildDate = OffsetDateTime.now();
     }
 
     /**
@@ -142,7 +142,7 @@ public class RssChannel implements Serializable, iPublishable {
         if (limit > 0 && items.size() > limit) {
             items.remove(items.get(0));
         }
-        lastBuildDate = new Date();
+        lastBuildDate = OffsetDateTime.now();
     }
 
     /**
@@ -207,10 +207,10 @@ public class RssChannel implements Serializable, iPublishable {
         cdataTextNode(chan, "managingEditor", getManagingEditor());
         cdataTextNode(chan, "webMaster", getWebMaster());
         if (getPubDate() != null) {
-            cdataTextNode(chan, "pubDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getPubDate()));
+            cdataTextNode(chan, "pubDate", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(getPubDate()));
         }
         if (getLastBuildDate() != null) {
-            cdataTextNode(chan, "lastBuildDate", new SimpleDateFormat(FeedBucket.TIME_FORMAT).format(getLastBuildDate()));
+            cdataTextNode(chan, "lastBuildDate", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(getLastBuildDate()));
         }
         for (RssCategory c : cats) {
             c.publish(chan);
@@ -587,28 +587,28 @@ public class RssChannel implements Serializable, iPublishable {
     /**
      * @return the pubDate
      */
-    public Date getPubDate() {
+    public OffsetDateTime getPubDate() {
         return pubDate;
     }
 
     /**
      * @param pubDate the pubDate to set
      */
-    public void setPubDate(Date pubDate) {
+    public void setPubDate(OffsetDateTime pubDate) {
         this.pubDate = pubDate;
     }
 
     /**
      * @return the lastBuildDate
      */
-    public Date getLastBuildDate() {
+    public OffsetDateTime getLastBuildDate() {
         return lastBuildDate;
     }
 
     /**
      * @param lastBuildDate the lastBuildDate to set
      */
-    public void setLastBuildDate(Date lastBuildDate) {
+    public void setLastBuildDate(OffsetDateTime lastBuildDate) {
         this.lastBuildDate = lastBuildDate;
     }
 

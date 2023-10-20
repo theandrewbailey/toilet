@@ -1,25 +1,18 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package libWebsiteTools.db;
 
 import java.io.Serializable;
-import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import java.time.OffsetDateTime;
+import jakarta.persistence.Basic;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  *
@@ -29,8 +22,8 @@ import javax.validation.constraints.Size;
 @Table(name = "honeypot", schema = "tools")
 @NamedQueries({
     @NamedQuery(name = "Honeypot.findByIp", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip"),
-    @NamedQuery(name = "Honeypot.findByIpBeforeNow", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip AND h.expiresatatime > CURRENT_TIMESTAMP"),
-    @NamedQuery(name = "Honeypot.clean", query = "DELETE FROM Honeypot h WHERE h.expiresatatime < CURRENT_TIMESTAMP")})
+    @NamedQuery(name = "Honeypot.findByIpBeforeNow", query = "SELECT h FROM Honeypot h WHERE h.ip = :ip AND h.expiresatatime > :now"),
+    @NamedQuery(name = "Honeypot.clean", query = "DELETE FROM Honeypot h WHERE h.expiresatatime < :now")})
 public class Honeypot implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -41,9 +34,8 @@ public class Honeypot implements Serializable {
     private Integer honeypotid;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "expiresatatime", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date expiresatatime;
+    @Column(name = "expiresatatime", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime expiresatatime;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 100)
@@ -51,9 +43,8 @@ public class Honeypot implements Serializable {
     private String ip;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "startedatatime", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date startedatatime;
+    @Column(name = "startedatatime", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime startedatatime;
 
     public Honeypot() {
     }
@@ -62,7 +53,7 @@ public class Honeypot implements Serializable {
         this.honeypotid = honeypotid;
     }
 
-    public Honeypot(Integer honeypotid, Date expiresatatime, String ip, Date startedatatime) {
+    public Honeypot(Integer honeypotid, OffsetDateTime expiresatatime, String ip, OffsetDateTime startedatatime) {
         this.honeypotid = honeypotid;
         this.expiresatatime = expiresatatime;
         this.ip = ip;
@@ -77,11 +68,11 @@ public class Honeypot implements Serializable {
         this.honeypotid = honeypotid;
     }
 
-    public Date getExpiresatatime() {
+    public OffsetDateTime getExpiresatatime() {
         return expiresatatime;
     }
 
-    public void setExpiresatatime(Date expiresatatime) {
+    public void setExpiresatatime(OffsetDateTime expiresatatime) {
         this.expiresatatime = expiresatatime;
     }
 
@@ -93,11 +84,11 @@ public class Honeypot implements Serializable {
         this.ip = ip;
     }
 
-    public Date getStartedatatime() {
+    public OffsetDateTime getStartedatatime() {
         return startedatatime;
     }
 
-    public void setStartedatatime(Date startedatatime) {
+    public void setStartedatatime(OffsetDateTime startedatatime) {
         this.startedatatime = startedatatime;
     }
 

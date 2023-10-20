@@ -1,7 +1,7 @@
 package libWebsiteTools.rss;
 
 import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * this is meant for feeds that can serve multiple URLs, potentially depending
@@ -10,7 +10,7 @@ import javax.servlet.http.HttpServletRequest;
  *
  * @author alpha
  */
-public interface iDynamicFeed extends iFeed {
+public interface DynamicFeed extends Feed {
 
     /**
      * this method is intended to be called on each request to list RSS feeds on

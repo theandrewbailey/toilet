@@ -1,8 +1,10 @@
 package toilet.servlet;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Queue;
@@ -11,20 +13,19 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import libWebsiteTools.cache.CachedPage;
-import libWebsiteTools.cache.PageCache;
-import libWebsiteTools.cache.PageCaches;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
+import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
 import toilet.bean.ToiletBeanAccess;
 import toilet.bean.ArticleRepo;
+import toilet.bean.BackupDaemon;
 import toilet.db.Article;
 import toilet.db.Section;
 
@@ -33,7 +34,7 @@ import toilet.db.Section;
  * @author alpha
  */
 @WebServlet(name = "adminArticle", description = "Administer articles (and sometimes comments)", urlPatterns = {"/adminArticle"})
-public class AdminArticle extends ToiletServlet {
+public class AdminArticleServlet extends ToiletServlet {
 
     public static final String CREATE_NEW_GROUP = "$_CREATE_NEW_GROUP";
 
@@ -44,6 +45,7 @@ public class AdminArticle extends ToiletServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         String answer = request.getParameter("answer");
         if (answer != null && HashUtil.verifyArgon2Hash(beans.getImeadValue(AdminLoginServlet.EDIT_POSTS), answer)) {
             showList(request, response, beans.getArts().getAll(null));
@@ -69,37 +71,55 @@ public class AdminArticle extends ToiletServlet {
                 response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                 return;
             } else if (request.getParameter("rewrite") != null) {
-                beans.getFile().processArchive((fileupload) -> {
-                    fileupload.setUrl(BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileupload));
-                }, true);
-                Queue<Future<Article>> articleTasks = new ConcurrentLinkedQueue<>();
-                for (String id : request.getParameterValues(AbstractInput.getIncomingHash(request, "selectedArticle"))) {
-                    Article art = beans.getArts().get(Integer.parseInt(id));
-                    art.setPostedhtml(null);
-                    art.setPostedamp(null);
-                    articleTasks.add(beans.getExec().submit(new ArticleProcessor(beans, art)));
-                }
-                beans.getExec().submit(() -> {
-                    List<Article> articles = new ArrayList<>(articleTasks.size());
-                    for (Future<Article> f : articleTasks) {
-                        while (true) {
-                            try {
-                                if (articles.isEmpty() || null != f.get(1L, TimeUnit.MILLISECONDS)) {
-                                    articles.add(f.get());
-                                    break;
-                                }
-                            } catch (TimeoutException t) {
-                                beans.getArts().upsert(articles);
-                                articles.clear();
-                            } catch (InterruptedException | ExecutionException e) {
-                                throw new RuntimeException(e);
-                            }
+                List<Fileupload> files = Collections.synchronizedList(new ArrayList<>(BackupDaemon.PROCESSING_CHUNK_SIZE * 2));
+                beans.getFile().processArchive((file) -> {
+                    String url = BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), file);
+                    if (!url.equals(file.getUrl())) {
+                        file.setUrl(url);
+                        files.add(file);
+                    }
+                    synchronized (files) {
+                        if (files.size() > BackupDaemon.PROCESSING_CHUNK_SIZE) {
+                            final List<Fileupload> fileChunk = new ArrayList<>(files);
+                            beans.getFile().upsert(fileChunk);
+                            files.clear();
                         }
                     }
-                    beans.getArts().upsert(articles);
-                    beans.reset();
-                });
-                ((PageCache) beans.getPageCacheProvider().getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI)).clear();
+                }, false);
+                if (!files.isEmpty()) {
+                    beans.getFile().upsert(files);
+                }
+                try {
+                    Queue<Future<Article>> articleTasks = new ConcurrentLinkedQueue<>();
+                    for (String id : request.getParameterValues(AbstractInput.getIncomingHash(request, "selectedArticle"))) {
+                        Article art = beans.getArts().get(Integer.parseInt(id));
+                        art.setPostedhtml(null);
+                        art.setImageurl(null);
+                        articleTasks.add(beans.getExec().submit(new ArticleProcessor(beans, art)));
+                    }
+                    beans.getExec().submit(() -> {
+                        List<Article> articles = new ArrayList<>(articleTasks.size());
+                        for (Future<Article> f : articleTasks) {
+                            while (true) {
+                                try {
+                                    if (articles.isEmpty() || null != f.get(1L, TimeUnit.MILLISECONDS)) {
+                                        articles.add(f.get());
+                                        break;
+                                    }
+                                } catch (TimeoutException t) {
+                                    beans.getArts().upsert(articles);
+                                    articles.clear();
+                                } catch (InterruptedException | ExecutionException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        }
+                        beans.getArts().upsert(articles);
+                        beans.reset();
+                    });
+                } catch (NullPointerException n) {
+                }
+                beans.getGlobalCache().clear();
                 response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                 return;
             }
@@ -130,7 +150,13 @@ public class AdminArticle extends ToiletServlet {
             groups.add(art.getSectionid().getName());
         }
         request.setAttribute(Article.class.getSimpleName(), art);
+        request.setAttribute("defaultSearchTerm", ArticleRepo.getArticleSuggestionTerm(art));
         request.getSession().setAttribute(Article.class.getSimpleName(), art);
+        Collection<Article> seeAlso = ArticleServlet.getArticleSuggestions(beans.getArts(), art);
+        request.setAttribute("seeAlso", seeAlso);
+        request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepo.getArticleSuggestionTerm(art));
+        String formattedDate = null != art.getPosted() ? DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getPosted()) : "";
+        request.setAttribute("formattedDate", formattedDate);
         request.getRequestDispatcher(AdminLoginServlet.ADMIN_ADD_ARTICLE).forward(request, response);
     }
 }

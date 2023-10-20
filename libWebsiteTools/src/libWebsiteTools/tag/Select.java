@@ -16,7 +16,10 @@ public class Select extends AbstractInput {
     public String createTag() {
         StringBuilder out = label(new StringBuilder(300 + getParameters().size() * 60));
 
-        out.append("<select id=\"").append(getId()).append("\" name=\"").append(getId());
+        out.append("<select name=\"").append(getName());
+        if (null != getId()) {
+            out.append("\" id=\"").append(getId());
+        }
         if (null != getAccesskey()) {
             out.append("\" accesskey=\"").append(getAccesskey());
         }

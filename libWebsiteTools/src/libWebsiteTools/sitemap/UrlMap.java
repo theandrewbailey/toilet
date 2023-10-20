@@ -1,6 +1,6 @@
 package libWebsiteTools.sitemap;
 
-import java.util.Date;
+import java.time.OffsetDateTime;
 
 /**
  *
@@ -8,12 +8,12 @@ import java.util.Date;
  */
 public class UrlMap {
 
-    private String location;
-    private Date lastmod;
-    private ChangeFreq changefreq;
-    private String priority;
+    private final String location;
+    private final OffsetDateTime lastmod;
+    private final ChangeFreq changefreq;
+    private final String priority;
 
-    public UrlMap(String loc, Date mod, ChangeFreq freq, String pri) {
+    public UrlMap(String loc, OffsetDateTime mod, ChangeFreq freq, String pri) {
         if (loc.length() > 2047) {
             location = loc.substring(0, 2048);
         } else {
@@ -48,7 +48,7 @@ public class UrlMap {
     /**
      * @return the lastmod
      */
-    public Date getLastmod() {
+    public OffsetDateTime getLastmod() {
         return lastmod;
     }
 

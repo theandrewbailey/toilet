@@ -4,25 +4,24 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.ejb.EJB;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import libWebsiteTools.AllBeanAccess;
+import org.w3c.dom.Document;
 
 @WebServlet(name = "Sitemap", description = "Provides a sitemap xml", urlPatterns = {"/sitemap.xml"})
 public class SitemapServlet extends HttpServlet {
 
-    public static final String SITEMAP_JSP = "/SitemapOut.jsp";
-    @EJB
-    private SiteMaster master;
+    public static final String XML_JSP = "/XMLOut.jsp";
     private final TransformerFactory xFormFact = TransformerFactory.newInstance();
-    private static final Logger log = Logger.getLogger(SitemapServlet.class.getName());
+    private static final Logger LOG = Logger.getLogger(SitemapServlet.class.getName());
 
     @Override
     public void init() throws ServletException {
@@ -30,7 +29,10 @@ public class SitemapServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        DOMSource DOMsrc = new DOMSource(master.getSiteMap());
+        AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
+        SiteMapper mapper = beans.getMapper();
+        Document siteMap = mapper.getSiteMap();
+        DOMSource DOMsrc = new DOMSource(siteMap);
         StringWriter write = new StringWriter(1000000);
         StreamResult str = new StreamResult(write);
         try {
@@ -39,11 +41,11 @@ public class SitemapServlet extends HttpServlet {
                 trans = xFormFact.newTransformer();
             }
             trans.transform(DOMsrc, str);
-            request.setAttribute("SitemapOut", write.toString());
+            request.setAttribute("XMLOut", write.toString());
             // forward to JSP so feed may be cached
-            request.getServletContext().getRequestDispatcher(SITEMAP_JSP).forward(request, response);
+            request.getServletContext().getRequestDispatcher(XML_JSP).forward(request, response);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Sitemap encountered error during request", ex);
+            LOG.log(Level.SEVERE, "Sitemap encountered error during request", ex);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }

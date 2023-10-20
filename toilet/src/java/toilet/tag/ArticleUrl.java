@@ -4,13 +4,12 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Locale;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.imead.Local;
 import toilet.db.Article;
 
 public class ArticleUrl extends SimpleTagSupport {
@@ -26,7 +25,6 @@ public class ArticleUrl extends SimpleTagSupport {
     @Override
     public void doTag() throws JspException, IOException {
         HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
-        Locale locale = (Locale) req.getAttribute(Local.OVERRIDE_LOCALE_PARAM);
         StringBuilder b = new StringBuilder(200);
         if (link) {
             b.append("<a href=\"");
@@ -53,15 +51,6 @@ public class ArticleUrl extends SimpleTagSupport {
             url.append("#").append(anchor);
         }
         return url.toString();
-    }
-
-    @Deprecated
-    public static String getAmpUrl(String baseURL, Article article, Locale lang) {
-        StringBuilder url = new StringBuilder(baseURL);
-        if (null != lang) {
-            url.append(lang.toLanguageTag()).append("/");
-        }
-        return url.append("amp/").append(article.getArticleid()).append('/').append(getUrlArticleTitle(article)).toString();
     }
 
     private static String getUrlArticleTitle(Article article) {

@@ -1,10 +1,11 @@
 package toilet.servlet;
 
 import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import toilet.bean.ToiletBeanAccess;
 
 /**
  *
@@ -21,6 +22,7 @@ public class WellKnownServlet extends ToiletServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String URL = request.getRequestURI().replaceFirst(request.getServletContext().getContextPath(), "");
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         switch (URL) {
             case "/favicon.ico":
                 ToiletServlet.permaMove(response, beans.getImeadValue("site_favicon"));

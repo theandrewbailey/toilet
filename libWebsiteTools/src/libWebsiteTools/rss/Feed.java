@@ -1,11 +1,15 @@
 package libWebsiteTools.rss;
 
 import java.io.Serializable;
-import java.util.Map;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import java.util.Collection;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 /**
  * interface for a RSS Feed.
@@ -20,7 +24,11 @@ import org.w3c.dom.Document;
  * @see libWebsiteTools.rss.entity.AbstractRssFeed
  * @see libWebsiteTools.rss.RssServlet
  */
-public interface iFeed extends Serializable {
+public interface Feed extends Serializable {
+
+    public static final String COPYRIGHT = "rss_copyright";
+    public static final String LANGUAGE = "rss_language";
+    public static final String MASTER = "rss_master";
 
     public enum MimeType {
         RSS("application/rss+xml"), ATOM("application/atom+xml");
@@ -40,27 +48,36 @@ public interface iFeed extends Serializable {
      *
      * @return what this feed should be called, for purposes of URLs
      */
-    public String getName();
+    public default String getName() {
+        return this.getClass().getSimpleName() + ".rss";
+    }
 
     /**
+     * RSS types are the only ones implemented at this time.
      *
      * @return MIME type of this feed
      */
-    public MimeType getMimeType();
+    public default MimeType getMimeType() {
+        return MimeType.RSS;
+    }
 
     /**
      * preAdd will be called before this feed is made available.
      *
      * @return this
      */
-    public iFeed preAdd();
+    public default Feed preAdd() {
+        return this;
+    }
 
     /**
      * postAdd will be called after this feed is made available.
      *
      * @return this
      */
-    public iFeed postAdd();
+    public default Feed postAdd() {
+        return this;
+    }
 
     /**
      * lastModified will return when the feed last changed.
@@ -69,7 +86,9 @@ public interface iFeed extends Serializable {
      * @return milliseconds since epoch
      * @see HttpServlet
      */
-    public long getLastModified(HttpServletRequest req);
+    public default long getLastModified(HttpServletRequest req) {
+        return -1;
+    }
 
     /**
      * HttpServlet.doHead(HttpServletRequest, HttpServletResponse) calls this.
@@ -79,7 +98,9 @@ public interface iFeed extends Serializable {
      * @param res
      * @return this
      */
-    public iFeed doHead(HttpServletRequest req, HttpServletResponse res);
+    public default Feed doHead(HttpServletRequest req, HttpServletResponse res) {
+        return this;
+    }
 
     /**
      * preWrite will be called on every request for the feed. it must return the
@@ -93,7 +114,9 @@ public interface iFeed extends Serializable {
      * @param res useful for setting headers
      * @return XML document to write to output stream
      */
-    public Document preWrite(HttpServletRequest req, HttpServletResponse res);
+    public default Document preWrite(HttpServletRequest req, HttpServletResponse res) {
+        return null;
+    }
 
     /**
      * postWrite is called after preWrite.
@@ -104,19 +127,47 @@ public interface iFeed extends Serializable {
      * @param req useful for getting the session object
      * @return this
      */
-    public iFeed postWrite(HttpServletRequest req);
+    public default Feed postWrite(HttpServletRequest req) {
+        return this;
+    }
 
     /**
      * preRemove will be called before the feed is removed from service.
      *
      * @return this
      */
-    public iFeed preRemove();
+    public default Feed preRemove() {
+        return this;
+    }
 
     /**
      * postRemove will be called after the feed is removed from service.
      *
      * @return this
      */
-    public iFeed postRemove();
+    public default Feed postRemove() {
+        return this;
+    }
+
+    /**
+     * rebuild the DOM behind this RSS feed, with the given channels
+     *
+     * @param channels
+     * @return RSS XML output
+     */
+    public static Document refreshFeed(Collection<RssChannel> channels) {
+        Document XML = null;
+        try {
+            XML = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            Element root = XML.createElement("rss");
+            XML.appendChild(root);
+            root.setAttribute("version", "2.0");
+            for (RssChannel chan : channels) {
+                chan.publish(root);
+            }
+        } catch (ParserConfigurationException | DOMException x) {
+            throw new RuntimeException(x.getMessage(), x);
+        }
+        return XML;
+    }
 }

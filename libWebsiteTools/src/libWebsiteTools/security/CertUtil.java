@@ -33,7 +33,7 @@ import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import javax.security.auth.x500.X500Principal;
-import javax.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import libWebsiteTools.JVMNotSupportedError;
 
 /**
@@ -42,7 +42,6 @@ import libWebsiteTools.JVMNotSupportedError;
  */
 public class CertUtil {
 
-    public static final String CERTIFICATE_CHAIN = "$_LIBWEBSITETOOLS_CERTIFICATE_CHAIN";
     /**
      * contains root CAs and intermediates, but not the server's (leaf)
      * certificate
@@ -50,6 +49,8 @@ public class CertUtil {
     private final MultivaluedHashMap<X500Principal, X509Certificate> CERTIFICATE_STORE = new MultivaluedHashMap<>();
     private static final Logger LOG = Logger.getLogger(CertUtil.class.getName());
     private static final String SCT_EXTENSION = "1.3.6.1.4.1.11129.2.4.2";
+    private X509Certificate subject;
+    private Date certExpDate;
 
     /**
      * open keystores on instantiation
@@ -59,12 +60,16 @@ public class CertUtil {
             Enumeration<String> serverAliases = getServerKeystore().aliases();
             for (String aliasName = serverAliases.nextElement(); serverAliases.hasMoreElements(); aliasName = serverAliases.nextElement()) {
                 try {
-                    KeyStore.PrivateKeyEntry ksent = (KeyStore.PrivateKeyEntry) getServerKeystore().getEntry(aliasName, new KeyStore.PasswordProtection(System.getProperty("javax.net.ssl.keyStorePassword").toCharArray()));
-                    X509Certificate subject = (X509Certificate) ksent.getCertificate();
-                    CERTIFICATE_STORE.add(subject.getSubjectX500Principal(), subject);
+                    String prop = System.getProperty("javax.net.ssl.keyStorePassword");
+                    if (null == prop) {
+                        return;
+                    }
+                    KeyStore.PrivateKeyEntry ksent = (KeyStore.PrivateKeyEntry) getServerKeystore().getEntry(aliasName, new KeyStore.PasswordProtection(prop.toCharArray()));
+                    X509Certificate subCert = (X509Certificate) ksent.getCertificate();
+                    CERTIFICATE_STORE.add(subCert.getSubjectX500Principal(), subCert);
                     for (Certificate genericCert : ksent.getCertificateChain()) {
                         try {
-                            if (subject.equals(genericCert)) {
+                            if (subCert.equals(genericCert)) {
                                 continue;
                             }
                             X509Certificate cert = (X509Certificate) genericCert;
@@ -91,6 +96,27 @@ public class CertUtil {
         } catch (UnrecoverableEntryException | KeyStoreException ex) {
             throw new RuntimeException("Something went wrong with your keystore.", ex);
         }
+    }
+
+    public void verifyCertificate(String certName) {
+        if (null != certName) {
+            List<CertPath<X509Certificate>> serverCertificateChain = getServerCertificateChain(certName);
+            subject = serverCertificateChain.get(0).getCertificates().get(0);
+            if (!CertUtil.isValid(subject)) {
+                throw new RuntimeException(String.format("Your server's certificate has expired.\n%s", new Object[]{getSubject().getSubjectX500Principal().toString()}));
+            }
+            certExpDate = getEarliestExperation(serverCertificateChain);
+        } else {
+            throw new RuntimeException("No certificate name set.");
+        }
+    }
+
+    public X509Certificate getSubject() {
+        return subject;
+    }
+
+    public Date getCertExpDate() {
+        return certExpDate;
     }
 
     public static Date getEarliestExperation(List<CertPath<X509Certificate>> chains) {
@@ -156,7 +182,7 @@ public class CertUtil {
      *
      * @param name
      * @return requested certificate, or null
-     * @see OdysseyFilter.CERTIFICATE_NAME
+     * @see GuardFilter.CERTIFICATE_NAME
      */
     public static X509Certificate getServerCertificate(String name) {
         try {
@@ -174,8 +200,8 @@ public class CertUtil {
     public List<CertPath<X509Certificate>> getServerCertificateChain(String certificateName) {
         try {
             KeyStore.PrivateKeyEntry ksent = (KeyStore.PrivateKeyEntry) getServerKeystore().getEntry(certificateName, new KeyStore.PasswordProtection(System.getProperty("javax.net.ssl.keyStorePassword").toCharArray()));
-            X509Certificate subject = (X509Certificate) ksent.getCertificate();
-            return new ArrayList<>(getChain(subject, null));
+            X509Certificate subCert = (X509Certificate) ksent.getCertificate();
+            return new ArrayList<>(getChain(subCert, null));
         } catch (NoSuchAlgorithmException | UnrecoverableEntryException | KeyStoreException ex) {
             throw new RuntimeException(ex);
         }
@@ -194,19 +220,26 @@ public class CertUtil {
         } else if (Math.max(10, CERTIFICATE_STORE.size()) < chain.size()) {
             throw new RuntimeException(String.format("Certificate chain for %s doesn't terminate", new Object[]{subject.getSubjectX500Principal()}));
         }
-        chain.add(subject);
         Set<CertPath<X509Certificate>> paths = new HashSet<>();
-        for (X509Certificate authority : CERTIFICATE_STORE.get(subject.getIssuerX500Principal())) {
-            if (verify(subject, authority.getPublicKey())) {
-                if (isSelfSigned(authority)) {
-                    // root reached because root certificates are self signed
-                    chain.add(authority);
-                    paths.add(new CertPath<>(new ArrayList<>(chain)));
-                    chain.remove(authority);
-                    continue;
+        chain.add(subject);
+        try {
+            for (X509Certificate authority : CERTIFICATE_STORE.get(subject.getIssuerX500Principal())) {
+                if (verify(subject, authority.getPublicKey())) {
+                    if (isSelfSigned(authority)) {
+                        // root reached because root certificates are self signed
+                        chain.add(authority);
+                        paths.add(new CertPath<>(new ArrayList<>(chain)));
+                        chain.remove(authority);
+                        continue;
+                    }
+                    Set<CertPath<X509Certificate>> parents = getChain(authority, chain);
+                    if (null != parents) {
+                        paths.addAll(parents);
+                    }
                 }
-                paths.addAll(getChain(authority, chain));
             }
+        } catch (NullPointerException n) {
+            return null;
         }
         chain.remove(subject);
         return paths;

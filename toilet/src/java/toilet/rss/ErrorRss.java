@@ -1,30 +1,26 @@
 package toilet.rss;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
-import javax.ejb.EJB;
-import javax.servlet.annotation.WebListener;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.db.Exceptionevent;
 import libWebsiteTools.rss.RssChannel;
 import libWebsiteTools.rss.RssItem;
-import libWebsiteTools.rss.SimpleRssFeed;
-import libWebsiteTools.rss.iFeed;
 import org.w3c.dom.Document;
+import toilet.bean.ToiletBeanAccess;
 import toilet.servlet.AdminLoginServlet;
+import libWebsiteTools.rss.Feed;
 
 /**
  *
  * @author alpha
  */
-@WebListener
-public class ErrorRss extends SimpleRssFeed {
+public class ErrorRss implements Feed {
 
-    @EJB
-    private SecurityRepo exr;
     public static final String NAME = "logger.rss";
     private static final Logger LOG = Logger.getLogger(SecurityRepo.class.getName());
 
@@ -34,8 +30,8 @@ public class ErrorRss extends SimpleRssFeed {
     }
 
     @Override
-    public iFeed doHead(HttpServletRequest req, HttpServletResponse res) {
-        res.setHeader(HttpHeaders.CACHE_CONTROL, "private, must-revalidate, max-age=600");
+    public Feed doHead(HttpServletRequest req, HttpServletResponse res) {
+        res.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
         if (null != req.getSession(false) && AdminLoginServlet.ERROR_LOG.equals(req.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             return this;
         }
@@ -49,14 +45,15 @@ public class ErrorRss extends SimpleRssFeed {
             LOG.fine("Exception RSS feed requested");
             RssChannel badRequests = new RssChannel("running log", req.getRequestURL().toString(), "404s, etc.");
             badRequests.setLimit(1000);
-            List<Exceptionevent> exceptions = exr.getAll(null);
+            ToiletBeanAccess beans = (ToiletBeanAccess) req.getAttribute(libWebsiteTools.AllBeanAccess.class.getCanonicalName());
+            List<Exceptionevent> exceptions = beans.getError().getAll(null);
             for (Exceptionevent e : exceptions) {
                 RssItem ri = new RssItem(e.getDescription());
                 ri.setTitle(e.getTitle());
                 ri.setPubDate(e.getAtime());
                 badRequests.addItem(ri);
             }
-            return super.refreshFeed(badRequests);
+            return Feed.refreshFeed(Arrays.asList(badRequests));
         }
         LOG.fine("Error RSS feed invalid authentication");
         res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

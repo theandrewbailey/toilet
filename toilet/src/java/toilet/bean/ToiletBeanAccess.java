@@ -1,22 +1,41 @@
 package toilet.bean;
 
-import javax.annotation.Resource;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.EJB;
-import javax.ejb.LocalBean;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.enterprise.concurrent.ManagedExecutorService;
-import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
+import jakarta.ejb.ConcurrencyManagement;
+import jakarta.ejb.ConcurrencyManagementType;
+import jakarta.ejb.LocalBean;
+import jakarta.ejb.Schedule;
+import jakarta.ejb.Singleton;
+import jakarta.ejb.Startup;
+import jakarta.enterprise.concurrent.ManagedExecutorService;
+import javax.naming.Context;
 import javax.naming.InitialContext;
+import javax.naming.NameClassPair;
 import javax.naming.NamingException;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.PersistenceUnit;
+import jakarta.servlet.http.HttpServletRequest;
+import javax.sql.DataSource;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.cache.PageCacheProvider;
 import libWebsiteTools.file.FileRepo;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
+import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.SecurityRepo;
+import libWebsiteTools.sitemap.SiteMapper;
 import toilet.AllBeanAccess;
+import toilet.SitemapProvider;
+import toilet.rss.ArticleRss;
+import toilet.rss.CommentRss;
+import toilet.rss.ErrorRss;
 
 /**
  * Easy way to ensure static functions have access to requisite bean classes.
@@ -29,29 +48,118 @@ import toilet.AllBeanAccess;
 @ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanAccess {
 
+    public static final String DEFAULT_DATASOURCE = "java/toilet/default";
     @Resource
     private ManagedExecutorService exec;
-    @EJB
-    private SecurityRepo error;
-    @EJB
-    private FileRepo file;
-    @EJB
-    private IMEADHolder imead;
-    @EJB
-    private FeedBucket feeds;
-    @Inject
+    @PersistenceUnit
+    private EntityManagerFactory toiletPU;
     private PageCacheProvider pageCacheProvider;
-    @EJB
+    private SecurityRepo error;
+    private FileRepo file;
+    private IMEADHolder imead;
+    private FeedBucket feeds;
     private ArticleRepo arts;
-    @EJB
     private CommentRepo comms;
-    @EJB
     private SectionRepo sects;
-    @EJB
     private BackupDaemon backup;
+//    private SpruceGenerator spruce;
+    private SiteMapper mapper;
+    private HashMap<String, ToiletBeanAccess> altHosts;
+
+    public ToiletBeanAccess() {
+    }
+
+    /**
+     *
+     * @param req
+     * @return appropriate version of beans based on the request's hostname
+     */
+    @Override
+    public ToiletBeanAccess getInstance(HttpServletRequest req) {
+        ToiletBeanAccess beans = (ToiletBeanAccess) req.getAttribute(libWebsiteTools.AllBeanAccess.class.getCanonicalName());
+        if (null == beans) {
+            String host = req.getHeader(HttpHeaders.HOST);
+            //beans = altHosts.get(host);
+            //if (null == beans) {
+            beans = this;
+            //}
+            req.setAttribute(libWebsiteTools.AllBeanAccess.class.getCanonicalName(), beans);
+        }
+        return beans;
+    }
+
+    @PostConstruct
+    private void init() {
+        try {
+            ArticleRss a = new ArticleRss();
+            a.createFeed(this, Integer.valueOf(this.getImeadValue(ArticleRss.ARTICLE_COUNT)), null);
+            getFeeds().upsert(Arrays.asList(a));
+        } catch (RuntimeException ex) {
+        }
+        try {
+            CommentRss c = new CommentRss();
+            c.createFeed(this, null);
+            getFeeds().upsert(Arrays.asList(c));
+        } catch (Exception ex) {
+        }
+        getFeeds().upsert(Arrays.asList(new ErrorRss()));
+//        getSpruce();
+        // TODO: dyamically create entity managers for each java/toilet/* database pools
+        /*HashMap<String, DataSource> dataSources = traverseContext(null, "");
+        altHosts = new HashMap<>(dataSources.size());
+        for (Map.Entry<String, DataSource> pair : dataSources.entrySet()) {
+            String jndiName = pair.getKey();
+            if (!DEFAULT_DATASOURCE.equals(jndiName) && jndiName.startsWith("java/toilet/")) {
+                HashMap<String, Object> props = new HashMap<>(toiletPU.getProperties());
+                props.put("javax.persistence.nonJtaDataSource", jndiName);
+                props.put("javax.persistence.transactionType", "RESOURCE_LOCAL");
+                EntityManagerFactory emf = Persistence.createEntityManagerFactory(DEFAULT_DATASOURCE, props);
+                ToiletBeanAccess newbeans = new ToiletBeanAccess().use(toiletPU).use(emf).init();
+                newbeans.getSpruce();
+                newbeans.getFeeds().upsert(getFeeds().getAll(Integer.SIZE));
+                altHosts.put(jndiName.replaceFirst(jndiName, "java/toilet/"), newbeans);
+            }
+        }*/
+    }
+
+    private ToiletBeanAccess use(EntityManagerFactory fact) {
+        toiletPU = fact;
+        return this;
+    }
+
+    private ToiletBeanAccess use(ManagedExecutorService ex) {
+        exec = ex;
+        return this;
+    }
+
+    private HashMap<String, DataSource> traverseContext(Context ic, String lastSpace) {
+        HashMap<String, DataSource> subNames = new HashMap<>();
+        try {
+            if (null == ic) {
+                ic = new InitialContext();
+            }
+            ArrayList<NameClassPair> contextList = Collections.list(ic.list(""));
+            for (NameClassPair nc : contextList) {
+                if ("__SYSTEM".equals(nc.getName())) {
+                    continue;
+                }
+                Object o = ic.lookup(nc.getName());
+                if (o instanceof Context) {
+                    subNames.putAll(traverseContext((Context) o, lastSpace + nc.getName() + "/"));
+                } else if (o instanceof DataSource && !nc.getName().endsWith("__pm")) {
+                    DataSource ds = (DataSource) o;
+                    subNames.put(lastSpace + nc.getName(), ds);
+                }
+            }
+        } catch (NamingException ex) {
+            Logger.getLogger(ToiletBeanAccess.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return subNames;
+    }
 
     /**
      * lookup an EJB. avoid using this, because it's not fast.
+     *
      * @param <T>
      * @param name
      * @param type
@@ -74,30 +182,53 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
      */
     @Override
     public synchronized void reset() {
-        imead.evict();
-        arts.evict();
-        sects.evict();
-        file.evict();
+        getImead().evict();
+        getArts().evict();
+        getSects().evict();
+        getFile().evict();
         getGlobalCache().clear();
+    }
+
+    @Schedule(persistent = false, hour = "1")
+    private void nightly() {
+        getBackup().run();
+        getError().evict();
+    }
+
+    @Schedule(persistent = false, minute = "*", hour = "*", dayOfWeek = "*", month = "*")
+    private void sweep() {
+        getPageCacheProvider().sweep();
     }
 
     @Override
     public ArticleRepo getArts() {
+        if (null == arts) {
+            arts = new ArticleRepo(toiletPU, getImead());
+        }
         return arts;
     }
 
     @Override
     public CommentRepo getComms() {
+        if (null == comms) {
+            comms = new CommentRepo(toiletPU);
+        }
         return comms;
     }
 
     @Override
     public SectionRepo getSects() {
+        if (null == sects) {
+            sects = new SectionRepo(toiletPU, getImead());
+        }
         return sects;
     }
 
     @Override
     public BackupDaemon getBackup() {
+        if (null == backup) {
+            backup = new BackupDaemon(this);
+        }
         return backup;
     }
 
@@ -108,26 +239,65 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
 
     @Override
     public SecurityRepo getError() {
+        if (null == error) {
+            error = new SecurityRepo(toiletPU, getImead());
+            try {
+                error.getCerts().verifyCertificate(getImeadValue(GuardFilter.CERTIFICATE_NAME));
+            } catch (RuntimeException rx) {
+                error.logException(null, "High security not available: " + rx.getMessage(), null, rx);
+            }
+        }
         return error;
     }
 
     @Override
     public FileRepo getFile() {
+        if (null == file) {
+            file = new FileRepo(toiletPU);
+        }
         return file;
     }
 
     @Override
     public IMEADHolder getImead() {
+        if (null == imead) {
+            imead = new IMEADHolder(toiletPU);
+        }
         return imead;
     }
 
     @Override
     public FeedBucket getFeeds() {
+        if (null == feeds) {
+            feeds = new FeedBucket();
+        }
         return feeds;
     }
 
     @Override
     public PageCacheProvider getPageCacheProvider() {
+        if (null == pageCacheProvider) {
+            pageCacheProvider = new PageCacheProvider();
+        }
         return pageCacheProvider;
+    }
+
+//    @Override
+//    public SpruceGenerator getSpruce() {
+//        if (null == spruce) {
+//            spruce = new SpruceGenerator(getImead(), getFile(), getExec());
+//            if (spruce.shouldBeReady()) {
+//                getFeeds().upsert(Arrays.asList(spruce));
+//            }
+//        }
+//        return spruce;
+//    }
+    @Override
+    public SiteMapper getMapper() {
+        if (null == mapper) {
+            mapper = new SiteMapper();
+            mapper.addSource(new SitemapProvider(this));
+        }
+        return mapper;
     }
 }

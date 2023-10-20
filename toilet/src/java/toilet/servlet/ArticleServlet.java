@@ -2,46 +2,46 @@ package toilet.servlet;
 
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.DateTimeException;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.ejb.EJBException;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
-import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
 import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
 import toilet.UtilStatic;
 import toilet.bean.ArticleRepo;
+import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Section;
 import toilet.tag.ArticleUrl;
 import toilet.tag.Categorizer;
 
-@WebServlet(name = "ArticleServlet", description = "Gets a single article from the DB with comments", urlPatterns = {"/article/*"})
+@WebServlet(name = "ArticleServlet", description = "Gets a single article from the DB with comments", urlPatterns = {"/article/*", "/amp/*"})
 public class ArticleServlet extends ToiletServlet {
 
-    private static final Pattern ARTICLE_TERM = Pattern.compile("(.+?)(?=(?: \\d.*)|(?:[:,] .*)|(?: \\(\\d+\\))|$)");
     private static final String ARTICLE_JSP = "/WEB-INF/singleArticle.jsp";
     private static final String DEFAULT_NAME = "entry_defaultName";
     public static final String SPAM_WORDS = "entry_spamwords";
@@ -49,9 +49,10 @@ public class ArticleServlet extends ToiletServlet {
     @Override
     protected long getLastModified(HttpServletRequest request) {
         try {
+            ToiletBeanAccess beans = allBeans.getInstance(request);
             Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
             request.setAttribute(Article.class.getCanonicalName(), art);
-            return art.getModified().getTime();
+            return art.getModified().toInstant().toEpochMilli();
         } catch (RuntimeException ex) {
         }
         return 0L;
@@ -64,6 +65,7 @@ public class ArticleServlet extends ToiletServlet {
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null == art) {
             try {
+                ToiletBeanAccess beans = allBeans.getInstance(request);
                 art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
@@ -82,7 +84,7 @@ public class ArticleServlet extends ToiletServlet {
             ToiletServlet.permaMove(response, properUrl);
             return;
         }
-        response.setDateHeader(HttpHeaders.DATE, art.getModified().getTime());
+        response.setDateHeader(HttpHeaders.DATE, art.getModified().toInstant().toEpochMilli());
         String ifNoneMatch = request.getHeader(HttpHeaders.IF_NONE_MATCH);
         String etag = request.getAttribute(HttpHeaders.ETAG).toString();
         if (etag.equals(ifNoneMatch)) {
@@ -97,19 +99,24 @@ public class ArticleServlet extends ToiletServlet {
         doHead(request, response);
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null != art && !response.isCommitted()) {
-            request.setAttribute("seeAlso", beans.getExec().submit(() -> {
-                return getArticleSuggestions(beans.getArts(), art);
-            }));
-            SimpleDateFormat htmlFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+            ToiletBeanAccess beans = allBeans.getInstance(request);
+            Collection<Article> seeAlso = getArticleSuggestions(beans.getArts(), art);
+            request.setAttribute("seeAlso", seeAlso);
+            request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepo.getArticleSuggestionTerm(art));
+            // keep track of articles referenced on the page, to help de-duplicate links and maximize unique articles linked to
+            ArrayList<Article> pageArticles = new ArrayList<>(Arrays.asList(art));
+            pageArticles.addAll(seeAlso);
+            request.setAttribute("articles", pageArticles);
             request.setAttribute(Article.class.getSimpleName(), art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
-            request.setAttribute("seeAlsoTerm", getArticleSuggestionTerm(art));
             if (art.getComments()) {
                 request.setAttribute("commentForm", getCommentFormUrl(art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
-                SimpleDateFormat timeFormat = new SimpleDateFormat(beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), request)));
+                String format = beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), request));
+                DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern(format);
+                String postedDate = timeFormat.format(art.getPosted().toZonedDateTime());
                 String footer = MessageFormat.format(beans.getImead().getLocal("page_articleFooter", Local.resolveLocales(beans.getImead(), request)),
-                        new Object[]{timeFormat.format(art.getPosted()), art.getSectionid().getName()})
+                        new Object[]{postedDate, art.getSectionid().getName()})
                         + (1 == art.getCommentCollection().size() ? "1 comment." : art.getCommentCollection().size() + " comments.");
                 request.setAttribute("commentFormTitle", footer);
             }
@@ -123,52 +130,30 @@ public class ArticleServlet extends ToiletServlet {
             if (null != art.getDescription()) {
                 HtmlMeta.addPropertyTag(request, "og:description", art.getDescription());
             }
-            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, "en"));
+            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, Local.resolveLocales(beans.getImead(), request)));
             HtmlMeta.addPropertyTag(request, "og:type", "article");
-            HtmlMeta.addPropertyTag(request, "og:article:published_time", htmlFormat.format(art.getPosted()));
-            HtmlMeta.addPropertyTag(request, "og:article:modified_time", htmlFormat.format(art.getModified()));
+            HtmlMeta.addPropertyTag(request, "og:article:published_time", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getPosted().toZonedDateTime()));
+            HtmlMeta.addPropertyTag(request, "og:article:modified_time", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getModified().toZonedDateTime()));
             HtmlMeta.addPropertyTag(request, "og:article:author", art.getPostedname());
             HtmlMeta.addPropertyTag(request, "og:article:section", art.getSectionid().getName());
             HtmlMeta.addLink(request, "canonical", ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
-            HtmlMeta.addLink(request, "amphtml", ArticleUrl.getAmpUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
             if (null != art.getImageurl()) {
-                JSONArray image = new JSONArray();
+                JsonArrayBuilder image = Json.createArrayBuilder();
                 image.add(art.getImageurl());
-                JSONObject article = new JSONObject();
-                article.put("@context", "https://schema.org");
-                article.put("@type", "Article");
-                article.put("headline", art.getArticletitle());
-                article.put("image", image);
-                article.put("datePublished", htmlFormat.format(art.getPosted()));
-                article.put("dateModified", htmlFormat.format(art.getModified()));
-                HtmlMeta.addLDJSON(request, article.toJSONString());
+                JsonObjectBuilder article = Json.createObjectBuilder().add("@context", "https://schema.org").add("@type", "Article").
+                        add("headline", art.getArticletitle()).add("image", image).
+                        add("datePublished", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getPosted().toZonedDateTime())).
+                        add("dateModified", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getModified().toZonedDateTime()));
+                HtmlMeta.addLDJSON(request, article.build().toString());
             }
-            JSONArray itemList = new JSONArray();
+            JsonArrayBuilder itemList = Json.createArrayBuilder();
             itemList.add(HtmlMeta.getLDBreadcrumb(beans.getImead().getLocal("page_title", Local.resolveLocales(beans.getImead(), request)), 1, request.getAttribute(SecurityRepo.BASE_URL).toString()));
             itemList.add(HtmlMeta.getLDBreadcrumb(art.getSectionid().getName(), 2, Categorizer.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art.getSectionid().getName(), null)));
             itemList.add(HtmlMeta.getLDBreadcrumb(art.getArticletitle(), 3, ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null)));
-            JSONObject breadcrumbs = new JSONObject();
-            breadcrumbs.put("@context", "https://schema.org");
-            breadcrumbs.put("@type", "BreadcrumbList");
-            breadcrumbs.put("itemListElement", itemList);
-            HtmlMeta.addLDJSON(request, breadcrumbs.toJSONString());
+            JsonObjectBuilder breadcrumbs = Json.createObjectBuilder().add("@context", "https://schema.org").add("@type", "BreadcrumbList").add("itemListElement", itemList);
+            HtmlMeta.addLDJSON(request, breadcrumbs.build().toString());
             request.getServletContext().getRequestDispatcher(ARTICLE_JSP).forward(request, response);
         }
-    }
-
-    /**
-     *
-     * @param art Article to get an appropriate search term from
-     * @return String suitable to pass to article search to retrieve similar
-     * articles
-     */
-    public static String getArticleSuggestionTerm(Article art) {
-        String term = art.getArticletitle();
-        Matcher articleMatch = ARTICLE_TERM.matcher(term);
-        if (articleMatch.find()) {
-            term = articleMatch.group(1).trim();
-        }
-        return term.replaceAll(" ", "|");
     }
 
     /**
@@ -180,12 +165,12 @@ public class ArticleServlet extends ToiletServlet {
     @SuppressWarnings("unchecked")
     public static Collection<Article> getArticleSuggestions(ArticleRepo arts, Article art) {
         try {
-            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(getArticleSuggestionTerm(art)));
+            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(null != art.getSuggestion() ? art.getSuggestion() : ArticleRepo.getArticleSuggestionTerm(art)));
             if (7 > seeAlso.size()) {
-                seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 7));
+                seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 7, null));
             }
             if (7 > seeAlso.size()) {
-                seeAlso.addAll(arts.getBySection(null, 1, 7));
+                seeAlso.addAll(arts.getBySection(null, 1, 7, null));
             }
             seeAlso.remove(art);
             List<Article> temp = Arrays.asList(Arrays.copyOf(seeAlso.toArray(new Article[]{}), 6));
@@ -205,7 +190,7 @@ public class ArticleServlet extends ToiletServlet {
             }
         } catch (Exception x) {
         }
-        return null;
+        return new ArrayList<>();
     }
 
     public String getCommentFormUrl(Article art, Locale lang) {
@@ -217,6 +202,7 @@ public class ArticleServlet extends ToiletServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Matcher validator = AbstractInput.DEFAULT_REGEXP.matcher("");
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         switch (AbstractInput.getParameter(request, "submit-type")) {
             case "comment":     // submitted comment
                 if (AbstractInput.getParameter(request, "text") == null || AbstractInput.getParameter(request, "text").isEmpty()
@@ -263,7 +249,7 @@ public class ArticleServlet extends ToiletServlet {
                 }
                 Article art = updateArticleFromPage(request);
                 if ("Preview".equals(request.getParameter("action"))) {
-                    AdminArticle.displayArticleEdit(beans, request, response, art);
+                    AdminArticleServlet.displayArticleEdit(beans, request, response, art);
                     return;
                 } else if (!validator.reset(art.getArticletitle()).matches()
                         || !validator.reset(art.getDescription()).matches()
@@ -271,7 +257,7 @@ public class ArticleServlet extends ToiletServlet {
                         || !validator.reset(art.getPostedmarkdown()).matches()
                         || !validator.reset(art.getSectionid().getName()).matches()) {
                     request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, beans.getImead().getLocal("page_patternMismatch", Local.resolveLocales(beans.getImead(), request)));
-                    AdminArticle.displayArticleEdit(beans, request, response, art);
+                    AdminArticleServlet.displayArticleEdit(beans, request, response, art);
                     return;
                 }
                 art = beans.getArts().upsert(Arrays.asList(art)).get(0);
@@ -280,10 +266,6 @@ public class ArticleServlet extends ToiletServlet {
                 request.getSession().removeAttribute(Article.class.getSimpleName());
                 beans.getExec().submit(() -> {
                     beans.getArts().refreshSearch();
-                    try {
-                        beans.getBackup().backup();
-                    } catch (EJBException e) {
-                    }
                 });
                 break;
             default:
@@ -293,11 +275,15 @@ public class ArticleServlet extends ToiletServlet {
     }
 
     private Article updateArticleFromPage(HttpServletRequest req) {
+        ToiletBeanAccess beans = allBeans.getInstance(req);
         Article art = (Article) req.getSession().getAttribute(Article.class.getSimpleName());
         boolean isNewArticle = null == art.getArticleid();
         if (isNewArticle) {
             int nextID = beans.getArts().count().intValue();
             art.setArticleid(++nextID);
+            req.setAttribute("isNewArticle", true);
+        } else {
+            req.setAttribute("isNewArticle", false);
         }
         art.setArticletitle(AbstractInput.getParameter(req, "articletitle"));
         art.setDescription(AbstractInput.getParameter(req, "description"));
@@ -308,14 +294,21 @@ public class ArticleServlet extends ToiletServlet {
         String date = AbstractInput.getParameter(req, "posted");
         if (date != null) {
             try {
-                art.setPosted(new SimpleDateFormat(FeedBucket.TIME_FORMAT).parse(date));
-            } catch (ParseException p) {
-                art.setPosted(new Date());
+                art.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, date));
+            } catch (DateTimeException p) {
+                art.setPosted(OffsetDateTime.now());
             }
         }
         art.setComments(AbstractInput.getParameter(req, "comments") != null);
         art.setPostedmarkdown(AbstractInput.getParameter(req, "postedmarkdown"));
+        String suggestion = AbstractInput.getParameter(req, "suggestion");
+        if (null != suggestion && suggestion.length() > 0) {
+            art.setSuggestion(suggestion);
+        } else {
+            art.setSuggestion(null);
+        }
         try {
+            art.setImageurl(null);
             return new ArticleProcessor(beans, ArticleProcessor.convert(art)).call();
         } finally {
             if (isNewArticle) {

@@ -1,16 +1,17 @@
 package libWebsiteTools.cache;
 
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.CacheControl;
-import javax.ws.rs.core.HttpHeaders;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.CacheControl;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.ext.RuntimeDelegate;
 import libWebsiteTools.security.GuardFilter;
 
 /**
@@ -19,12 +20,12 @@ import libWebsiteTools.security.GuardFilter;
  */
 public class CachedPage {
 
-    private static final List<String> EXCLUDE_HEADERS = Arrays.asList(GuardFilter.STRICT_TRANSPORT_SECURITY, HttpHeaders.SET_COOKIE);
+    private static final List<String> EXCLUDE_HEADERS = Arrays.asList(GuardFilter.STRICT_TRANSPORT_SECURITY, HttpHeaders.SET_COOKIE, HttpHeaders.VARY);
     private final Map<String, String> headers;
     private final byte[] body;
     private final int status;
-    private final Date expires;
-    private final Date created = new Date();
+    private final OffsetDateTime expires;
+    private final OffsetDateTime created = OffsetDateTime.now();
     private final AtomicInteger hits = new AtomicInteger();
     private final String contentType;
     private final String lookup;
@@ -37,11 +38,11 @@ public class CachedPage {
                 heads.put(header, res.getHeader(header));
             }
         }
+        heads.put(HttpHeaders.CONTENT_LENGTH, Integer.toString(capturedBody.length));
         this.headers = Collections.unmodifiableMap(heads);
         status = res.getStatus();
-        CacheControl cc = CacheControl.valueOf(res.getHeader(HttpHeaders.CACHE_CONTROL));
-        int diff = 400 > status ? cc.getMaxAge() * 1000 : cc.getMaxAge();
-        expires = new Date(new Date().getTime() + diff);
+        CacheControl cc = RuntimeDelegate.getInstance().createHeaderDelegate(CacheControl.class).fromString(res.getHeader(HttpHeaders.CACHE_CONTROL));
+        expires = created.plusSeconds(cc.getMaxAge());
         contentType = res.getContentType();
         this.lookup = lookup;
     }
@@ -50,9 +51,8 @@ public class CachedPage {
         return true;
     }
 
-    public boolean isExpired(Date lastFlush) {
-        Date now = new Date();
-        return lastFlush.after(getCreated()) || now.after(getExpires());
+    public boolean isExpired(OffsetDateTime lastFlush) {
+        return lastFlush.isAfter(getCreated()) || OffsetDateTime.now().isAfter(getExpires());
     }
 
     public int hit() {
@@ -83,7 +83,7 @@ public class CachedPage {
         return contentType;
     }
 
-    public Date getExpires() {
+    public OffsetDateTime getExpires() {
         return expires;
     }
 
@@ -91,7 +91,7 @@ public class CachedPage {
         return lookup;
     }
 
-    public Date getCreated() {
+    public OffsetDateTime getCreated() {
         return created;
     }
 }

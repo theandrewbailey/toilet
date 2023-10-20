@@ -7,10 +7,10 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.SecurityRepo;
@@ -18,6 +18,7 @@ import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.AllBeanAccess;
 import toilet.IndexFetcher;
+import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.rss.ErrorRss;
 
@@ -43,6 +44,7 @@ public class AdminLoginServlet extends ToiletServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         try {
             Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
             request.getSession().setAttribute(Article.class.getSimpleName(), art);
@@ -55,6 +57,7 @@ public class AdminLoginServlet extends ToiletServlet {
     @SuppressWarnings("unchecked")
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String answer = AbstractInput.getParameter(request, "answer");
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         try {
             if (null == answer) {
                 throw new IllegalArgumentException("No answer!");
@@ -66,7 +69,7 @@ public class AdminLoginServlet extends ToiletServlet {
                     return;
                 case EDIT_POSTS:
                     request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.EDIT_POSTS);
-                    AdminArticle.showList(request, response, beans.getArts().getAll(null));
+                    AdminArticleServlet.showList(request, response, beans.getArts().getAll(null));
                     return;
                 case ADD_ARTICLE:
                     request.getSession().setAttribute(PERMISSION, ADD_ARTICLE);
@@ -74,11 +77,11 @@ public class AdminLoginServlet extends ToiletServlet {
                     if (null == art) {
                         art = new Article();
                     }
-                    AdminArticle.displayArticleEdit(beans, request, response, art);
+                    AdminArticleServlet.displayArticleEdit(beans, request, response, art);
                     return;
                 case FILES:
                     request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
-                    AdminFile.showFileList(request, response, beans.getFile().getFileMetadata(null));
+                    AdminFileServlet.showFileList(request, response, beans.getFile().getFileMetadata(null));
                     return;
                 case RELOAD:
                     beans.reset();

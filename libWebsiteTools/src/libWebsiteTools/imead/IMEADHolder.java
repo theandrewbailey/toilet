@@ -13,16 +13,9 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import javax.annotation.PostConstruct;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.LocalBean;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.PersistenceUnit;
-import javax.persistence.TypedQuery;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.TypedQuery;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.db.Repository;
 
@@ -31,23 +24,22 @@ import libWebsiteTools.db.Repository;
  *
  * @author alpha
  */
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class IMEADHolder implements Repository<Localization> {
 
+    private final EntityManagerFactory PU;
     private static final Logger LOG = Logger.getLogger(IMEADHolder.class.getName());
     private Map<Locale, Properties> localizedCache = new HashMap<>();
     private final Map<String, List<Pattern>> patterns = new HashMap<>();
     private String localizedHash = "";
-    @PersistenceUnit
-    private EntityManagerFactory PU;
+
+    public IMEADHolder(EntityManagerFactory PU) {
+        this.PU = PU;
+        evict();
+    }
 
     /**
      * refresh cache of all properties from the DB
      */
-    @PostConstruct
     @Override
     public void evict() {
         LOG.entering(IMEADHolder.class.getName(), "evict");
@@ -188,7 +180,7 @@ public class IMEADHolder implements Repository<Localization> {
     }
 
     public List<Pattern> getPatterns(String key) {
-        if (!patterns.containsKey(key)) {
+        if (!patterns.containsKey(key) && null != getValue(key)) {
             List<Pattern> temps = new ArrayList<>();
             for (String line : getValue(key).split("\n")) {
                 temps.add(Pattern.compile(line.replaceAll("\r", "")));
@@ -199,9 +191,11 @@ public class IMEADHolder implements Repository<Localization> {
     }
 
     public static boolean matchesAny(CharSequence subject, List<Pattern> regexes) {
-        for (Pattern p : regexes) {
-            if (p.matcher(subject).matches()) {
-                return true;
+        if (null != regexes) {
+            for (Pattern p : regexes) {
+                if (p.matcher(subject).matches()) {
+                    return true;
+                }
             }
         }
         return false;

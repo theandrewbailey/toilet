@@ -28,7 +28,7 @@ public class Brotlier extends FileCompressorJob {
             return false;
         }
         String command = beans.getImeadValue(COMMAND_KEY);
-        if (null == command) {
+        if (null == command || command.isEmpty()) {
             LOG.finest("Brotli command not set.");
             return false;
         }

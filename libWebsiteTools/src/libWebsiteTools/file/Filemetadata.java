@@ -1,16 +1,14 @@
 package libWebsiteTools.file;
 
 import java.io.Serializable;
-import java.util.Date;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.validation.constraints.Size;
+import java.time.OffsetDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.Size;
 
 /**
  *
@@ -19,8 +17,7 @@ import javax.validation.constraints.Size;
 @Entity
 @Table(name = "Filemetadata", schema = "tools")
 @NamedQueries({
-    @NamedQuery(name = "Filemetadata.findAll", query = "SELECT f FROM Filemetadata f ORDER BY f.filename")
-    ,
+    @NamedQuery(name = "Filemetadata.findAll", query = "SELECT f FROM Filemetadata f ORDER BY f.filename"),
     @NamedQuery(name = "Filemetadata.findByFilenames", query = "SELECT f FROM Filemetadata f WHERE f.filename in :filenames ORDER BY f.filename")})
 public class Filemetadata implements Serializable {
 
@@ -35,9 +32,8 @@ public class Filemetadata implements Serializable {
     private Integer gzipsize;
     @Column(name = "brsize")
     private Integer brsize;
-    @Column(name = "atime", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date atime;
+    @Column(name = "atime", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime atime;
     @Size(min = 1, max = 250)
     @Column(name = "etag", nullable = false, length = 250)
     private String etag;
@@ -51,7 +47,7 @@ public class Filemetadata implements Serializable {
     public Filemetadata() {
     }
 
-    public Filemetadata(String filename, Date atime) {
+    public Filemetadata(String filename, OffsetDateTime atime) {
         this.filename = filename;
         this.atime = atime;
     }
@@ -88,11 +84,11 @@ public class Filemetadata implements Serializable {
         this.brsize = brsize;
     }
 
-    public Date getAtime() {
+    public OffsetDateTime getAtime() {
         return atime;
     }
 
-    public void setAtime(Date atime) {
+    public void setAtime(OffsetDateTime atime) {
         this.atime = atime;
     }
 

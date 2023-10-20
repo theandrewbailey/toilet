@@ -1,11 +1,13 @@
 package toilet.servlet;
 
 import java.io.IOException;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.imead.LocalizedStringNotFoundException;
+import toilet.bean.ToiletBeanAccess;
 
 @WebServlet(name = "CoronerServlet", description = "Error page stuff", urlPatterns = {"/coroner", "/coroner/*"})
 public class CoronerServlet extends ToiletServlet {
@@ -21,11 +23,7 @@ public class CoronerServlet extends ToiletServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        /*if (!request.getRequestURL().toString().equals(request.getAttribute(OdysseyFilter.ORIGINAL_REQUEST_URL))
-                && (null == request.getSession(false) || request.getSession().isNew())) { // trying to hack me? F U
-            OdysseyFilter.kill(request, response);
-            return;
-        }*/
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         String errorCode;
         String[] split = request.getRequestURI().split("coroner/");
         if (2 == split.length) {
@@ -37,11 +35,15 @@ public class CoronerServlet extends ToiletServlet {
             }
             errorCode = null != messages[0] ? messages[0].toString() : "501";
         }
-        String errorMessage = beans.getImead().getLocal(ERROR_PREFIX + errorCode, Local.resolveLocales(beans.getImead(), request));
-        if (null == errorMessage) {
-            errorMessage = beans.getImead().getLocal(ERROR_PREFIX + "404", Local.resolveLocales(beans.getImead(), request));
-        }
         request.setAttribute("title", "ERROR " + errorCode);
-        showError(request, response, errorMessage);
+        try {
+            String errorMessage = beans.getImead().getLocal(ERROR_PREFIX + errorCode, Local.resolveLocales(beans.getImead(), request));
+            if (null == errorMessage) {
+                errorMessage = beans.getImead().getLocal(ERROR_PREFIX + "404", Local.resolveLocales(beans.getImead(), request));
+            }
+            showError(request, response, errorMessage);
+        } catch (LocalizedStringNotFoundException lx) {
+            showError(request, response, errorCode);
+        }
     }
 }

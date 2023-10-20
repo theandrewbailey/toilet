@@ -1,25 +1,48 @@
 package toilet.tag;
 
 import java.io.IOException;
-import javax.ejb.EJB;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
-import toilet.bean.ArticleRepo;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
+import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 
 public class RecentArticles extends SimpleTagSupport {
 
-    @EJB
-    private ArticleRepo arts;
     private Integer number = 10;
     private String category;
     private String var = "_article";
 
     @Override
+    @SuppressWarnings("unchecked")
     public void doTag() throws JspException, IOException {
-        for (Article e : arts.getBySection(category, 1, number)) {
+        List<Integer> excludes = null;
+        List<Article> articles = null;
+        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
+        try {
+            articles = (List<Article>) req.getAttribute("articles");
+            excludes = articles.stream().mapToInt((t) -> {
+                return t.getArticleid();
+            }).boxed().collect(Collectors.toList());
+        } catch (NullPointerException x) {
+            if (null == articles) {
+                articles = new ArrayList<>();
+                req.setAttribute("articles", articles);
+            }
+        }
+        ToiletBeanAccess beans = (ToiletBeanAccess) req.getAttribute(libWebsiteTools.AllBeanAccess.class.getCanonicalName());
+        List<Article> latest = beans.getArts().getBySection(category, 1, number, excludes);
+        if (2 > latest.size()) {
+            latest = beans.getArts().getBySection(category, 1, number, null);
+        }
+        for (Article e : latest) {
             getJspContext().setAttribute(getVar(), e);
             getJspBody().invoke(null);
+            articles.add(e);
         }
     }
 

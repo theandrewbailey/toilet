@@ -5,12 +5,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.Part;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
+import java.util.UUID;
+import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.HashUtil;
 
 /**
@@ -50,6 +52,7 @@ public abstract class AbstractInput extends SimpleTagSupport {
     private String accesskey;
     private Boolean checked = false;
     private String id;
+    private String name;
     private String label;
     private Boolean labelNextLine = true;
     private Integer length;
@@ -69,7 +72,8 @@ public abstract class AbstractInput extends SimpleTagSupport {
     protected String pattern;
     protected String patternMismatch;
     protected HttpServletRequest req;
-    private String cachedId;
+    private String cachedName;
+    private String placeholder;
 
     public static String getParameter(HttpServletRequest req, String parameter) {
         return req.getParameter(getIncomingHash(req, parameter));
@@ -94,7 +98,16 @@ public abstract class AbstractInput extends SimpleTagSupport {
         if (null != req.getAttribute(ORIGINAL_REQUEST_URL)) {
             return req.getAttribute(ORIGINAL_REQUEST_URL).toString();
         }
-        StringBuffer urlBuf = req.getRequestURL();
+        StringBuilder urlBuf = new StringBuilder().
+                append(GuardFilter.isSecure(req) ? "https://" : "http://").
+                append(req.getHeader("Host"));
+        /*String port = req.getHeader("x-forwarded-port");
+        if (null != port && !"80".equals(port) && !"443".equals(port)) {
+            urlBuf.append(":").append(port);
+        } else if (80 != req.getServerPort() && 443 != req.getServerPort()) {
+            urlBuf.append(":").append(req.getServerPort());
+        }*/
+        urlBuf.append(req.getRequestURI());
         if (req.getQueryString() != null) {
             urlBuf.append("?").append(req.getQueryString());
         }
@@ -133,6 +146,38 @@ public abstract class AbstractInput extends SimpleTagSupport {
         return HashUtil.getHmacSHA256Hash(req.getSession().getId(), url + str);
     }
 
+    public static String escapeAttribute(String attr) {
+        if (null == attr) {
+            return null;
+        }
+        StringBuilder out = new StringBuilder(attr.length() * 2);
+        for (int i = 0; i < attr.length(); i++) {;
+            switch (attr.charAt(i)) {
+                case '<':
+                    out.append("&lt;");
+                    break;
+                case '>':
+                    out.append("&gt;");
+                    break;
+                case '&':
+                    out.append("&amp;");
+                    break;
+                case '"':
+                    out.append("&quot;");
+                    break;
+                case '\'':
+                    out.append("&#x27;");
+                    break;
+                case '/':
+                    out.append("&#x2F;");
+                    break;
+                default:
+                    out.append(attr.charAt(i));
+            }
+        }
+        return out.toString();
+    }
+
     public abstract String getType();
 
     @Override
@@ -143,6 +188,9 @@ public abstract class AbstractInput extends SimpleTagSupport {
 
     protected StringBuilder label(StringBuilder out) {
         if (null != getLabel()) {
+            if (null == getId()) {
+                setId(UUID.randomUUID().toString());
+            }
             out.append("<label for=\"").append(getId());
             out.append("\">");
             out.append(getLabel());
@@ -157,9 +205,10 @@ public abstract class AbstractInput extends SimpleTagSupport {
      */
     protected StringBuilder createIncompleteTag() {
         StringBuilder out = new StringBuilder(300);
-        out.append("<input id=\"").append(getId());
-        out.append("\" name=\"").append(getId());
-        out.append("\" type=\"").append(getType());
+        out.append("<input name=\"").append(getName()).append("\" type=\"").append(getType());
+        if (null != getId()) {
+            out.append("\" id=\"").append(getId());
+        }
         if (null != getAccesskey()) {
             out.append("\" accesskey=\"").append(getAccesskey());
         }
@@ -176,7 +225,7 @@ public abstract class AbstractInput extends SimpleTagSupport {
             out.append("\" required=\"required");
         }
         if (null != getValueMissing()) {
-            out.append("\" data-valuemissing=\"").append(getValueMissing());
+            out.append("\" data-valuemissing=\"").append(escapeAttribute(getValueMissing()));
         }
         if (null != getLength()) {
             out.append("\" length=\"").append(getLength().toString());
@@ -188,22 +237,25 @@ public abstract class AbstractInput extends SimpleTagSupport {
             out.append("\" size=\"").append(getSize().toString());
         }
         if (null != getStyleClass()) {
-            out.append("\" class=\"").append(getStyleClass());
+            out.append("\" class=\"").append(escapeAttribute(getStyleClass()));
         }
         if (null != getPattern()) {
             out.append("\" pattern=\"").append(getPattern());
         }
         if (null != getPatternMismatch()) {
-            out.append("\" data-patternmismatch=\"").append(getPatternMismatch());
+            out.append("\" data-patternmismatch=\"").append(escapeAttribute(getPatternMismatch()));
         }
         if (null != getTabindex()) {
             out.append("\" tabindex=\"").append(getTabindex().toString());
         }
         if (null != getTitle()) {
-            out.append("\" title=\"").append(getTitle());
+            out.append("\" title=\"").append(escapeAttribute(getTitle()));
         }
         if (null != getValue()) {
-            out.append("\" value=\"").append(getValue());
+            out.append("\" value=\"").append(escapeAttribute(getValue()));
+        }
+        if (null != getPlaceholder()) {
+            out.append("\" placeholder=\"").append(escapeAttribute(getPlaceholder()));
         }
         if (null != inputMode && 0 <= Arrays.binarySearch(INPUT_MODES, inputMode)) {
             out.append("\" inputmode=\"").append(inputMode);
@@ -246,14 +298,22 @@ public abstract class AbstractInput extends SimpleTagSupport {
     }
 
     public String getId() {
-        if (cachedId == null && req != null) {
-            cachedId = getOutgoingHash(req, id);
-        }
-        return cachedId != null ? cachedId : id;
+        return id;
     }
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getName() {
+        if (cachedName == null && req != null) {
+            cachedName = getOutgoingHash(req, name);
+        }
+        return cachedName != null ? cachedName : name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getLabel() {
@@ -376,24 +436,23 @@ public abstract class AbstractInput extends SimpleTagSupport {
         this.patternMismatch = patternMismatch;
     }
 
-    /**
-     * @param multiple the multiple to set
-     */
     public void setMultiple(boolean multiple) {
         this.multiple = multiple;
     }
 
-    /**
-     * @param inputMode the inputMode to set
-     */
     public void setInputMode(String inputMode) {
         this.inputMode = inputMode;
     }
 
-    /**
-     * @param autocomplete the autocomplete to set
-     */
     public void setAutocomplete(String autocomplete) {
         this.autocomplete = autocomplete;
+    }
+
+    public String getPlaceholder() {
+        return placeholder;
+    }
+
+    public void setPlaceholder(String placeholder) {
+        this.placeholder = placeholder;
     }
 }

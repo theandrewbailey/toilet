@@ -1,20 +1,18 @@
 package libWebsiteTools.db;
 
 import java.io.Serializable;
-import java.util.Date;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.NamedQueries;
-import javax.persistence.NamedQuery;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import java.time.OffsetDateTime;
+import jakarta.persistence.Basic;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
  *
@@ -36,9 +34,8 @@ public class Exceptionevent implements Serializable {
     private Integer exceptioneventid;
     @Basic(optional = false)
     @NotNull
-    @Column(name = "atime", nullable = false)
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date atime;
+    @Column(name = "atime", nullable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    private OffsetDateTime atime;
     @Basic(optional = false)
     @NotNull
     @Size(min = 1, max = 10000000)
@@ -49,9 +46,6 @@ public class Exceptionevent implements Serializable {
     @Size(min = 1, max = 65000)
     @Column(name = "title", nullable = false, length = 65000)
     private String title;
-    /*@JoinColumn(name = "pagerequestid", referencedColumnName = "pagerequestid")
-    @ManyToOne
-    private Pagerequest pagerequestid;*/
 
     public Exceptionevent() {
     }
@@ -60,7 +54,7 @@ public class Exceptionevent implements Serializable {
         this.exceptioneventid = exceptioneventid;
     }
 
-    public Exceptionevent(Integer exceptioneventid, Date atime, String description, String title) {
+    public Exceptionevent(Integer exceptioneventid, OffsetDateTime atime, String description, String title) {
         this.exceptioneventid = exceptioneventid;
         this.atime = atime;
         this.description = description;
@@ -75,11 +69,11 @@ public class Exceptionevent implements Serializable {
         this.exceptioneventid = exceptioneventid;
     }
 
-    public Date getAtime() {
+    public OffsetDateTime getAtime() {
         return atime;
     }
 
-    public void setAtime(Date atime) {
+    public void setAtime(OffsetDateTime atime) {
         this.atime = atime;
     }
 
@@ -121,10 +115,7 @@ public class Exceptionevent implements Serializable {
             return false;
         }
         Exceptionevent other = (Exceptionevent) object;
-        if ((this.exceptioneventid == null && other.exceptioneventid != null) || (this.exceptioneventid != null && !this.exceptioneventid.equals(other.exceptioneventid))) {
-            return false;
-        }
-        return true;
+        return !((this.exceptioneventid == null && other.exceptioneventid != null) || (this.exceptioneventid != null && !this.exceptioneventid.equals(other.exceptioneventid)));
     }
 
     @Override

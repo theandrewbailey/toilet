@@ -33,7 +33,7 @@ public class Gzipper extends FileCompressorJob {
         byte[] compressedData = null;
         File tempfile = null;
         String command = beans.getImeadValue(COMMAND_KEY);
-        if (null == command) {
+        if (null == command || command.isEmpty()) {
             LOG.finest("Gzip command not set.");
             return false;
         }
@@ -42,7 +42,7 @@ public class Gzipper extends FileCompressorJob {
             try (OutputStream tempout = new FileOutputStream(tempfile)) {
                 tempout.write(file.getFiledata());
             }
-            command += tempfile.getAbsolutePath();
+            command += " " + tempfile.getAbsolutePath();
             compressedData = FileUtil.runProcess(command, null, file.getFiledata().length * 2);
             if (compressedData.length + SIZE_DIFFERENCE > file.getFiledata().length) {
                 return false;

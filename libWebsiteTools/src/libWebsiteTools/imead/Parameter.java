@@ -2,8 +2,8 @@ package libWebsiteTools.imead;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 
 /**
  *

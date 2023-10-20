@@ -1,10 +1,11 @@
 package libWebsiteTools.tag;
 
 import java.io.IOException;
-import java.util.Date;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.security.GuardFilter;
 
 /**
@@ -17,9 +18,10 @@ public class ResponseTag extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        Date start = (Date) getJspContext().getAttribute(GuardFilter.TIME_PARAM, PageContext.REQUEST_SCOPE);
+        OffsetDateTime start = (OffsetDateTime) getJspContext().getAttribute(GuardFilter.TIME_PARAM, PageContext.REQUEST_SCOPE);
         getJspContext().setAttribute("requestTime", start);
-        Long time = new Date().getTime() - start.getTime();
+        Duration d = Duration.between(OffsetDateTime.now(), start).abs();
+        Long time = d.toMillis();
         getJspContext().setAttribute("renderMillis", time);
         getJspContext().setAttribute(RENDER_TIME_PARAM, time, PageContext.REQUEST_SCOPE);
         getJspBody().invoke(null);

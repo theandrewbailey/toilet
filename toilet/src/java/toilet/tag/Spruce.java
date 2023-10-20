@@ -1,16 +1,15 @@
 package toilet.tag;
 
 import java.io.IOException;
-import javax.ejb.EJB;
-import javax.servlet.jsp.JspException;
-import javax.servlet.jsp.tagext.SimpleTagSupport;
-import toilet.bean.SpruceGenerator;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspException;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.SimpleTagSupport;
+import toilet.bean.ToiletBeanAccess;
 
 public class Spruce extends SimpleTagSupport {
 
-    @EJB
-    private SpruceGenerator spruce;
-    private String ATTRIBUTE_NAME="spruce_sentence";
+    private final String ATTRIBUTE_NAME = "spruce_sentence";
 
     public Spruce() {
         super();
@@ -18,14 +17,16 @@ public class Spruce extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        if (!spruce.ready()) {
-            return;
-        }
-        try {
-            getJspContext().setAttribute(ATTRIBUTE_NAME, spruce.getAddSentence());
-            getJspBody().invoke(null);
-        } catch (NullPointerException ex) {
-            getJspContext().getOut().print("I'm taking a hike. C'ya!");
-        }
+//        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
+//        ToiletBeanAccess beans = (ToiletBeanAccess) req.getAttribute(libWebsiteTools.AllBeanAccess.class.getCanonicalName());
+//        if (!beans.getSpruce().ready()) {
+//            return;
+//        }
+//        try {
+//            getJspContext().setAttribute(ATTRIBUTE_NAME, beans.getSpruce().getAddSentence());
+//            getJspBody().invoke(null);
+//        } catch (NullPointerException ex) {
+//            getJspContext().getOut().print("I'm taking a hike. C'ya!");
+//        }
     }
 }

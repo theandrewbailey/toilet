@@ -1,14 +1,14 @@
 package libWebsiteTools.rss;
 
 import java.io.Serializable;
-import libWebsiteTools.rss.iPublishable;
 import org.w3c.dom.Element;
+import libWebsiteTools.rss.Publishable;
 
 /**
  *
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
-public class AtomCommonAttribs implements Serializable, iPublishable {
+public class AtomCommonAttribs implements Serializable, Publishable {
 
     public static final String DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
     private String xmlBase;

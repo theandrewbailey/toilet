@@ -37,17 +37,17 @@ public class CertPath<k extends Certificate> extends java.security.cert.CertPath
 
     @Override
     public Iterator<String> getEncodings() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public byte[] getEncoded() throws CertificateEncodingException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public byte[] getEncoded(String string) throws CertificateEncodingException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
     @Override

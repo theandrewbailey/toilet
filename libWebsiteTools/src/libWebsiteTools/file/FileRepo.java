@@ -6,32 +6,25 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.PostConstruct;
-import javax.ejb.ConcurrencyManagement;
-import javax.ejb.ConcurrencyManagementType;
-import javax.ejb.LocalBean;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.NoResultException;
-import javax.persistence.PersistenceUnit;
-import javax.persistence.TypedQuery;
+import java.util.stream.Stream;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.TypedQuery;
 import libWebsiteTools.db.Repository;
 
-@Startup
-@Singleton
-@LocalBean
-@ConcurrencyManagement(ConcurrencyManagementType.BEAN)
 public class FileRepo implements Repository<Fileupload> {
 
     public static final String DEFAULT_MIME_TYPE = "application/octet-stream";
-    @PersistenceUnit
-    private EntityManagerFactory PU;
+    private final EntityManagerFactory PU;
     private static final Logger LOG = Logger.getLogger(FileRepo.class.getName());
 
+    public FileRepo(EntityManagerFactory PU) {
+        this.PU = PU;
+        evict();
+    }
+
     @Override
-    @PostConstruct
     public synchronized void evict() {
         PU.getCache().evict(Fileupload.class);
         PU.getCache().evict(Filemetadata.class);
@@ -70,6 +63,22 @@ public class FileRepo implements Repository<Fileupload> {
         try {
             return null == names ? em.createNamedQuery("Filemetadata.findAll", Filemetadata.class).getResultList()
                     : em.createNamedQuery("Filemetadata.findByFilenames", Filemetadata.class).setParameter("filenames", names).getResultList();
+        } catch (NoResultException n) {
+            return null;
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     *
+     * @param searchTerm
+     * @return files that contain searchTerm
+     */
+    public List<Filemetadata> search(String searchTerm) {
+        EntityManager em = PU.createEntityManager();
+        try {
+            return em.createQuery("SELECT f FROM Filemetadata f WHERE f.filename like CONCAT('%',:term,'%') ORDER BY f.filename", Filemetadata.class).setParameter("term", searchTerm).getResultList();
         } catch (NoResultException n) {
             return null;
         } finally {
@@ -134,10 +143,12 @@ public class FileRepo implements Repository<Fileupload> {
         try {
             if (transaction) {
                 em.getTransaction().begin();
-                em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultStream().forEachOrdered(operation);
+                Stream<Fileupload> results = em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultStream();
+                results.forEach(operation);
                 em.getTransaction().commit();
             } else {
-                em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultStream().forEachOrdered(operation);
+                Stream<Fileupload> results = em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultStream();
+                results.forEach(operation);
             }
         } finally {
             em.close();

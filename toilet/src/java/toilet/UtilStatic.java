@@ -5,13 +5,21 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import libWebsiteTools.security.HashUtil;
+import toilet.servlet.AdminLoginServlet;
 
 public final class UtilStatic {
 
+    public static final String JSON_OUT = "/WEB-INF/jsonOut.jsp";
     private static final Logger LOG = Logger.getLogger(UtilStatic.class.getName());
 
     public UtilStatic() {
         throw new UnsupportedOperationException("You cannot instantiate this class");
+    }
+
+    public static boolean isFirstTime(AllBeanAccess beans) {
+        return null == beans.getImeadValue(AdminLoginServlet.IMEAD)
+                || !HashUtil.ARGON2_ENCODING_PATTERN.matcher(beans.getImeadValue(AdminLoginServlet.IMEAD)).matches();
     }
 
     /**
@@ -147,5 +155,13 @@ public final class UtilStatic {
         out = out.replace("</p><p>", "\n\n").replace("&quot;", "\"").replace("<br/>", "\n").replace("&", "&amp;");   // need to include amp, because browsers won't take it literally.
         out = link ? out : out.replace("&lt;", "<").replace("&gt;", ">");
         return out;
+    }
+
+    public static int parseInt(String str, int otherwise) {
+        try {
+            return Integer.parseInt(str);
+        } catch (NumberFormatException n) {
+            return otherwise;
+        }
     }
 }
