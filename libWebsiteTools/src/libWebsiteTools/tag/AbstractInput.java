@@ -275,8 +275,8 @@ public abstract class AbstractInput extends SimpleTagSupport {
      *
      * @return
      */
-    public String createTag() {
-        return label(new StringBuilder(400)).append(createIncompleteTag()).append("/>").toString();
+    public StringBuilder createTag() {
+        return label(new StringBuilder(400)).append(createIncompleteTag()).append("/>");
     }
 
     public String getAccesskey() {

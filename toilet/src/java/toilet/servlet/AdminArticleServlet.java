@@ -24,7 +24,7 @@ import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
 import toilet.bean.ToiletBeanAccess;
-import toilet.bean.ArticleRepo;
+import toilet.bean.ArticleRepository;
 import toilet.bean.BackupDaemon;
 import toilet.db.Article;
 import toilet.db.Section;
@@ -139,7 +139,7 @@ public class AdminArticleServlet extends ToiletServlet {
             art.setCommentCollection(new ArrayList<>());
         }
         LinkedHashSet<String> groups = new LinkedHashSet<>();
-        String defaultGroup = beans.getImeadValue(ArticleRepo.DEFAULT_CATEGORY);
+        String defaultGroup = beans.getImeadValue(ArticleRepository.DEFAULT_CATEGORY);
         for (Section sect : beans.getSects().getAll(null)) {
             groups.add(sect.getName());
         }
@@ -150,11 +150,11 @@ public class AdminArticleServlet extends ToiletServlet {
             groups.add(art.getSectionid().getName());
         }
         request.setAttribute(Article.class.getSimpleName(), art);
-        request.setAttribute("defaultSearchTerm", ArticleRepo.getArticleSuggestionTerm(art));
+        request.setAttribute("defaultSearchTerm", ArticleRepository.getArticleSuggestionTerm(art));
         request.getSession().setAttribute(Article.class.getSimpleName(), art);
         Collection<Article> seeAlso = ArticleServlet.getArticleSuggestions(beans.getArts(), art);
         request.setAttribute("seeAlso", seeAlso);
-        request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepo.getArticleSuggestionTerm(art));
+        request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art));
         String formattedDate = null != art.getPosted() ? DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getPosted()) : "";
         request.setAttribute("formattedDate", formattedDate);
         request.getRequestDispatcher(AdminLoginServlet.ADMIN_ADD_ARTICLE).forward(request, response);

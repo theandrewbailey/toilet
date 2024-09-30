@@ -1,12 +1,11 @@
 package toilet;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import libWebsiteTools.security.HashUtil;
-import toilet.servlet.AdminLoginServlet;
 
 public final class UtilStatic {
 
@@ -15,11 +14,6 @@ public final class UtilStatic {
 
     public UtilStatic() {
         throw new UnsupportedOperationException("You cannot instantiate this class");
-    }
-
-    public static boolean isFirstTime(AllBeanAccess beans) {
-        return null == beans.getImeadValue(AdminLoginServlet.IMEAD)
-                || !HashUtil.ARGON2_ENCODING_PATTERN.matcher(beans.getImeadValue(AdminLoginServlet.IMEAD)).matches();
     }
 
     /**
@@ -157,10 +151,10 @@ public final class UtilStatic {
         return out;
     }
 
-    public static int parseInt(String str, int otherwise) {
+    public static BigDecimal parseDecimal(String str, BigDecimal otherwise) {
         try {
-            return Integer.parseInt(str);
-        } catch (NumberFormatException n) {
+            return new BigDecimal(str);
+        } catch (NumberFormatException|NullPointerException n) {
             return otherwise;
         }
     }

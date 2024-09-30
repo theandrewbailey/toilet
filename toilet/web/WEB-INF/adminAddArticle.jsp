@@ -18,5 +18,6 @@
 </form>
 <br/>
 <c:if test="${param.action == 'Preview' || null != Article.articleid}"><div><main><%@ include file="/WEB-INF/article.jspf" %></main>
+<hr/>
 <div class="indexPage"><c:out escapeXml="false" value="${Article.summary}"/></div></div></c:if>
 <%@ include file="/WEB-INF/adminFoot.jspf" %>

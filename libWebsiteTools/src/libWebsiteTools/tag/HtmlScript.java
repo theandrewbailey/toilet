@@ -9,7 +9,7 @@ import jakarta.servlet.jsp.PageContext;
 import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.file.BaseFileServlet;
-import libWebsiteTools.file.Filemetadata;
+import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.Local;
 
 /**
@@ -23,7 +23,7 @@ public class HtmlScript extends SimpleTagSupport {
     private static final String TEMPLATE = "<script type=\"%s\" src=\"%s\" async=\"async\"></script>";
 
     @SuppressWarnings("unchecked")
-    public static List<Filemetadata> getJavascriptFiles(AllBeanAccess beans, HttpServletRequest req) {
+    public static List<Fileupload> getJavascriptFiles(AllBeanAccess beans, HttpServletRequest req) {
         try {
             List files = (List) req.getAttribute(SITE_JAVASCRIPT_KEY);
             if (files != null) {
@@ -33,9 +33,9 @@ public class HtmlScript extends SimpleTagSupport {
         }
         try {
             List<String> filenames = new ArrayList<>();
-            List<Filemetadata> files = new ArrayList<>();
+            List<Fileupload> files = new ArrayList<>();
             for (String filename : beans.getImead().getLocal(SITE_JAVASCRIPT_KEY, Local.resolveLocales(beans.getImead(), req)).split("\n")) {
-                List<Filemetadata> f = beans.getFile().getFileMetadata(Arrays.asList(filename));
+                List<Fileupload> f = beans.getFile().getFileMetadata(Arrays.asList(filename));
                 if (null != f && !f.isEmpty()) {
                     files.addAll(f);
                 } else {
@@ -54,7 +54,7 @@ public class HtmlScript extends SimpleTagSupport {
     public void doTag() throws IOException {
         HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
         AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
-        for (Filemetadata f : getJavascriptFiles(beans, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())) {
+        for (Fileupload f : getJavascriptFiles(beans, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())) {
             // TOTAL HACK: this assumes that the CSS is hosted locally 
             try {
                 // will create a unique URL based on the file's last update time, so browsers will get and cache a new resource

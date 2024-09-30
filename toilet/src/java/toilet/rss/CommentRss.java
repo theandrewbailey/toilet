@@ -41,7 +41,7 @@ import libWebsiteTools.rss.DynamicFeed;
 public class CommentRss implements DynamicFeed {
 
     public static final String NAME = "Comments.rss";
-    private static final String COMMENT_COUNT = "rss_commentCount";
+    private static final String COMMENT_COUNT = "site_rss_commentCount";
     private static final Logger LOG = Logger.getLogger(CommentRss.class.getName());
     private static final Pattern NAME_PATTERN = Pattern.compile("Comments(.*?)\\.rss");
 

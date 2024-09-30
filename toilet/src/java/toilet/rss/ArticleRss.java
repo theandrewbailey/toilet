@@ -36,7 +36,7 @@ import libWebsiteTools.rss.DynamicFeed;
 public class ArticleRss implements DynamicFeed {
 
     public static final String NAME = "Articles.rss";
-    public static final String ARTICLE_COUNT = "rss_articleCount";
+    public static final String ARTICLE_COUNT = "site_rss_articleCount";
     private static final Logger LOG = Logger.getLogger(Article.class.getName());
     private static final Pattern NAME_PATTERN = Pattern.compile("(.*?)Articles\\.rss");
 

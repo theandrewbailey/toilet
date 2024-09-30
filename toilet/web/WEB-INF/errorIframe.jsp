@@ -7,7 +7,7 @@
     <h:meta/>
     <h:localVar key="page_title"/><h:title siteTitle="${site_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
 </head><body class="reset">
-<main class="error">${ERROR_MESSAGE}</main>
+<main class="errorPage error">${ERROR_MESSAGE}</main>
 <!--<h:responseTag><h:local key="page_footerFormat">
     <h:param><h:time datetime="${requestTime}"/></h:param>
     <h:param object="${renderMillis}"/>

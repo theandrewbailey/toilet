@@ -19,7 +19,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.rss.ErrorRss;
-import toilet.servlet.AdminImeadServlet;
 import toilet.servlet.AdminLoginServlet;
 
 /**
@@ -60,7 +59,7 @@ public class AdminChecker implements Filter {
             }
         }
         if ((req.getRequestURI().endsWith("/adminLogin") && "GET".equalsIgnoreCase(req.getMethod()))
-                || AdminImeadServlet.FIRST_TIME_SETUP.equals(request.getServletContext().getAttribute(AdminImeadServlet.FIRST_TIME_SETUP))) {
+                || allBeans.isFirstTime()) {
             // the exception
         } else if (null != req.getSession(false) && req.getSession().getAttribute(AdminLoginServlet.PERMISSION) == null && AbstractInput.getParameter(req, "answer") == null) {
             res.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic");

@@ -1,5 +1,8 @@
 package toilet.bean;
 
+import toilet.bean.database.SectionDatabase;
+import toilet.bean.database.CommentDatabase;
+import toilet.bean.database.PostgresArticleDatabase;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -25,17 +28,24 @@ import jakarta.servlet.http.HttpServletRequest;
 import javax.sql.DataSource;
 import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.cache.PageCacheProvider;
-import libWebsiteTools.file.FileRepo;
+import libWebsiteTools.db.Repository;
+import libWebsiteTools.file.FileRepository;
+import libWebsiteTools.imead.IMEADDatabase;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.postgres.PostgresFileDatabase;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.security.GuardFilter;
+import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.sitemap.SiteMapper;
 import toilet.AllBeanAccess;
 import toilet.SitemapProvider;
+import toilet.db.Comment;
+import toilet.db.Section;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
 import toilet.rss.ErrorRss;
+import toilet.servlet.AdminLoginServlet;
 
 /**
  * Easy way to ensure static functions have access to requisite bean classes.
@@ -55,15 +65,16 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     private EntityManagerFactory toiletPU;
     private PageCacheProvider pageCacheProvider;
     private SecurityRepo error;
-    private FileRepo file;
+    private FileRepository file;
     private IMEADHolder imead;
     private FeedBucket feeds;
-    private ArticleRepo arts;
-    private CommentRepo comms;
-    private SectionRepo sects;
+    private ArticleRepository arts;
+    private Repository<Comment> comms;
+    private Repository<Section> sects;
     private BackupDaemon backup;
 //    private SpruceGenerator spruce;
     private SiteMapper mapper;
+    private Boolean firstTime;
     private HashMap<String, ToiletBeanAccess> altHosts;
 
     public ToiletBeanAccess() {
@@ -102,11 +113,11 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
             getFeeds().upsert(Arrays.asList(c));
         } catch (Exception ex) {
         }
+        //HashMap<String, DataSource> dataSources = traverseContext(null, "");
         getFeeds().upsert(Arrays.asList(new ErrorRss()));
 //        getSpruce();
         // TODO: dyamically create entity managers for each java/toilet/* database pools
-        /*HashMap<String, DataSource> dataSources = traverseContext(null, "");
-        altHosts = new HashMap<>(dataSources.size());
+        /*altHosts = new HashMap<>(dataSources.size());
         for (Map.Entry<String, DataSource> pair : dataSources.entrySet()) {
             String jndiName = pair.getKey();
             if (!DEFAULT_DATASOURCE.equals(jndiName) && jndiName.startsWith("java/toilet/")) {
@@ -143,12 +154,16 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
                 if ("__SYSTEM".equals(nc.getName())) {
                     continue;
                 }
-                Object o = ic.lookup(nc.getName());
-                if (o instanceof Context) {
-                    subNames.putAll(traverseContext((Context) o, lastSpace + nc.getName() + "/"));
-                } else if (o instanceof DataSource && !nc.getName().endsWith("__pm")) {
-                    DataSource ds = (DataSource) o;
-                    subNames.put(lastSpace + nc.getName(), ds);
+                try {
+                    Object o = ic.lookup(nc.getName());
+                    if (o instanceof Context) {
+                        subNames.putAll(traverseContext((Context) o, lastSpace + nc.getName() + "/"));
+                    } else if (o instanceof DataSource && !nc.getName().endsWith("__pm")) {
+                        DataSource ds = (DataSource) o;
+                        subNames.put(lastSpace + nc.getName(), ds);
+                    }
+                } catch (NamingException ex) {
+                    Logger.getLogger(ToiletBeanAccess.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         } catch (NamingException ex) {
@@ -187,6 +202,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
         getSects().evict();
         getFile().evict();
         getGlobalCache().clear();
+        firstTime = null;
     }
 
     @Schedule(persistent = false, hour = "1")
@@ -201,25 +217,25 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     }
 
     @Override
-    public ArticleRepo getArts() {
+    public ArticleRepository getArts() {
         if (null == arts) {
-            arts = new ArticleRepo(toiletPU, getImead());
+            arts = new PostgresArticleDatabase(toiletPU, getImead());
         }
         return arts;
     }
 
     @Override
-    public CommentRepo getComms() {
+    public Repository<Comment> getComms() {
         if (null == comms) {
-            comms = new CommentRepo(toiletPU);
+            comms = new CommentDatabase(toiletPU);
         }
         return comms;
     }
 
     @Override
-    public SectionRepo getSects() {
+    public Repository<Section> getSects() {
         if (null == sects) {
-            sects = new SectionRepo(toiletPU, getImead());
+            sects = new SectionDatabase(toiletPU, getImead());
         }
         return sects;
     }
@@ -251,9 +267,9 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     }
 
     @Override
-    public FileRepo getFile() {
+    public FileRepository getFile() {
         if (null == file) {
-            file = new FileRepo(toiletPU);
+            file = new PostgresFileDatabase(toiletPU);
         }
         return file;
     }
@@ -261,7 +277,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     @Override
     public IMEADHolder getImead() {
         if (null == imead) {
-            imead = new IMEADHolder(toiletPU);
+            imead = new IMEADDatabase(toiletPU);
         }
         return imead;
     }
@@ -299,5 +315,10 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
             mapper.addSource(new SitemapProvider(this));
         }
         return mapper;
+    }
+
+    public boolean isFirstTime() {
+        return null != firstTime ? firstTime : (null == getImeadValue(AdminLoginServlet.IMEAD)
+                || !HashUtil.ARGON2_ENCODING_PATTERN.matcher(getImeadValue(AdminLoginServlet.IMEAD)).matches());
     }
 }

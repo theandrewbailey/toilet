@@ -5,15 +5,11 @@ import java.time.OffsetDateTime;
 import jakarta.persistence.Basic;
 import jakarta.persistence.Cacheable;
 import jakarta.persistence.Column;
-import jakarta.persistence.ConstraintMode;
 import jakarta.persistence.Entity;
-import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -28,9 +24,13 @@ import jakarta.validation.constraints.Size;
 @Table(name = "fileupload", schema = "tools")
 @NamedQueries({
     @NamedQuery(name = "Fileupload.findAll", query = "SELECT f FROM Fileupload f ORDER BY f.filename"),
-    @NamedQuery(name = "Fileupload.count", query = "SELECT COUNT(f) FROM Fileupload f")})
+    @NamedQuery(name = "Fileupload.count", query = "SELECT COUNT(f) FROM Fileupload f"),
+    @NamedQuery(name = "Filemetadata.findAll", query = "SELECT" + Fileupload.METADATA_CONSTRUCTOR + "FROM Fileupload f ORDER BY f.filename"),
+    @NamedQuery(name = "Filemetadata.findByFilenames", query = "SELECT" + Fileupload.METADATA_CONSTRUCTOR + "FROM Fileupload f WHERE f.filename in :filenames ORDER BY f.filename"),
+    @NamedQuery(name = "Filemetadata.searchByFilenames", query = "SELECT" + Fileupload.METADATA_CONSTRUCTOR + "FROM Fileupload f WHERE f.filename like CONCAT('%',:term,'%') ORDER BY f.filename")})
 public class Fileupload implements Serializable {
 
+    public static final String METADATA_CONSTRUCTOR = " new libWebsiteTools.file.Fileupload(f.filename,f.atime,f.etag,f.mimetype,f.url,f.datasize,f.gzipsize,f.brsize,f.zstdsize) ";
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -68,15 +68,41 @@ public class Fileupload implements Serializable {
     @Lob
     @Column(name = "brdata")
     private byte[] brdata;
-    @JoinColumn(name = "filename", insertable = false, updatable = false, foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
-    @OneToOne
-    private Filemetadata filemetadata;
+    @Basic(optional = false)
+    @Lob
+    @Column(name = "zstddata")
+    private byte[] zstddata;
+    @Column(name = "datasize", insertable = false, updatable = false)
+    private Integer datasize;
+    @Column(name = "gzipsize", insertable = false, updatable = false)
+    private Integer gzipsize;
+    @Column(name = "brsize", insertable = false, updatable = false)
+    private Integer brsize;
+    @Column(name = "zstdsize", insertable = false, updatable = false)
+    private Integer zstdsize;
 
     public Fileupload() {
     }
 
     public Fileupload(String filename) {
         this.filename = filename;
+    }
+
+    public Fileupload(String filename, OffsetDateTime atime) {
+        this.filename = filename;
+        this.atime = atime;
+    }
+
+    public Fileupload(String filename, OffsetDateTime atime, String etag, String mimetype, String url, Integer datasize, Integer gzipsize, Integer brsize, Integer zstdsize) {
+        this.filename = filename;
+        this.atime = atime;
+        this.etag = etag;
+        this.mimetype = mimetype;
+        this.url = url;
+        this.datasize = datasize;
+        this.gzipsize = gzipsize;
+        this.brsize = brsize;
+        this.zstdsize = zstdsize;
     }
 
     public OffsetDateTime getAtime() {
@@ -176,17 +202,44 @@ public class Fileupload implements Serializable {
     }
 
     /**
-     * @return the filesize
+     * @return the zstddata
      */
-    public Filemetadata getFilemetadata() {
-        return filemetadata;
+    public byte[] getZstddata() {
+        return zstddata;
     }
 
     /**
-     * @param filemetadata
+     * @param zstddata the zstddata to set
      */
-    public void setFilemetadata(Filemetadata filemetadata) {
-        this.filemetadata = filemetadata;
+    public void setZstddata(byte[] zstddata) {
+        this.zstddata = zstddata;
     }
 
+    /**
+     * @return the datasize
+     */
+    public Integer getDatasize() {
+        return datasize;
+    }
+
+    /**
+     * @return the gzipsize
+     */
+    public Integer getGzipsize() {
+        return gzipsize;
+    }
+
+    /**
+     * @return the brsize
+     */
+    public Integer getBrsize() {
+        return brsize;
+    }
+
+    /**
+     * @return the zstdsize
+     */
+    public Integer getZstdsize() {
+        return zstdsize;
+    }
 }

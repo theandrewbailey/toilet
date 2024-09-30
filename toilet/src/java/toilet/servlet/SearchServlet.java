@@ -58,7 +58,7 @@ public class SearchServlet extends ToiletServlet {
                 if (!results.stream().anyMatch((art) -> {
                     return art.getArticletitle().toLowerCase(loc).contains(searchTerm.toLowerCase(loc)) || art.getPostedmarkdown().toLowerCase(loc).contains(searchTerm.toLowerCase(loc));
                 })) {
-                    String suggestion = beans.getArts().searchSuggestion(searchTerm, 1).get(0);
+                    String suggestion = beans.getArts().getSearchSuggestion(searchTerm, 1).get(0);
                     if (!suggestion.equals(searchTerm)) {
                         request.setAttribute("searchSuggestion", suggestion);
                         request.setAttribute("searchURL", "search?searchTerm=" + URLEncoder.encode(suggestion, "UTF-8"));
@@ -117,11 +117,11 @@ public class SearchServlet extends ToiletServlet {
                 if (word.startsWith("\"") || word.startsWith("-") || word.contains("|")) {
                     wordMap.put(word, Arrays.asList(word));
                 } else {
-                    List<String> suggs = beans.getArts().searchSuggestion(word, 3);
+                    List<String> suggs = beans.getArts().getSearchSuggestion(word, 3);
                     wordMap.put(word, suggs);
                 }
             }
-            for (String word : beans.getArts().searchSuggestion(baseJoin.toString(), 2)) {
+            for (String word : beans.getArts().getSearchSuggestion(baseJoin.toString(), 2)) {
                 List<Article> result = beans.getArts().search(base + word);
                 if (!result.isEmpty()) {
                     countResults.add(Integer.MIN_VALUE, base + word);

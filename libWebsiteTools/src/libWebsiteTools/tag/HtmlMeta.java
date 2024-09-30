@@ -16,7 +16,7 @@ import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
-import libWebsiteTools.file.Filemetadata;
+import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.DynamicFeed;
@@ -94,7 +94,7 @@ public class HtmlMeta extends SimpleTagSupport {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<Filemetadata> getCssFiles(AllBeanAccess beans, HttpServletRequest req) {
+    public static List<Fileupload> getCssFiles(AllBeanAccess beans, HttpServletRequest req) {
         try {
             List files = (List) req.getAttribute(SITE_CSS_KEY);
             if (files != null) {
@@ -104,9 +104,9 @@ public class HtmlMeta extends SimpleTagSupport {
         }
         try {
             List<String> filenames = new ArrayList<>();
-            List<Filemetadata> files = new ArrayList<>();
+            List<Fileupload> files = new ArrayList<>();
             for (String filename : beans.getImead().getLocal(SITE_CSS_KEY, Local.resolveLocales(beans.getImead(), req)).split("\n")) {
-                List<Filemetadata> f = beans.getFile().getFileMetadata(Arrays.asList(filename));
+                List<Fileupload> f = beans.getFile().getFileMetadata(Arrays.asList(filename));
                 if (null != f && !f.isEmpty()) {
                     files.addAll(f);
                 } else {
@@ -133,7 +133,7 @@ public class HtmlMeta extends SimpleTagSupport {
             if (null != baseURL) {
                 output.println(String.format("<base href=\"%s\"/>", baseURL.toString()));
             }
-            for (Filemetadata f : getCssFiles(beans, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())) {
+            for (Fileupload f : getCssFiles(beans, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())) {
                 // TOTAL HACK: this assumes that the CSS is hosted locally 
                 try {
                     // will create a unique URL based on the file's last update time, so browsers will get and cache a new resource

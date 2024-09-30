@@ -1,4 +1,4 @@
-package toilet.bean;
+package toilet.bean.database;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -13,6 +13,7 @@ import jakarta.persistence.NoResultException;
 import libWebsiteTools.db.Repository;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.UtilStatic;
+import toilet.bean.ArticleRepository;
 import toilet.db.Article;
 import toilet.db.Section;
 
@@ -20,13 +21,13 @@ import toilet.db.Section;
  *
  * @author alpha
  */
-public class SectionRepo implements Repository<Section> {
+public class SectionDatabase implements Repository<Section> {
 
     private final EntityManagerFactory toiletPU;
     private final IMEADHolder imead;
     private List<Section> allSections;
 
-    public SectionRepo(EntityManagerFactory toiletPU, IMEADHolder imead) {
+    public SectionDatabase(EntityManagerFactory toiletPU, IMEADHolder imead) {
         this.toiletPU = toiletPU;
         this.imead = imead;
     }
@@ -75,7 +76,7 @@ public class SectionRepo implements Repository<Section> {
                 TreeMap<Double, Section> popularity = new TreeMap<>();
                 for (Object[] data : sectionsByArticlesPosted) {
                     Section section = (Section) data[0];
-                    if (section.getName().equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
+                    if (section.getName().equals(imead.getValue(ArticleRepository.DEFAULT_CATEGORY))) {
                         continue;
                     }
                     double years = (now - ((OffsetDateTime) data[1]).toInstant().toEpochMilli()) / 31536000000.0;
@@ -115,9 +116,10 @@ public class SectionRepo implements Repository<Section> {
     }
 
     @Override
-    public void evict() {
+    public SectionDatabase evict() {
         toiletPU.getCache().evict(Section.class);
         allSections = null;
+        return this;
     }
 
     @Override

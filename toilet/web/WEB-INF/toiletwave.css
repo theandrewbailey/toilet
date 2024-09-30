@@ -200,11 +200,11 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
 }} /* DESKTOP STYLES */
 @media screen and (min-width: 901px){body>*{
   max-width: 1160px;
-}#leftContent:not(:only-child){
+}.leftContent:not(:only-child){
   margin-right: 200px;
   width: 960px;
   width: calc(100% - 200px);
-}#leftContent:not(:only-child):after{
+}.leftContent:not(:only-child):after{
   content: "";
   display: table;
   clear: both;

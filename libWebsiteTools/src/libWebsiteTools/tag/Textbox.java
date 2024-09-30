@@ -8,7 +8,7 @@ public class Textbox extends AbstractInput {
     private Object datalist;
 
     @Override
-    public String createTag() {
+    public StringBuilder createTag() {
         if (null == datalist) {
             return super.createTag();
         }
@@ -20,10 +20,10 @@ public class Textbox extends AbstractInput {
             StringBuilder out = label(new StringBuilder(400 + (datalistList.size() * 30)));
             String datalistId = "list-" + getId();
             return out.append(createIncompleteTag()).append(" list=\"list-").append(getId()).append("\"/>")
-                    .append(Datalist.getDatalistTag(datalistId, datalistList)).toString();
+                    .append(Datalist.getDatalistTag(datalistId, datalistList));
         } else {
             StringBuilder out = label(new StringBuilder(400));
-            return out.append(createIncompleteTag()).append(" list=\"").append(datalist.toString()).append("\"/>").toString();
+            return out.append(createIncompleteTag()).append(" list=\"").append(datalist.toString()).append("\"/>");
         }
     }
 

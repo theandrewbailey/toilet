@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.imead.LocalizedStringNotFoundException;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
@@ -31,7 +32,7 @@ import libWebsiteTools.tag.HtmlTime;
 import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
 import toilet.UtilStatic;
-import toilet.bean.ArticleRepo;
+import toilet.bean.ArticleRepository;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.db.Comment;
@@ -43,8 +44,8 @@ import toilet.tag.Categorizer;
 public class ArticleServlet extends ToiletServlet {
 
     private static final String ARTICLE_JSP = "/WEB-INF/singleArticle.jsp";
-    private static final String DEFAULT_NAME = "entry_defaultName";
-    public static final String SPAM_WORDS = "entry_spamwords";
+    private static final String DEFAULT_NAME = "site_defaultName";
+    public static final String SPAM_WORDS = "site_spamwords";
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
@@ -102,7 +103,7 @@ public class ArticleServlet extends ToiletServlet {
             ToiletBeanAccess beans = allBeans.getInstance(request);
             Collection<Article> seeAlso = getArticleSuggestions(beans.getArts(), art);
             request.setAttribute("seeAlso", seeAlso);
-            request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepo.getArticleSuggestionTerm(art));
+            request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art));
             // keep track of articles referenced on the page, to help de-duplicate links and maximize unique articles linked to
             ArrayList<Article> pageArticles = new ArrayList<>(Arrays.asList(art));
             pageArticles.addAll(seeAlso);
@@ -112,7 +113,11 @@ public class ArticleServlet extends ToiletServlet {
             request.setAttribute("articleCategory", art.getSectionid().getName());
             if (art.getComments()) {
                 request.setAttribute("commentForm", getCommentFormUrl(art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
-                String format = beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), request));
+                String format = FeedBucket.TIME_FORMAT;
+                try {
+                    format = beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), request));
+                } catch (LocalizedStringNotFoundException x) {
+                }
                 DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern(format);
                 String postedDate = timeFormat.format(art.getPosted().toZonedDateTime());
                 String footer = MessageFormat.format(beans.getImead().getLocal("page_articleFooter", Local.resolveLocales(beans.getImead(), request)),
@@ -163,9 +168,9 @@ public class ArticleServlet extends ToiletServlet {
      * @return up to 6 similar articles, or null if something exploded
      */
     @SuppressWarnings("unchecked")
-    public static Collection<Article> getArticleSuggestions(ArticleRepo arts, Article art) {
+    public static Collection<Article> getArticleSuggestions(ArticleRepository arts, Article art) {
         try {
-            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(null != art.getSuggestion() ? art.getSuggestion() : ArticleRepo.getArticleSuggestionTerm(art)));
+            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art)));
             if (7 > seeAlso.size()) {
                 seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 7, null));
             }
@@ -173,16 +178,19 @@ public class ArticleServlet extends ToiletServlet {
                 seeAlso.addAll(arts.getBySection(null, 1, 7, null));
             }
             seeAlso.remove(art);
-            List<Article> temp = Arrays.asList(Arrays.copyOf(seeAlso.toArray(new Article[]{}), 6));
+            List<Article> temp = Arrays.asList(Arrays.copyOf(seeAlso.toArray(Article[]::new), 6));
             seeAlso = new ArrayList(temp);
             seeAlso.removeAll(Collections.singleton(null));
             // sort articles without images last
+            // show low-res images only
             for (Article a : temp) {
                 if (null == a) {
                     break;
                 } else if (null == a.getImageurl()) {
                     seeAlso.remove(a);
                     seeAlso.add(a);
+                } else if (null != a.getImageurl()) {
+                    a.setSummary(a.getSummary().replaceAll("w, https?://.*? \\d+", ""));
                 }
             }
             if (!seeAlso.isEmpty()) {
@@ -260,7 +268,7 @@ public class ArticleServlet extends ToiletServlet {
                     AdminArticleServlet.displayArticleEdit(beans, request, response, art);
                     return;
                 }
-                art = beans.getArts().upsert(Arrays.asList(art)).get(0);
+                art = beans.getArts().upsert(Arrays.asList(art)).iterator().next();
                 beans.reset();
                 response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
                 request.getSession().removeAttribute(Article.class.getSimpleName());

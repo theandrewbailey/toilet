@@ -1,0 +1,28 @@
+package libWebsiteTools.file;
+
+import java.util.List;
+import libWebsiteTools.db.Repository;
+
+/**
+ *
+ * @author alpha
+ */
+public interface FileRepository extends Repository<Fileupload> {
+
+    String DEFAULT_MIME_TYPE = "application/octet-stream";
+
+    /**
+     *
+     * @param names
+     * @return metadata of requested names, or everything for null
+     */
+    List<Fileupload> getFileMetadata(List<String> names);
+
+    /**
+     *
+     * @param searchTerm
+     * @return files that contain searchTerm
+     */
+    List<Fileupload> search(String searchTerm);
+    
+}

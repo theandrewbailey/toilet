@@ -13,7 +13,7 @@ import java.util.logging.Logger;
 import jakarta.enterprise.concurrent.ManagedExecutorService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import libWebsiteTools.file.FileRepo;
+import libWebsiteTools.file.FileRepository;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.IMEADHolder;
@@ -31,10 +31,10 @@ public abstract class SpruceGenerator implements DynamicFeed {
     public static final String SPRUCE_FEED_NAME = "Spruce.rss";
     public static final String ERROR = "Spruce cannot start properly!";
     private final IMEADHolder imead;
-    private final FileRepo file;
+    private final FileRepository file;
     private final ManagedExecutorService exec;
     private static final String LINK = "spruce";
-    private static final String SPRUCE_COUNT = "rss_spruceCount";
+    private static final String SPRUCE_COUNT = "site_rss_spruceCount";
     private static final Logger LOG = Logger.getLogger(SpruceGenerator.class.getName());
     private Document XML;
     private final RssChannel entries = new RssChannel("Spruce", LINK, "Some wisdom from Spruce");
@@ -48,7 +48,7 @@ public abstract class SpruceGenerator implements DynamicFeed {
 //    private ScriptEngine py;
 //    private PythonInterpreter py;
 
-    public SpruceGenerator(IMEADHolder imead, FileRepo file, ManagedExecutorService exec) {
+    public SpruceGenerator(IMEADHolder imead, FileRepository file, ManagedExecutorService exec) {
         this.imead = imead;
         this.file = file;
         this.exec = exec;

@@ -56,8 +56,10 @@ public interface Repository<Entity> {
 
     /**
      * Something big happened, so clear all caches.
+     *
+     * @return this
      */
-    public void evict();
+    public Repository<Entity> evict();
 
     /**
      * How many things are stored?

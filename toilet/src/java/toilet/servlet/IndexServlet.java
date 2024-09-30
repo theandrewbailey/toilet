@@ -18,7 +18,6 @@ import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.IndexFetcher;
-import toilet.UtilStatic;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.tag.Categorizer;
@@ -83,7 +82,7 @@ public class IndexServlet extends ToiletServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
-        if (UtilStatic.isFirstTime(beans)) {
+        if (beans.isFirstTime()) {
             request.getRequestDispatcher("adminImead").forward(request, response);
             return;
         }

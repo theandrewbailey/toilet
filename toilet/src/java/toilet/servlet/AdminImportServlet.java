@@ -17,7 +17,6 @@ import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
-import toilet.UtilStatic;
 import toilet.bean.BackupDaemon;
 import toilet.bean.ToiletBeanAccess;
 
@@ -41,7 +40,7 @@ public class AdminImportServlet extends ToiletServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
-        if (AdminImeadServlet.FIRST_TIME_SETUP.equals(getServletContext().getAttribute(AdminImeadServlet.FIRST_TIME_SETUP))) {
+        if (beans.isFirstTime()) {
             // this is OK
         } else if (!AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
                 || !HashUtil.verifyArgon2Hash(beans.getImeadValue(AdminLoginServlet.ADD_ARTICLE), AbstractInput.getParameter(request, "words"))) {
@@ -53,9 +52,6 @@ public class AdminImportServlet extends ToiletServlet {
             InputStream i = p.getInputStream();
             ZipInputStream zip = new ZipInputStream(i);
             beans.getBackup().restoreFromZip(zip);
-            if (!UtilStatic.isFirstTime(beans)) {
-                request.getServletContext().removeAttribute(AdminImeadServlet.FIRST_TIME_SETUP);
-            }
             OffsetDateTime start = GuardFilter.getRequestTime(request);
             Duration d=Duration.between(start, OffsetDateTime.now()).abs();
             log("Backup restored in " + d.toMillis() + " milliseconds.");

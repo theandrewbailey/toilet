@@ -9,13 +9,10 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.GZIPOutputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
-import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.JVMNotSupportedError;
 
 /**
@@ -98,64 +95,6 @@ public class ServletOutputWrapper<ALT extends ServletOutputStream> extends HttpS
 
     @Override
     public void setContentLength(int len) {
-    }
-
-    public static class GZIPOutput extends ServletOutputStream {
-
-        private final GZIPOutputStream gzipStream;
-        private final AtomicBoolean open = new AtomicBoolean(true);
-        private final ServletOutputStream output;
-
-        public GZIPOutput(HttpServletResponse res) throws IOException {
-            res.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
-            this.output = res.getOutputStream();
-            gzipStream = new GZIPOutputStream(output);
-        }
-
-        @Override
-        public void close() throws IOException {
-            if (open.compareAndSet(true, false)) {
-                gzipStream.close();
-            }
-        }
-
-        @Override
-        public void flush() throws IOException {
-            gzipStream.flush();
-            output.flush();
-        }
-
-        @Override
-        public void write(byte[] b) throws IOException {
-            write(b, 0, b.length);
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            if (!open.get()) {
-                throw new IOException("Stream closed!");
-            }
-            gzipStream.write(b, off, len);
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-            if (!open.get()) {
-                throw new IOException("Stream closed!");
-            }
-            gzipStream.write(b);
-        }
-
-        @Override
-        public boolean isReady() {
-            return output.isReady() && open.get();
-        }
-
-        @Override
-        public void setWriteListener(WriteListener wl) {
-            output.setWriteListener(wl);
-        }
-
     }
 
     public static class ByteArrayOutput extends ServletOutputStream {

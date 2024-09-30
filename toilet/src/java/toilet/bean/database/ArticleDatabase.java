@@ -1,31 +1,20 @@
-package toilet.bean;
+package toilet.bean.database;
 
-import java.io.UnsupportedEncodingException;
-import java.security.MessageDigest;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.TypedQuery;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.ParameterMode;
-import jakarta.persistence.Query;
-import jakarta.persistence.StoredProcedureQuery;
-import jakarta.persistence.TypedQuery;
-import libWebsiteTools.security.HashUtil;
-import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.db.Repository;
 import libWebsiteTools.imead.IMEADHolder;
+import toilet.bean.ArticleRepository;
 import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.db.Section;
@@ -34,27 +23,21 @@ import toilet.db.Section;
  *
  * @author alpha
  */
-public class ArticleRepo implements Repository<Article> {
+public abstract class ArticleDatabase implements ArticleRepository {
 
-    public static final String DEFAULT_CATEGORY = "entry_defaultCategory";
-    private static final Logger LOG = Logger.getLogger(ArticleRepo.class.getName());
+    private static final Logger LOG = Logger.getLogger(ArticleRepository.class.getName());
     private static final List<Integer> EXCLUDE_NOTHING = Arrays.asList(new Integer[]{Integer.MIN_VALUE});
-    private static final Pattern ARTICLE_TERM = Pattern.compile("(.+?)(?=(?: \\d.*)|(?:[:,] .*)|(?: \\(\\d+\\))|(?: \\()|(?: IX|IV|V?I{0,3})$)");
-    private final EntityManagerFactory toiletPU;
-    private final IMEADHolder imead;
+    protected final EntityManagerFactory toiletPU;
+    protected final IMEADHolder imead;
 
-    public ArticleRepo(EntityManagerFactory toiletPU, IMEADHolder imead) {
+    public ArticleDatabase(EntityManagerFactory toiletPU, IMEADHolder imead) {
         this.toiletPU = toiletPU;
         this.imead = imead;
     }
 
     @Override
-    public void evict() {
-        toiletPU.getCache().evict(Article.class);
-    }
-
     public List<Article> getBySection(String sect, Integer page, Integer perPage, List<Integer> exclude) {
-        if (null != sect && sect.equals(imead.getValue(ArticleRepo.DEFAULT_CATEGORY))) {
+        if (null != sect && sect.equals(imead.getValue(ArticleDatabase.DEFAULT_CATEGORY))) {
             sect = null;
         }
         EntityManager em = toiletPU.createEntityManager();
@@ -71,82 +54,6 @@ public class ArticleRepo implements Repository<Article> {
         } finally {
             em.close();
         }
-    }
-
-    @Override
-    public Long count() {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
-            TypedQuery<Long> qn = em.createNamedQuery("Article.count", Long.class);
-            Long output = qn.getSingleResult();
-            return output;
-        } finally {
-            em.close();
-        }
-    }
-
-    /**
-     *
-     * @param art Article to get an appropriate search term from
-     * @return String suitable to pass to article search to retrieve similar
-     * articles
-     */
-    public static String getArticleSuggestionTerm(Article art) {
-        String term = art.getArticletitle();
-        if (null == term) {
-            return "";
-        }
-        Matcher articleMatch = ARTICLE_TERM.matcher(term);
-        if (articleMatch.find()) {
-            term = articleMatch.group(1).trim();
-        }
-        return term;
-    }
-
-    @SuppressWarnings("unchecked")
-    public List<Article> search(String searchTerm) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
-            StoredProcedureQuery q = em.createStoredProcedureQuery("toilet.search_articles", Article.class);
-            q.registerStoredProcedureParameter(1, String.class, ParameterMode.IN).setParameter(1, searchTerm);
-            q.execute();
-            return q.getResultList();
-        } finally {
-            em.close();
-        }
-    }
-
-    public List<String> searchSuggestion(String searchTerm, Integer limit) {
-        if (null == searchTerm || searchTerm.isEmpty()) {
-            return null;
-        }
-        EntityManager em = toiletPU.createEntityManager();
-        List<String> suggestions = new ArrayList<>();
-        try {
-            Query q = em.createNativeQuery("SELECT word, similarity(?1, word) FROM toilet.articlewords WHERE (word % ?1) = TRUE ORDER BY similarity DESC");
-            List results = q.setParameter(1, searchTerm).setMaxResults(limit).getResultList();
-            Iterator iter = results.iterator();
-            while (iter.hasNext()) {
-                Object[] row = (Object[]) iter.next();
-                if (1 == limit) {
-                    Float sim = (Float) row[1];
-                    if (0.4f < sim) {
-                        suggestions.add(row[0].toString());
-                        break;
-                    }
-                } else {
-                    Float sim = (Float) row[1];
-                    if (0.3f < sim) {
-                        suggestions.add(row[0].toString());
-                    }
-                }
-            }
-            return suggestions;
-        } catch (NoSuchElementException | NullPointerException n) {
-        } finally {
-            em.close();
-        }
-        return null;
     }
 
     /**
@@ -196,7 +103,7 @@ public class ArticleRepo implements Repository<Article> {
                     }
                     dbArt.setSectionid(esec);
                 }
-                dbArt.setEtag(HashUtil.getSHA256Hash(hashArticle(dbArt, dbArt.getCommentCollection(), sect)));
+                dbArt.setEtag(Base64.getEncoder().encodeToString(ArticleRepository.hashArticle(dbArt, dbArt.getCommentCollection(), sect)));
                 if (getnew) {
                     em.persist(dbArt);
                 }
@@ -206,17 +113,11 @@ public class ArticleRepo implements Repository<Article> {
             em.getTransaction().commit();
             return out;
         } catch (Throwable x) {
-            LOG.throwing(ArticleRepo.class.getCanonicalName(), "addArticles", x);
+            LOG.throwing(ArticleRepository.class.getCanonicalName(), "addArticles", x);
             throw x;
         } finally {
             em.close();
         }
-    }
-
-    public void refreshSearch() {
-        EntityManager em = toiletPU.createEntityManager();
-        em.createStoredProcedureQuery("toilet.refresh_articlesearch").execute();
-        em.close();
     }
 
     @Override
@@ -259,8 +160,8 @@ public class ArticleRepo implements Repository<Article> {
                     em.remove(s);
                 }
                 em.createNativeQuery("ALTER SEQUENCE toilet.comment_commentid_seq RESTART; ALTER SEQUENCE toilet.article_articleid_seq RESTART;").executeUpdate();
-                em.createStoredProcedureQuery("toilet.refresh_articlesearch").execute();
                 em.getTransaction().commit();
+                refreshSearch();
                 LOG.info("All articles and comments deleted");
                 return null;
             } else {
@@ -281,12 +182,6 @@ public class ArticleRepo implements Repository<Article> {
         }
     }
 
-    public static void updateArticleHash(EntityManager em, Integer articleId) {
-        Article art = em.find(Article.class, articleId);
-        art.setEtag(Base64.getEncoder().encodeToString(hashArticle(art, art.getCommentCollection(), art.getSectionid().getName())));
-        art.setModified(OffsetDateTime.now());
-    }
-
     @Override
     public void processArchive(Consumer<Article> operation, Boolean transaction) {
         EntityManager em = toiletPU.createEntityManager();
@@ -303,27 +198,22 @@ public class ArticleRepo implements Repository<Article> {
         }
     }
 
-    private static byte[] hashArticle(Article e, Collection<Comment> comments, String sect) {
+    @Override
+    public ArticleRepository evict() {
+        toiletPU.getCache().evict(Article.class);
+        return this;
+    }
+
+    @Override
+    public Long count() {
+        EntityManager em = toiletPU.createEntityManager();
         try {
-            MessageDigest sha = HashUtil.getSHA256();
-            sha.update(e.getArticletitle().getBytes("UTF-8"));
-            sha.update(e.getPostedhtml().getBytes("UTF-8"));
-            sha.update(sect.getBytes("UTF-8"));
-            sha.update(e.getPostedname().getBytes("UTF-8"));
-            if (e.getDescription() != null) {
-                sha.update(e.getDescription().getBytes("UTF-8"));
-            }
-            sha.update(e.getModified().toString().getBytes("UTF-8"));
-            if (comments != null) {
-                for (Comment c : comments) {
-                    sha.update(c.getPostedhtml().getBytes("UTF-8"));
-                    sha.update(c.getPosted().toString().getBytes("UTF-8"));
-                    sha.update(c.getPostedname().getBytes("UTF-8"));
-                }
-            }
-            return sha.digest();
-        } catch (UnsupportedEncodingException enc) {
-            throw new JVMNotSupportedError(enc);
+            TypedQuery<Long> qn = em.createNamedQuery("Article.count", Long.class);
+            Long output = qn.getSingleResult();
+            return output;
+        } finally {
+            em.close();
         }
     }
+
 }

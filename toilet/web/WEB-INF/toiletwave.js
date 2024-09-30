@@ -71,10 +71,10 @@ const toilet=new (function toilet(){
 	}
 	this.flush=function flush(ready=false){
 		if(0===$(".errorPage,.indexPage").length){
-			const lc=$("#leftContent")[0];
+			const lc=$(".leftContent")[0];
 			const aside=$("body>div>aside")[0];
 			if(undefined!==lc&&undefined!==aside){
-				const ref=$("#leftContent>*:not(.searchSuggestion)")[0];
+				const ref=$(".leftContent>*:not(.searchSuggestion)")[0];
 				lc.insertBefore(aside,ref);
 				if(0<$("aside+article li img").length){
 					window.on("resize",asideCollide);

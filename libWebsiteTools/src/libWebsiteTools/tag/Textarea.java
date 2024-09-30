@@ -5,7 +5,7 @@ public class Textarea extends AbstractInput {
     private Integer height;
 
     @Override
-    public String createTag() {
+    public StringBuilder createTag() {
         StringBuilder out = label(new StringBuilder(1000));
 
         out.append("<textarea name=\"").append(getName());
@@ -60,7 +60,7 @@ public class Textarea extends AbstractInput {
         }
         out.append("</textarea>");
 
-        return out.toString();
+        return out;
     }
 
     public void setHeight(Integer height) {

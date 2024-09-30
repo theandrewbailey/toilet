@@ -7,7 +7,7 @@ import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.cache.PageCacheProvider;
 import libWebsiteTools.cache.PageCaches;
-import libWebsiteTools.file.FileRepo;
+import libWebsiteTools.file.FileRepository;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.security.SecurityRepo;
@@ -27,7 +27,7 @@ public interface AllBeanAccess {
 
     public SecurityRepo getError();
 
-    public FileRepo getFile();
+    public FileRepository getFile();
 
     public IMEADHolder getImead();
 

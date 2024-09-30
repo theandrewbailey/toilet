@@ -9,14 +9,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.TypedQuery;
-import libWebsiteTools.security.HashUtil;
+import java.util.Map.Entry;
 import libWebsiteTools.db.Repository;
 
 /**
@@ -24,135 +20,35 @@ import libWebsiteTools.db.Repository;
  *
  * @author alpha
  */
-public class IMEADHolder implements Repository<Localization> {
+public abstract class IMEADHolder implements Repository<Localization> {
 
-    private final EntityManagerFactory PU;
     private static final Logger LOG = Logger.getLogger(IMEADHolder.class.getName());
-    private Map<Locale, Properties> localizedCache = new HashMap<>();
-    private final Map<String, List<Pattern>> patterns = new HashMap<>();
-    private String localizedHash = "";
+    protected Map<Locale, Properties> localizedCache = new HashMap<>();
+    protected final Map<String, List<Pattern>> patterns = new HashMap<>();
+    protected final Map<String, Map<Locale, Map<String, String>>> filteredCache = new HashMap<>();
+    protected String localizedHash = "";
 
-    public IMEADHolder(EntityManagerFactory PU) {
-        this.PU = PU;
-        evict();
-    }
-
-    /**
-     * refresh cache of all properties from the DB
-     */
-    @Override
-    public void evict() {
-        LOG.entering(IMEADHolder.class.getName(), "evict");
-        PU.getCache().evict(Localization.class);
-        localizedCache = Collections.unmodifiableMap(getProperties());
-        localizedHash = HashUtil.getSHA256Hash(localizedCache.toString());
-        patterns.clear();
-        LOG.exiting(IMEADHolder.class.getName(), "evict");
-    }
-
-    /**
-     * remove property from DB and refresh cache
-     *
-     * @param localPK
-     */
-    @Override
-    public Localization delete(Object localPK) {
-        EntityManager em = PU.createEntityManager();
-        Localization out = em.find(Localization.class, localPK);
-        try {
-            em.getTransaction().begin();
-            em.remove(out);
-            em.getTransaction().commit();
-        } finally {
-            em.close();
+    public Map<String, String> filter(String regex, List<Locale> locales) {
+        if (filteredCache.containsKey(regex) && filteredCache.get(regex).containsKey(locales.get(0))) {
+            return filteredCache.get(regex).get(locales.get(0));
         }
-        evict();
-        return out;
-    }
-
-    /**
-     * add all specified Localizations to DB and refresh cache
-     *
-     * @param entities
-     */
-    @Override
-    public List<Localization> upsert(Collection<Localization> entities) {
-        ArrayList<Localization> out = new ArrayList<>(entities.size());
-        EntityManager em = PU.createEntityManager();
-        boolean dirty = false;
-        try {
-            em.getTransaction().begin();
-            for (Localization l : entities) {
-                Localization existing = em.find(Localization.class, l.localizationPK);
-                if (null != existing && !existing.getValue().equals(l.getValue())) {
-                    existing.setValue(l.getValue());
-                    dirty = true;
-                    out.add(existing);
-                } else if (null == existing) {
-                    em.persist(l);
-                    dirty = true;
-                    out.add(l);
+        HashMap<String, String> hits = new HashMap<>();
+        for (Locale l : locales) {
+            for (Entry e : localizedCache.get(l).entrySet()) {
+                if (e.getKey().toString().matches(regex) && !hits.containsKey(e.getKey().toString())) {
+                    hits.put(e.getKey().toString(), e.getValue().toString());
                 }
             }
-            em.getTransaction().commit();
-        } finally {
-            em.close();
         }
-        if (dirty) {
-            evict();
+        Map<Locale, Map<String, String>> regexCache;
+        if (filteredCache.containsKey(regex)) {
+            regexCache = filteredCache.get(regex);
+        } else {
+            regexCache = new HashMap<>();
+            filteredCache.put(regex, regexCache);
         }
-        return out;
-    }
-
-    @Override
-    public Localization get(Object localPK) {
-        EntityManager em = PU.createEntityManager();
-        try {
-            return em.find(Localization.class, localPK);
-        } finally {
-            em.close();
-        }
-    }
-
-    @Override
-    public List<Localization> getAll(Integer limit) {
-        EntityManager em = PU.createEntityManager();
-        try {
-            TypedQuery<Localization> q = em.createNamedQuery("Localization.findAll", Localization.class);
-            if (null != limit) {
-                q.setMaxResults(limit);
-            }
-            return q.getResultList();
-        } finally {
-            em.close();
-        }
-    }
-
-    @Override
-    public void processArchive(Consumer<Localization> operation, Boolean transaction) {
-        EntityManager em = PU.createEntityManager();
-        try {
-            if (transaction) {
-                em.getTransaction().begin();
-                em.createNamedQuery("Localization.findAll", Localization.class).getResultStream().forEachOrdered(operation);
-                em.getTransaction().commit();
-            } else {
-                em.createNamedQuery("Localization.findAll", Localization.class).getResultStream().forEachOrdered(operation);
-            }
-        } finally {
-            em.close();
-        }
-    }
-
-    @Override
-    public Long count() {
-        EntityManager em = PU.createEntityManager();
-        try {
-            TypedQuery<Long> qn = em.createNamedQuery("Localization.count", Long.class);
-            return qn.getSingleResult();
-        } finally {
-            em.close();
-        }
+        regexCache.put(locales.get(0), hits);
+        return hits;
     }
 
     /**
@@ -161,22 +57,16 @@ public class IMEADHolder implements Repository<Localization> {
      * @return map of Locale to Properties
      */
     public Map<Locale, Properties> getProperties() {
-        EntityManager em = PU.createEntityManager();
-        try {
-            List<String> supportedLocales = getLocaleStrings();
-            Map<Locale, Properties> output = new HashMap<>(supportedLocales.size() * 2);
-            for (String supportedLocale : supportedLocales) {
-                Locale l = Locale.forLanguageTag(null != supportedLocale ? supportedLocale : "");
-                Properties props = new SortedProperties();
-                for (Localization prop : em.createNamedQuery("Localization.findByLocalecode", Localization.class).setParameter("localecode", supportedLocale).getResultList()) {
-                    props.put(prop.getLocalizationPK().getKey(), prop.getValue());
-                }
-                output.put(l, props);
+        Map<Locale, Properties> output = new HashMap<>();
+        for (Localization l : getAll(null)) {
+            Locale local = Locale.forLanguageTag(null != l.getLocalizationPK().getLocalecode() ? l.getLocalizationPK().getLocalecode() : "");
+            if (!output.containsKey(local)) {
+                output.put(local, new SortedProperties());
             }
-            return output;
-        } finally {
-            em.close();
+            Properties props = output.get(local);
+            props.put(l.getLocalizationPK().getKey(), l.getValue());
         }
+        return output;
     }
 
     public List<Pattern> getPatterns(String key) {
@@ -203,19 +93,6 @@ public class IMEADHolder implements Repository<Localization> {
 
     public Collection<Locale> getLocales() {
         return localizedCache.keySet();
-    }
-
-    /**
-     *
-     * @return supported locales in DB
-     */
-    public List<String> getLocaleStrings() {
-        EntityManager em = PU.createEntityManager();
-        try {
-            return em.createNamedQuery("Localization.getDistinctLocales", String.class).getResultList();
-        } finally {
-            em.close();
-        }
     }
 
     /**

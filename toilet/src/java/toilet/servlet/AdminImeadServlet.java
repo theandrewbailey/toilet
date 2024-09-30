@@ -32,8 +32,9 @@ import libWebsiteTools.imead.LocalizationPK;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.AllBeanAccess;
-import toilet.UtilStatic;
+import toilet.ArticleProcessor;
 import toilet.bean.ToiletBeanAccess;
+import toilet.db.Article;
 
 /**
  *
@@ -42,7 +43,6 @@ import toilet.bean.ToiletBeanAccess;
 @WebServlet(name = "AdminImead", description = "Edit IMEAD properties", urlPatterns = {"/adminImead"})
 public class AdminImeadServlet extends ToiletServlet {
 
-    public static final String FIRST_TIME_SETUP = "FIRST_TIME_SETUP";
     public static final String ADMIN_IMEAD = "WEB-INF/adminImead.jsp";
     private static final String CSP_TEMPLATE = "default-src data: 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; report-uri %sreport";
     private static final String ALLOWED_ORIGINS_TEMPLATE = "%s\n^https?://(?:10\\.[0-9]{1,3}\\.|192\\.168\\.)[0-9]{1,3}\\.[0-9]{1,3}(?::[0-9]{1,5})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?google(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?googleusercontent(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?feedly\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?slack\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?bing\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yandex(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://images\\.rambler\\.ru(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yahoo(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?duckduckgo\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?baidu\\.com(?:$|/.*)";
@@ -52,7 +52,7 @@ public class AdminImeadServlet extends ToiletServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
         loadProperties(beans);
-        if (UtilStatic.isFirstTime(beans)) {
+        if (beans.isFirstTime()) {
             request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.IMEAD);
             if (null == beans.getImeadValue(SecurityRepo.BASE_URL)) {
                 String canonicalRoot = AbstractInput.getTokenURL(request);
@@ -74,6 +74,7 @@ public class AdminImeadServlet extends ToiletServlet {
                     fileupload.setUrl(BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileupload));
                 }, true);
             }
+            request.setAttribute("FIRST_TIME_SETUP", "FIRST_TIME_SETUP");
             showProperties(beans, request, response);
         } else {
             super.doGet(request, response);
@@ -96,26 +97,28 @@ public class AdminImeadServlet extends ToiletServlet {
             HashSet<LocalizationPK> errors = new HashSet<>();
             request.setAttribute("ERRORS", errors);
             for (Localization l : new LocalizationRetriever(request)) {
-                if (l.getLocalizationPK().getKey().startsWith("admin_")
-                        && !HashUtil.ARGON2_ENCODING_PATTERN.matcher(l.getValue()).matches()) {
-                    String previousValue = beans.getImead().getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode());
-                    if (!HashUtil.ARGON2_ENCODING_PATTERN.matcher(previousValue).matches() && previousValue.equals(l.getValue())) {
-                        errors.add(l.getLocalizationPK());
-                        request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, beans.getImead().getLocal("error_adminadmin", Local.resolveLocales(beans.getImead(), request)));
+                String previousValue = beans.getImead().getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode());
+                if (!l.getValue().equals(previousValue)) {
+                    if (l.getLocalizationPK().getKey().startsWith("admin_")
+                            && !HashUtil.ARGON2_ENCODING_PATTERN.matcher(l.getValue()).matches()) {
+                        if (null != previousValue && !HashUtil.ARGON2_ENCODING_PATTERN.matcher(previousValue).matches() && previousValue.equals(l.getValue())) {
+                            errors.add(l.getLocalizationPK());
+                            request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, beans.getImead().getLocal("error_adminadmin", Local.resolveLocales(beans.getImead(), request)));
+                        }
+                        l.setValue(HashUtil.getArgon2Hash(l.getValue()));
                     }
-                    l.setValue(HashUtil.getArgon2Hash(l.getValue()));
-                }
-                if (!beans.getImead().getLocaleStrings().contains(l.getLocalizationPK().getKey())
-                        || !l.getValue().equals(beans.getImead().getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode()))) {
-                    if (l.getLocalizationPK().getKey().startsWith("error_") || l.getLocalizationPK().getKey().startsWith("page_")) {
-                        l.setValue(l.getValue());
+                    if (l.getLocalizationPK().getKey().endsWith("_markdown")) {
+                        Article a = new Article(1);
+                        a.setPostedmarkdown(l.getValue());
+                        a.setArticletitle(l.getLocalizationPK().getKey());
+                        new ArticleProcessor(beans, a).call();
+                        props.add(new Localization(l.getLocalizationPK().getLocalecode(), l.getLocalizationPK().getKey().replaceFirst("_markdown$", ""), l.getValue()));
                     }
                     props.add(l);
                 }
             }
             if (errors.isEmpty()) {
                 beans.getImead().upsert(props);
-                request.getServletContext().removeAttribute(FIRST_TIME_SETUP);
                 beans.getGlobalCache().clear();
             }
         } else if (action.startsWith("delete")) {
@@ -173,7 +176,7 @@ public class AdminImeadServlet extends ToiletServlet {
         }
         List<Localization> security = new ArrayList<>();
         for (Localization property : imeadProperties.get(Locale.forLanguageTag(""))) {
-            if (property.getLocalizationPK().getKey().startsWith("admin_") || property.getLocalizationPK().getKey().startsWith("security_")) {
+            if (property.getLocalizationPK().getKey().startsWith("admin_") || property.getLocalizationPK().getKey().startsWith("site_security_")) {
                 security.add(property);
             }
         }
@@ -182,7 +185,11 @@ public class AdminImeadServlet extends ToiletServlet {
         }
         request.setAttribute("security", security);
         request.setAttribute("imeadProperties", imeadProperties);
-        request.setAttribute("locales", beans.getImead().getLocaleStrings());
+        List<String> locales = new ArrayList<>();
+        for (Locale l : beans.getImead().getLocales()) {
+            locales.add(l.toString());
+        }
+        request.setAttribute("locales", locales);
         request.getRequestDispatcher(ADMIN_IMEAD).forward(request, response);
     }
 
@@ -194,8 +201,7 @@ public class AdminImeadServlet extends ToiletServlet {
         } catch (IOException ex) {
             LOG.log(Level.SEVERE, null, ex);
         }
-        if (UtilStatic.isFirstTime(beans)) {
-            getServletContext().setAttribute(FIRST_TIME_SETUP, FIRST_TIME_SETUP);
+        if (beans.isFirstTime()) {
             beans.getArts().refreshSearch();
             // load and save default files
             try {
@@ -211,7 +217,9 @@ public class AdminImeadServlet extends ToiletServlet {
                 LOG.log(Level.SEVERE, null, ex);
             }
         }
-        beans.getImead().upsert(locals);
+        if (!locals.isEmpty()) {
+            beans.getImead().upsert(locals);
+        }
     }
 
     /**

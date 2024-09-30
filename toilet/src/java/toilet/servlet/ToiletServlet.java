@@ -15,7 +15,7 @@ import toilet.bean.ToiletBeanAccess;
  */
 public abstract class ToiletServlet extends HttpServlet {
 
-    public static final String ERROR_PREFIX = "error_";
+    public static final String ERROR_PREFIX = "page_error_";
     public static final String ERROR_MESSAGE_PARAM = "ERROR_MESSAGE";
     public static final String ERROR_JSP = "/WEB-INF/error.jsp";
     public static final String ERROR_IFRAME_JSP = "/WEB-INF/errorIframe.jsp";

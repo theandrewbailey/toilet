@@ -18,7 +18,8 @@ public class Checkbox extends AbstractInput {
     }
 
     @Override
-    public String createTag() {
-        return super.label(new StringBuilder(super.createTag())).toString();
+    public StringBuilder createTag() {
+        StringBuilder checkbox=super.label(new StringBuilder());
+        return super.createTag().append(checkbox);
     }
 }

@@ -11,7 +11,7 @@ public class Button extends AbstractInput {
     private String type;
 
     @Override
-    public String createTag() {
+    public StringBuilder createTag() {
         StringBuilder out = new StringBuilder(400).append("<button type=\"").append(getType()).append("\" name=\"").append(getName());
         if (null != getId()) {
             out.append("\" id=\"").append(getId());
@@ -44,7 +44,7 @@ public class Button extends AbstractInput {
         } catch (Exception ex) {
         }
         out.append(body.toString());
-        return out.append("</button>").toString();
+        return out.append("</button>");
     }
 
     @Override

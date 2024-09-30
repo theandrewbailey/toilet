@@ -2,7 +2,6 @@ package toilet.servlet;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -28,15 +27,17 @@ public class AdminLoginServlet extends ToiletServlet {
     public static final String ADD_ARTICLE = "admin_addArticle";
     public static final String FILES = "admin_files";
     public static final String EDIT_POSTS = "admin_editPosts";
+    public static final String DINGUS = "admin_dingus";
     public static final String ERROR_LOG = "admin_errorLog";
     public static final String HEALTH = "admin_health";
     public static final String IMEAD = "admin_imead";
     public static final String RELOAD = "admin_reload";
-    public static final List<String> SCOPES = Arrays.asList(ADD_ARTICLE, FILES, EDIT_POSTS, ERROR_LOG, HEALTH, IMEAD, RELOAD);
+    public static final List<String> SCOPES = List.of(ADD_ARTICLE, FILES, EDIT_POSTS, DINGUS, ERROR_LOG, HEALTH, IMEAD, RELOAD);
     public static final String PERMISSION = "$_ADMIN_LOGIN_SERVLET_PERMISSION";
-    public static final String HEALTH_COMMANDS = "file_healthCommands";
+    public static final String HEALTH_COMMANDS = "site_healthCommands";
     public static final String ADMIN_ADD_ARTICLE = "/WEB-INF/adminAddArticle.jsp";
     public static final String ADMIN_CONTENT = "/WEB-INF/adminFile.jsp";
+    public static final String ADMIN_DINGUS = "/WEB-INF/adminDingus.jsp";
     public static final String ADMIN_IMPORT = "/WEB-INF/adminImport.jsp";
     public static final String ADMIN_HEALTH = "/WEB-INF/adminHealth.jsp";
     public static final String ADMIN_EDIT_POSTS = "/WEB-INF/adminEditPosts.jsp";
@@ -68,8 +69,12 @@ public class AdminLoginServlet extends ToiletServlet {
                     response.sendRedirect(beans.getImeadValue(SecurityRepo.BASE_URL) + "rss/" + ErrorRss.NAME);
                     return;
                 case EDIT_POSTS:
-                    request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.EDIT_POSTS);
+                    request.getSession().setAttribute(PERMISSION, EDIT_POSTS);
                     AdminArticleServlet.showList(request, response, beans.getArts().getAll(null));
+                    return;
+                case DINGUS:
+                    request.getSession().setAttribute(PERMISSION, DINGUS);
+                    request.getRequestDispatcher("/adminDingus").forward(request, response);
                     return;
                 case ADD_ARTICLE:
                     request.getSession().setAttribute(PERMISSION, ADD_ARTICLE);
@@ -80,7 +85,7 @@ public class AdminLoginServlet extends ToiletServlet {
                     AdminArticleServlet.displayArticleEdit(beans, request, response, art);
                     return;
                 case FILES:
-                    request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
+                    request.getSession().setAttribute(AdminLoginServlet.PERMISSION, FILES);
                     AdminFileServlet.showFileList(request, response, beans.getFile().getFileMetadata(null));
                     return;
                 case RELOAD:
@@ -122,7 +127,7 @@ public class AdminLoginServlet extends ToiletServlet {
                 return test.get();
             }
         }
-        return null;
+        return "";
     }
 }
 

@@ -9,7 +9,6 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.security.HashUtil;
-import libWebsiteTools.file.Filemetadata;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.ToiletBeanAccess;
@@ -42,16 +41,16 @@ public class AdminFileServlet extends ToiletServlet {
         }
     }
 
-    public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Filemetadata> uploads) throws ServletException, IOException {
+    public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Fileupload> uploads) throws ServletException, IOException {
         request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
-        LinkedHashMap<String, List<Filemetadata>> files = new LinkedHashMap<>(uploads.size() * 2);
+        LinkedHashMap<String, List<Fileupload>> files = new LinkedHashMap<>(uploads.size() * 2);
         List<String> directories = new ArrayList<>();
         // root "directory" first
         files.put("", new ArrayList<>());
         directories.add("");
-        for (Filemetadata f : uploads) {
+        for (Fileupload f : uploads) {
             String[] split = splitDirectoryAndName(f.getFilename());
-            List<Filemetadata> temp = files.get(split[0]);
+            List<Fileupload> temp = files.get(split[0]);
             if (temp == null) {
                 temp = new ArrayList<>();
                 files.put(split[0], temp);

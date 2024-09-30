@@ -17,7 +17,7 @@ import libWebsiteTools.cache.PageCache;
 public class Gzipper extends FileCompressorJob {
 
     private final int SIZE_DIFFERENCE = "Accept-Encoding: gzip\n".length();
-    private final String COMMAND_KEY = "file_gzipCommand";
+    private final String COMMAND_KEY = "site_gzipCommand";
     private final static Logger LOG = Logger.getLogger(Gzipper.class.getName());
 
     public Gzipper(AllBeanAccess beans, Fileupload file) {

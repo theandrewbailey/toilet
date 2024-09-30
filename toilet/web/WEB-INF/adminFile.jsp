@@ -4,6 +4,7 @@
 <c:if test="${ERROR_MESSAGE != null}"><p class="error">${ERROR_MESSAGE}</p></c:if><h:localVar key="page_valueMissing" var="valueMissing" />
 <h:textbox name="directory" label="Directory:" datalist="${directories}" maxLength="250" labelNextLine="false" value="${prop.key}" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" />
 <h:file name="filedata" label="File Upload: " labelNextLine="false" required="true" valueMissing="${valueMissing}" multiple="true" />
+<%-- <h:checkbox name="overwrite" label="Overwrite" /> --%>
 <input type="submit" value="Upload"/>
 <c:if test="${null != uploadedfiles}"><p class="adminform">Upload successful:<c:forEach items="${uploadedfiles}" var="uploadedfile"><br/><a href="file/${uploadedfile.filename}" target="_blank" rel="noopener" >${uploadedfile.filename}</a></c:forEach></p></c:if>
 </form>

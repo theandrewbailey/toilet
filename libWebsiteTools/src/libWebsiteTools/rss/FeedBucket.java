@@ -159,7 +159,8 @@ public class FeedBucket implements Repository<Feed> {
     }
 
     @Override
-    public void evict() {
+    public FeedBucket evict() {
+        return this;
     }
 
     @Override

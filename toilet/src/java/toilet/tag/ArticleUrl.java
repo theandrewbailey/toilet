@@ -55,7 +55,7 @@ public class ArticleUrl extends SimpleTagSupport {
 
     private static String getUrlArticleTitle(Article article) {
         try {
-            String title = URLEncoder.encode(article.getArticletitle(), "UTF-8");
+            String title = null != article.getArticletitle() ? URLEncoder.encode(article.getArticletitle(), "UTF-8") : "";
             title = title.replaceAll("%[0-9A-F]{2}", "").replace(":", "").replace("+", "-").replace("--", "-");
             return title;
         } catch (UnsupportedEncodingException ex) {

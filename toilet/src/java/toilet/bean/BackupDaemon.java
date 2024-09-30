@@ -1,7 +1,7 @@
 package toilet.bean;
 
 import toilet.IndexFetcher;
-import libWebsiteTools.file.FileRepo;
+import libWebsiteTools.file.FileRepository;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -79,7 +79,7 @@ import libWebsiteTools.rss.Feed;
 public class BackupDaemon implements Runnable {
 
     public final static String MIMES_TXT = "mimes.txt";
-    private final static String MASTER_DIR = "file_backup";
+    private final static String MASTER_DIR = "site_backup";
     private final static String CONTENT_DIR = "content";
 //    private final static String CONTENT_ALT_DIR = "contentAlt";
     private final static Logger LOG = Logger.getLogger(BackupDaemon.class.getName());
@@ -412,7 +412,7 @@ public class BackupDaemon implements Runnable {
                                     incomingFile.setMimetype(mimes.get(incomingFile.getFilename()));
                                     mimes.remove(incomingFile.getFilename());
                                 } else if (null == incomingFile.getMimetype()) {
-                                    incomingFile.setMimetype(FileRepo.DEFAULT_MIME_TYPE);
+                                    incomingFile.setMimetype(FileRepository.DEFAULT_MIME_TYPE);
                                 }
                                 Fileupload existingFile = beans.getFile().get(incomingFile.getFilename());
                                 if (null == existingFile || !incomingFile.getEtag().equals(existingFile.getEtag())) {
@@ -438,8 +438,8 @@ public class BackupDaemon implements Runnable {
         } catch (IOException ix) {
             throw new RuntimeException(ix);
         }
+        UtilStatic.finish(altTasks).clear();
         if (!fileTasks.isEmpty()) {
-            UtilStatic.finish(altTasks).clear();
             UtilStatic.finish(fileTasks).clear();
             altTasks.add(beans.getExec().submit(() -> {
                 if (!files.isEmpty()) {
@@ -514,6 +514,8 @@ public class BackupDaemon implements Runnable {
                         } catch (TimeoutException t) {
                             beans.getArts().upsert(articles);
                             articles.clear();
+                        } catch (Exception ex) {
+                            LOG.log(Level.SEVERE, "Error inserting articles", ex);
                         }
                     }
                 }

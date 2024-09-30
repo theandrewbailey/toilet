@@ -1,10 +1,13 @@
 package toilet;
 
 import jakarta.ejb.Local;
-import toilet.bean.ArticleRepo;
+import libWebsiteTools.db.Repository;
+import toilet.bean.ArticleRepository;
 import toilet.bean.BackupDaemon;
-import toilet.bean.CommentRepo;
-import toilet.bean.SectionRepo;
+import toilet.bean.database.CommentDatabase;
+import toilet.bean.database.SectionDatabase;
+import toilet.db.Comment;
+import toilet.db.Section;
 //import toilet.bean.SpruceGenerator;
 
 /**
@@ -15,11 +18,11 @@ import toilet.bean.SectionRepo;
 @Local
 public interface AllBeanAccess extends libWebsiteTools.AllBeanAccess {
 
-    public ArticleRepo getArts();
+    public ArticleRepository getArts();
 
-    public CommentRepo getComms();
+    public Repository<Comment> getComms();
 
-    public SectionRepo getSects();
+    public Repository<Section> getSects();
 
     public BackupDaemon getBackup();
 

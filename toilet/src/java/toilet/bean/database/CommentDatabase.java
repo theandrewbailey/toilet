@@ -1,4 +1,4 @@
-package toilet.bean;
+package toilet.bean.database;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.TypedQuery;
 import libWebsiteTools.db.Repository;
+import toilet.bean.ArticleRepository;
 import toilet.db.Article;
 import toilet.db.Comment;
 
@@ -19,12 +20,12 @@ import toilet.db.Comment;
  *
  * @author alpha
  */
-public class CommentRepo implements Repository<Comment> {
+public class CommentDatabase implements Repository<Comment> {
 
-    private static final Logger LOG = Logger.getLogger(CommentRepo.class.getName());
+    private static final Logger LOG = Logger.getLogger(CommentDatabase.class.getName());
     private final EntityManagerFactory toiletPU;
 
-    public CommentRepo(EntityManagerFactory toiletPU) {
+    public CommentDatabase(EntityManagerFactory toiletPU) {
         this.toiletPU = toiletPU;
     }
 
@@ -57,7 +58,7 @@ public class CommentRepo implements Repository<Comment> {
             for (Integer articleid : updatedArticles) {
                 Article a = em.find(Article.class, articleid);
                 em.refresh(a);
-                ArticleRepo.updateArticleHash(em, articleid);
+                ArticleRepository.updateArticleHash(a);
             }
             em.getTransaction().commit();
             return out;
@@ -88,7 +89,7 @@ public class CommentRepo implements Repository<Comment> {
             LOG.info("Comment deleted");
             em.refresh(e);
             em.getTransaction().begin();
-            ArticleRepo.updateArticleHash(em, e.getArticleid());
+            ArticleRepository.updateArticleHash(e);
             em.getTransaction().commit();
             return c;
         } finally {
@@ -116,8 +117,9 @@ public class CommentRepo implements Repository<Comment> {
     }
 
     @Override
-    public void evict() {
+    public CommentDatabase evict() {
         toiletPU.getCache().evict(Comment.class);
+        return this;
     }
 
     @Override

@@ -41,7 +41,7 @@ public class GuardFilter implements Filter {
     public static final String KILLED_REQUEST = "$_LIBWEBSITETOOLS_KILLED_REQUEST";
     public static final String HANDLED_ERROR = "$_LIBWEBSITETOOLS_HANDLED_ERROR";
     public static final String TIME_PARAM = "$_LIBWEBSITETOOLS_REQUEST_START_TIME";
-    public static final String CERTIFICATE_NAME = "security_certificateName";
+    public static final String CERTIFICATE_NAME = "site_security_certificateName";
     public static final String DEFAULT_REQUEST_ENCODING = "UTF-8";
     public static final String DEFAULT_RESPONSE_ENCODING = "UTF-8";
     public static final String VARY_HEADER = String.join(", ", new String[]{HttpHeaders.ACCEPT_ENCODING});

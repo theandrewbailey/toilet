@@ -28,9 +28,11 @@ import libWebsiteTools.tag.ResponseTag;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.cache.CachedContent;
+import libWebsiteTools.cache.CompressedOutput;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.tag.AbstractInput;
 
 public abstract class BaseFileServlet extends HttpServlet {
 
@@ -38,9 +40,8 @@ public abstract class BaseFileServlet extends HttpServlet {
     public static final long MAX_AGE_MILLISECONDS = 0b1111111111111111111111100000000;
     public static final String MAX_AGE_SECONDS = Long.toString(MAX_AGE_MILLISECONDS / 1000);
     public static final long YEAR_SECONDS = 31535000;
-    public static final Pattern GZIP_PATTERN = Pattern.compile("(?:.*? )?gzip(?:,.*)?");
     public static final Pattern BR_PATTERN = Pattern.compile("(?:.*? )?br(?:,.*)?");
-    private static final String CROSS_SITE_REQUEST = "error_cross_site_request";
+    private static final String CROSS_SITE_REQUEST = "page_error_cross_site_request";
     // [ origin, timestamp for immutable requests (guaranteed null if not immutable), file path, query string ]
     private static final Pattern FILE_URL = Pattern.compile("^(.*?)file(?:Immutable/([^/]+))?/([^\\?]+)\\??(.*)?");
 
@@ -65,7 +66,7 @@ public abstract class BaseFileServlet extends HttpServlet {
         }
     }
 
-    public static String getImmutableURL(String baseURL, Filemetadata f) {
+    public static String getImmutableURL(String baseURL, Fileupload f) {
         if (null == baseURL) {
             throw new IllegalArgumentException("base URL empty!");
         } else if (null == f) {
@@ -80,10 +81,6 @@ public abstract class BaseFileServlet extends HttpServlet {
                 .append("/").append(f.getFilename()).toString();
     }
 
-    public static String getImmutableURL(String baseURL, Fileupload f) {
-        return getImmutableURL(baseURL, new Filemetadata(f.getFilename(), f.getAtime()));
-    }
-
     public static List<String> getCompression(HttpServletRequest req) {
         List<String> output = new ArrayList<>();
         String encoding = req.getHeader(HttpHeaders.ACCEPT_ENCODING);
@@ -91,7 +88,7 @@ public abstract class BaseFileServlet extends HttpServlet {
             if (BR_PATTERN.matcher(encoding).find()) {
                 output.add("br");
             }
-            if (GZIP_PATTERN.matcher(encoding).find()) {
+            if (CompressedOutput.Gzip.PATTERN.matcher(encoding).find()) {
                 output.add("gzip");
             }
         }
@@ -245,6 +242,7 @@ public abstract class BaseFileServlet extends HttpServlet {
         AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         try {
             List<Fileupload> uploadedfiles = FileUtil.getFilesFromRequest(request, "filedata");
+            //boolean overwrite = AbstractInput.getParameter(request, "overwrite") != null;
             for (Fileupload uploadedfile : uploadedfiles) {
                 if (null != beans.getFile().get(uploadedfile.getFilename())) {
                     request.setAttribute("ERROR_MESSAGE", "File exists: " + uploadedfile.getFilename());

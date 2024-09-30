@@ -35,7 +35,8 @@ public class SitemapProvider implements Iterable<UrlMap> {
 //        if (beans.getSpruce().shouldBeReady()) {
 //            urlMap.add(new UrlMap(beans.getImeadValue(SecurityRepo.BASE_URL) + "spruce", null, ChangeFreq.always, "0.1"));
 //        }
-        int maxArticleID = 0 < entries.size() ? entries.get(entries.size() - 1).getArticleid() : 1;
+        @SuppressWarnings("null")
+        int maxArticleID = !entries.isEmpty() ? entries.get(entries.size() - 1).getArticleid() : 1;
         for (Article e : entries) {
             float difference = maxArticleID - e.getArticleid();
             difference = 1f - (difference / 50f);

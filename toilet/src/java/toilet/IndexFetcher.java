@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import libWebsiteTools.JVMNotSupportedError;
-import toilet.bean.ArticleRepo;
+import toilet.bean.ArticleRepository;
 import toilet.db.Article;
-import toilet.servlet.ToiletServlet;
+import toilet.db.Section;
 
 /**
  *
@@ -17,8 +17,8 @@ import toilet.servlet.ToiletServlet;
  */
 public class IndexFetcher {
 
-    public static final String POSTS_PER_PAGE = "pagenation_post_count";
-    public static final String PAGES_AROUND_CURRENT = "pagenation_around_current";
+    public static final String POSTS_PER_PAGE = "site_pagenation_post_count";
+    public static final String PAGES_AROUND_CURRENT = "site_pagenation_around_current";
     public static final Pattern INDEX_PATTERN = Pattern.compile(".*?(?:/index)?(?:/(\\D*?))?(?:/([0-9]*)(?:\\?.*)?)?$");
     public static final Pattern ARTICLE_PATTERN = Pattern.compile(".*?/(?:(?:article)|(?:comments)|(?:amp)|(?:edit))/([0-9]*)(?:/[\\w\\-\\.\\(\\)\\[\\]\\{\\}\\+,%_]*/?)?(?:\\?.*)?(?:#.*)?$");
     private int page = 1;
@@ -63,7 +63,7 @@ public class IndexFetcher {
 
     public static Article getArticleFromURI(AllBeanAccess beans, String URI) {
         try {
-            return beans.getArts().get(Integer.parseInt(getArticleIdFromURI(URI)));
+            return beans.getArts().get(Integer.valueOf(getArticleIdFromURI(URI)));
         } catch (NumberFormatException x) {
             return null;
         }
@@ -93,14 +93,14 @@ public class IndexFetcher {
     }
 
     public IndexFetcher(AllBeanAccess beans, String URI) {
-        int ppp = Integer.parseInt(beans.getImeadValue(POSTS_PER_PAGE));
-        pagesAroundCurrent = Integer.parseInt(beans.getImeadValue(PAGES_AROUND_CURRENT));
+        int ppp = null != beans.getImeadValue(POSTS_PER_PAGE) ? Integer.parseInt(beans.getImeadValue(POSTS_PER_PAGE)) : 7;
+        pagesAroundCurrent = null != beans.getImeadValue(PAGES_AROUND_CURRENT) ? Integer.parseInt(beans.getImeadValue(PAGES_AROUND_CURRENT)) : 3;
         try {
             String pagenum = getPageNumber(URI);
             if (null != pagenum) {
-                page = pagenum.isEmpty() ? 1 : Integer.valueOf(pagenum);
+                page = pagenum.isEmpty() ? 1 : Integer.parseInt(pagenum);
             }
-            section = getCategoryFromURI(URI, beans.getImeadValue(ArticleRepo.DEFAULT_CATEGORY));
+            section = getCategoryFromURI(URI, beans.getImeadValue(ArticleRepository.DEFAULT_CATEGORY));
         } catch (RuntimeException e) {
             return;
         }
@@ -109,16 +109,19 @@ public class IndexFetcher {
             section = null;
         } catch (NumberFormatException e) {
         }
-        if (null != section && section.equals(beans.getImeadValue(ArticleRepo.DEFAULT_CATEGORY))) {
+        if (null != section && section.equals(beans.getImeadValue(ArticleRepository.DEFAULT_CATEGORY))) {
             section = null;
         }
         // get total of all, to display number of pages limit
         if (count == 0) {
-            double counted;
+            double counted = 0;
             if (null == section) {
                 counted = beans.getArts().count();
             } else {
-                counted = beans.getSects().get(section).getArticleCollection().size();
+                Section thisSection = beans.getSects().get(section);
+                if (null != thisSection) {
+                    counted = thisSection.getArticleCollection().size();
+                }
             }
             count = (int) Math.ceil(counted / ppp);
         }
@@ -132,7 +135,7 @@ public class IndexFetcher {
             first = 1;
         }
         articles = beans.getArts().getBySection(section, page, ppp, null);
-        if (null != section && articles.size() > 0) {
+        if (null != section && !articles.isEmpty()) {
             section = articles.get(0).getSectionid().getName();
         }
     }

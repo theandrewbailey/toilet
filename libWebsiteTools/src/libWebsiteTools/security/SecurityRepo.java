@@ -36,11 +36,11 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     public static final String NEWLINE = "<br/>";
     // [ origin (with protocol), protocol (with ://), domain and port, path ]
     public static final Pattern ORIGIN_PATTERN = Pattern.compile("^((https?://)([^/]+))(/.*)?$");
-    public static final String BASE_URL = "security_baseURL";
-    public static final String ALLOWED_ORIGINS = "security_allowedOrigins";
-    public static final String DENIED_USER_AGENTS = "security_deniedAgents";
-    public static final String HONEYPOTS = "security_honeypots";
-    private static final String HONEYPOT_INITIAL_BLOCK_TIME = "security_initialBlock";
+    public static final String BASE_URL = "site_security_baseURL";
+    public static final String ALLOWED_ORIGINS = "site_security_allowedOrigins";
+    public static final String DENIED_USER_AGENTS = "site_security_deniedAgents";
+    public static final String HONEYPOTS = "site_security_honeypots";
+    private static final String HONEYPOT_INITIAL_BLOCK_TIME = "site_security_initialBlock";
     private static final Logger LOG = Logger.getLogger(SecurityRepo.class.getName());
     private final EntityManagerFactory PU;
     private final IMEADHolder imead;
@@ -53,7 +53,7 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     }
 
     @Override
-    public void evict() {
+    public SecurityRepo evict() {
         EntityManager em = PU.createEntityManager();
         OffsetDateTime localNow = OffsetDateTime.now();
         try {
@@ -66,6 +66,7 @@ public class SecurityRepo implements Repository<Exceptionevent> {
         }
         PU.getCache().evict(Honeypot.class);
         PU.getCache().evict(Exceptionevent.class);
+        return this;
     }
 
     public void logException(HttpServletRequest req, String title, String desc, Throwable t) {
@@ -247,7 +248,12 @@ public class SecurityRepo implements Repository<Exceptionevent> {
                 h.setStartedatatime(localNow);
                 long delta = Duration.between(h.getExpiresatatime(), localNow).abs().getSeconds();
                 long time = localNow.getLong(ChronoField.INSTANT_SECONDS) + Math.max(delta * 2, honeypotFirstBlockTime);
-                h.setExpiresatatime(OffsetDateTime.of(LocalDateTime.ofEpochSecond(time, 0, ZoneOffset.from(localNow)), ZoneOffset.from(localNow)));
+                OffsetDateTime t = OffsetDateTime.of(LocalDateTime.ofEpochSecond(time, 0, ZoneOffset.from(localNow)), ZoneOffset.from(localNow));
+                // Postgres doesn't like dates much beyond this
+                // if this code is still being run after AD 99999, we have some serious issues to deal with that this blog is ill equipped to solve
+                if (99999 > t.getYear()) {
+                    h.setExpiresatatime(t);
+                }
             } catch (NoResultException n) {
                 em.persist(new Honeypot(null, localNow.plusSeconds(honeypotFirstBlockTime), ip, localNow));
                 created = true;

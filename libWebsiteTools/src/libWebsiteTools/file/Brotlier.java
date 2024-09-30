@@ -14,7 +14,7 @@ import libWebsiteTools.cache.PageCache;
 public class Brotlier extends FileCompressorJob {
 
     private final int SIZE_DIFFERENCE = "Accept-Encoding: br\n".length();
-    private final String COMMAND_KEY = "file_brCommand";
+    private final String COMMAND_KEY = "site_brCommand";
     private final static Logger LOG = Logger.getLogger(Brotlier.class.getName());
 
     public Brotlier(AllBeanAccess beans, Fileupload file) {

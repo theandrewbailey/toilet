@@ -13,7 +13,7 @@
 <form action="adminArticle" method="POST" class="adminform adminArticle" accept-charset="UTF-8"><c:forEach items="${articles}" var="art">
 <article class="adminform">
     <c:choose><c:when test="${null==art.imageurl}"><h:checkbox name="selectedArticle" label="" value="${art.articleid}" styleClass="articleCheckbox"/></c:when>
-    <c:otherwise><h:checkbox name="selectedArticle" label="" value="${art.articleid}" styleClass="articleCheckbox articleCheckboxWithImage"/></c:otherwise></c:choose>
+    <c:otherwise><h:checkbox name="selectedArticle" value="${art.articleid}" styleClass="articleCheckbox articleCheckboxWithImage"/></c:otherwise></c:choose>
     <button type="submit" name="editarticle" value="${art.articleid}">Edit</button>&nbsp;
     <t:articleUrl article="${art}"/>&nbsp;<c:if test="${art.sectionid.name != ' '}">under ${art.sectionid.name},&nbsp;</c:if>
     <h:time datetime="${art.posted}" pattern="EEE MM/dd/yy h:mm a"/>&nbsp;
