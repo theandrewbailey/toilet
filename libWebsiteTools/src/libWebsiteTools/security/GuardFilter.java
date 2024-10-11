@@ -152,7 +152,7 @@ public class GuardFilter implements Filter {
                 }
             }
             if (res.getStatus() >= 400 && req.getAttribute(HANDLED_ERROR) == null) {
-                beans.getError().logException(req, null, null, null);
+                beans.getError().logException(req, null, "HTTP " + res.getStatus(), null);
             }
             res.flushBuffer();
         } catch (IOException | ServletException x) {

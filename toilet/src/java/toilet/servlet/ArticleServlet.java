@@ -101,6 +101,7 @@ public class ArticleServlet extends ToiletServlet {
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null != art && !response.isCommitted()) {
             ToiletBeanAccess beans = allBeans.getInstance(request);
+            List<Locale> resolvedLocales = Local.resolveLocales(beans.getImead(), request);
             Collection<Article> seeAlso = getArticleSuggestions(beans.getArts(), art);
             request.setAttribute("seeAlso", seeAlso);
             request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art));
@@ -111,18 +112,21 @@ public class ArticleServlet extends ToiletServlet {
             request.setAttribute(Article.class.getSimpleName(), art);
             request.setAttribute("title", art.getArticletitle());
             request.setAttribute("articleCategory", art.getSectionid().getName());
+            String commentCount = " " + (1 == art.getCommentCollection().size()
+                    ? ("1 " + beans.getImead().getLocal("page_comment", resolvedLocales) + ".")
+                    : (art.getCommentCollection().size() + " " + beans.getImead().getLocal("page_comments", resolvedLocales) + "."));
+            request.setAttribute("commentCount", commentCount);
             if (art.getComments()) {
                 request.setAttribute("commentForm", getCommentFormUrl(art, (Locale) request.getAttribute(Local.OVERRIDE_LOCALE_PARAM)));
                 String format = FeedBucket.TIME_FORMAT;
                 try {
-                    format = beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, Local.resolveLocales(beans.getImead(), request));
+                    format = beans.getImead().getLocal(HtmlTime.SITE_DATEFORMAT_LONG, resolvedLocales);
                 } catch (LocalizedStringNotFoundException x) {
                 }
                 DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern(format);
                 String postedDate = timeFormat.format(art.getPosted().toZonedDateTime());
-                String footer = MessageFormat.format(beans.getImead().getLocal("page_articleFooter", Local.resolveLocales(beans.getImead(), request)),
-                        new Object[]{postedDate, art.getSectionid().getName()})
-                        + (1 == art.getCommentCollection().size() ? "1 comment." : art.getCommentCollection().size() + " comments.");
+                String footer = MessageFormat.format(beans.getImead().getLocal("page_articleFooter", resolvedLocales),
+                        new Object[]{postedDate, art.getSectionid().getName()}) + commentCount;
                 request.setAttribute("commentFormTitle", footer);
             }
             HtmlMeta.addNameTag(request, "description", art.getDescription());
@@ -135,7 +139,7 @@ public class ArticleServlet extends ToiletServlet {
             if (null != art.getDescription()) {
                 HtmlMeta.addPropertyTag(request, "og:description", art.getDescription());
             }
-            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, Local.resolveLocales(beans.getImead(), request)));
+            HtmlMeta.addPropertyTag(request, "og:site_name", beans.getImead().getLocal(ToiletServlet.SITE_TITLE, resolvedLocales));
             HtmlMeta.addPropertyTag(request, "og:type", "article");
             HtmlMeta.addPropertyTag(request, "og:article:published_time", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getPosted().toZonedDateTime()));
             HtmlMeta.addPropertyTag(request, "og:article:modified_time", DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getModified().toZonedDateTime()));
@@ -152,7 +156,7 @@ public class ArticleServlet extends ToiletServlet {
                 HtmlMeta.addLDJSON(request, article.build().toString());
             }
             JsonArrayBuilder itemList = Json.createArrayBuilder();
-            itemList.add(HtmlMeta.getLDBreadcrumb(beans.getImead().getLocal("page_title", Local.resolveLocales(beans.getImead(), request)), 1, request.getAttribute(SecurityRepo.BASE_URL).toString()));
+            itemList.add(HtmlMeta.getLDBreadcrumb(beans.getImead().getLocal("page_title", resolvedLocales), 1, request.getAttribute(SecurityRepo.BASE_URL).toString()));
             itemList.add(HtmlMeta.getLDBreadcrumb(art.getSectionid().getName(), 2, Categorizer.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art.getSectionid().getName(), null)));
             itemList.add(HtmlMeta.getLDBreadcrumb(art.getArticletitle(), 3, ArticleUrl.getUrl(beans.getImeadValue(SecurityRepo.BASE_URL), art, null)));
             JsonObjectBuilder breadcrumbs = Json.createObjectBuilder().add("@context", "https://schema.org").add("@type", "BreadcrumbList").add("itemListElement", itemList);
@@ -249,9 +253,8 @@ public class ArticleServlet extends ToiletServlet {
                 request.getSession().setAttribute("LastPostedName", postName);
                 doGet(request, response);
                 break;
-            case "article":     // created or edited article
-                if (!AdminLoginServlet.ADD_ARTICLE.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))
-                        && !AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+            case "article":     // added or edited article
+                if (!AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
                     break;
                 }

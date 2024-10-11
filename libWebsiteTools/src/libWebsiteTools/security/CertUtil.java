@@ -34,6 +34,7 @@ import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import javax.security.auth.x500.X500Principal;
 import jakarta.ws.rs.core.MultivaluedHashMap;
+import java.util.HexFormat;
 import libWebsiteTools.JVMNotSupportedError;
 
 /**
@@ -304,7 +305,8 @@ public class CertUtil {
             fields.put("Expires", certificate.getNotAfter().toString());
             LdapName issuer = new LdapName(certificate.getIssuerX500Principal().getName("RFC2253"));
             //fields.put("Key (" + certificate.getPublicKey().getAlgorithm() + ")", insertChars(HashUtil.getHex(certificate.getPublicKey().getEncoded()), ' '));
-            fields.put("Fingerprint", HashUtil.getHex(HashUtil.getSHA256().digest(certificate.getEncoded())).toLowerCase());
+            //fields.put("Fingerprint", HashUtil.getHex(HashUtil.getSHA256().digest(certificate.getEncoded())).toLowerCase());
+            fields.put("Fingerprint", HexFormat.of().withLowerCase().formatHex(HashUtil.getSHA256().digest(certificate.getEncoded())));
             fields.put("Pin", getCertificatePinSHA256(certificate));
             if (hasSCT(certificate)) {
                 fields.put("SCT", "present");

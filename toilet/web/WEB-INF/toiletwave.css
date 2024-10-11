@@ -37,9 +37,6 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
 }body>header{
   text-align: center;
   text-transform: full-width;
-}body>header>h1>a:after{
-  content: " トイレ周波美学";
-  margin-left: -1px;
 }p,pre,li,.pagenation{
   margin: 0.0rem 0.0rem 1.3rem 0.0rem;
 }img{

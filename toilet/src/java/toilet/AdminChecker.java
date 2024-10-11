@@ -27,7 +27,7 @@ import toilet.servlet.AdminLoginServlet;
  */
 @WebFilter(filterName = "AdminChecker", description = "makes sure that you are logged in to do admin duties",
         dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.INCLUDE},
-        urlPatterns = {"/adminLogin", "/adminContent", "/adminArticle", "/adminSession", "/adminHealth", "/adminImead", "/adminImport", "/rss/" + ErrorRss.NAME})
+        urlPatterns = {"/adminLogin", "/adminContent", "/adminArticle", "/adminSession", "/adminHealth", "/adminImead", "/adminImport", "/adminExport", "/rss/" + ErrorRss.NAME})
 public class AdminChecker implements Filter {
 
     @EJB

@@ -20,7 +20,7 @@ public class AdminDingus extends ToiletServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (AdminLoginServlet.DINGUS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        if (AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
             String markdown = AbstractInput.getParameter(request, "postedmarkdown");
             if (null != markdown) {
                 Article art = new Article();

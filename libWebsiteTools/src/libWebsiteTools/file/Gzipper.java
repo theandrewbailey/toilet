@@ -55,7 +55,7 @@ public class Gzipper extends FileCompressorJob {
                 tempfile.delete();
             }
         }
-        if (null != compressedData) {
+        if (null != compressedData && compressedData.length > 0) {
             synchronized (FileCompressorJob.POTATO) {
                 Fileupload activeFile = beans.getFile().get(file.getFilename());
                 activeFile.setGzipdata(compressedData);

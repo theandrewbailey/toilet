@@ -258,7 +258,10 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
         if (null == error) {
             error = new SecurityRepo(toiletPU, getImead());
             try {
-                error.getCerts().verifyCertificate(getImeadValue(GuardFilter.CERTIFICATE_NAME));
+                String certName = getImeadValue(GuardFilter.CERTIFICATE_NAME);
+                if (null != certName && !certName.isBlank()) {
+                    error.getCerts().verifyCertificate(certName);
+                }
             } catch (RuntimeException rx) {
                 error.logException(null, "High security not available: " + rx.getMessage(), null, rx);
             }

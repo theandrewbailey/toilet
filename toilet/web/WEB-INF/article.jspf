@@ -3,8 +3,7 @@
 <header><h1 id="article${Article.articleid}" data-href="<t:articleUrl article='${Article}' link='false'/>">${Article.articletitle}</h1></header>
 <c:out escapeXml="false" value="${Article.postedhtml}"/>
 <footer class="articleFooter reset"><h:local key="page_articleFooter"><h:param><h:time datetime="${Article.posted}" /></h:param>
-    <h:param><t:categorizer category="${Article.sectionid.name}"><a href="${_cate_url}" target="_parent">${_cate_group}</a></t:categorizer></h:param></h:local>
-    <c:if test="${Article.comments || fn:length(Article.commentCollection) > 0}">${" "}${fn:length(Article.commentCollection)} <span class="count">${fn:length(Article.commentCollection) == 1 ? ' complaint.' : ' complaints.'}</span></c:if>
+    <h:param><t:categorizer category="${Article.sectionid.name}"><a href="${_cate_url}" target="_parent">${_cate_group}</a></t:categorizer></h:param></h:local>${commentCount}
 </footer></article>
 <c:choose><c:when test="${null == commentForm}"><section id="comments"><c:forEach items="${Article.commentCollection}" var="comm" varStatus="status"><c:if test="${status.last}"><span id="last"></span></c:if>
 <article class="comment" id="${comm.commentid}"><c:out escapeXml="false" value="${comm.postedhtml}"/>

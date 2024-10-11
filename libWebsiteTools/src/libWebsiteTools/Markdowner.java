@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.logging.Logger;
 import org.commonmark.Extension;
 import org.commonmark.ext.autolink.AutolinkExtension;
+import org.commonmark.ext.footnotes.FootnotesExtension;
 import org.commonmark.ext.front.matter.YamlFrontMatterExtension;
 import org.commonmark.ext.gfm.strikethrough.StrikethroughExtension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
@@ -24,6 +25,7 @@ public class Markdowner {
     private static final Logger LOG = Logger.getLogger(Markdowner.class.getName());
     private static final List<Extension> COMMONMARK_EXTENSIONS = List.of(
             AutolinkExtension.create(),
+            FootnotesExtension.create(),
             YamlFrontMatterExtension.create(),
             StrikethroughExtension.create(),
             TablesExtension.create(),

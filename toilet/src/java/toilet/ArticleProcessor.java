@@ -7,9 +7,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.URLDecoder;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -125,10 +123,8 @@ public class ArticleProcessor implements Callable<Article> {
                         List<Fileupload> files = beans.getFile().search(name);
                         for (String mime : beans.getImeadValue(FORMAT_PRIORITY).replaceAll("\r", "").split("\n")) {
                             List<String> srcset = new ArrayList<>();
-                            Deque<Integer> widths = new LinkedList<>();
-                            List<String> sizes = new ArrayList<>();
                             Map<String, String> attribs = new HashMap<>();
-                            files.stream().filter((file) -> {
+                            files.stream().filter((Fileupload file) -> {
                                 if (mime.equals(file.getMimetype())) {
                                     Matcher sorter = IMG_MULTIPLIER.matcher(file.getFilename());
                                     if (sorter.find()) {
@@ -136,22 +132,22 @@ public class ArticleProcessor implements Callable<Article> {
                                     }
                                 }
                                 return false;
-                            }).sorted((file1, file2) -> {
+                            }).sorted((Fileupload file1, Fileupload file2) -> {
                                 BigDecimal x1 = getImageMultiplier(file1.getFilename());
                                 BigDecimal x2 = getImageMultiplier(file2.getFilename());
                                 return x1.subtract(x2).multiply(new BigDecimal(1000)).intValue();
-                            }).forEach((file) -> {
+                            }).forEach((Fileupload file) -> {
                                 BigDecimal width = UtilStatic.parseDecimal(origAttribs.get("width"), BigDecimal.ZERO);
                                 try {
                                     attribs.put("type", file.getMimetype());
                                     BigDecimal multiplier = getImageMultiplier(file.getFilename());
                                     if (0 != width.intValue()) {
+                                        // optimized for theandrewbailey.com and Google Pagespeed Insights
                                         int wvalue = Double.valueOf(Math.floor(width.multiply(multiplier).doubleValue() * 1.41)).intValue();
                                         if (1920 < wvalue) {
-                                            wvalue = Double.valueOf(Math.max(width.multiply(multiplier).doubleValue(), 1920)).intValue();
+                                            wvalue = Double.valueOf(Math.max(width.multiply(multiplier).doubleValue(), 1921)).intValue();
                                         }
                                         srcset.add(file.getUrl() + " " + wvalue + "w");
-                                        widths.add(wvalue);
                                     } else {
                                         srcset.add(file.getUrl() + " " + multiplier + "x");
                                     }
@@ -159,30 +155,10 @@ public class ArticleProcessor implements Callable<Article> {
                                     srcset.add(file.getUrl() + (0 != width.intValue() ? " " + width + "w" : " 1x"));
                                 }
                             });
-                            if (1 < widths.size()) {
-                                Integer lastSize = null;
-                                while (!widths.isEmpty()) {
-                                    Integer thisSize = widths.poll();
-                                    Integer nextSize = widths.peek();
-                                    if (sizes.isEmpty()) {
-                                        sizes.add(String.format("((min-width: 0px) and (max-width: %spx)) %spx", ((nextSize + thisSize) / 2) + 2, thisSize));
-                                        lastSize = thisSize;
-                                    } else if (null != nextSize) {
-                                        sizes.add(String.format("((min-width: %spx) and (max-width: %spx)) %spx", ((lastSize + thisSize) / 2) + 3, ((nextSize + thisSize) / 2) + 2, thisSize));
-                                        lastSize = thisSize;
-                                    } else {
-                                        sizes.add(String.format("(min-width: %spx) %spx", ((lastSize + thisSize) / 2) + 3, thisSize));
-                                    }
-                                }
-                            }
                             if (!srcset.isEmpty()) {
                                 attribs.clear();
                                 attribs.put("type", mime);
                                 attribs.put("srcset", String.join(", ", srcset));
-                                if (!sizes.isEmpty()) {
-                                    //attribs.put("sizes", String.join(", ", sizes));
-                                }
-                                //attribs.put("sizes","(max-width: 1200px) 100%, (min-width: 1201px) 1160px");
                                 pictureTag.append(createTag("source", attribs).append("/>"));
                             }
                         }

@@ -6,11 +6,11 @@
     </ul></nav><h:localVar key="page_patternMismatch" var="patternMismatch"/><h:localVar key="page_valueMissing" var="valueMissing"/>
     <form class="search" action="search" method="GET" accept-charset="UTF-8">
         <input type="search" name="searchTerm" size="20" required="required" data-valuemissing="${valueMissing}" data-patternmismatch="${patternMismatch}" aria-label="Search" autocomplete="off"/>
-        <input type="submit" value="Search"/>
+        <button class="search" type="submit"><h:local key="page_search" /></button>
     </form>
-    <t:sentence><a href="spruce" class="spruceBox"><span class="spruceQuote">${spruce_sentence}</span>
+    <%--<t:sentence><a href="spruce" class="spruceBox"><span class="spruceQuote">${spruce_sentence}</span>
     <div class="spruceName"><h:local key="spruce_name" locale=""/></div>
-    <h:local key="page_spruceLink"/></a></t:sentence>
+    <h:local key="page_spruceLink"/></a></t:sentence>--%>
     <%@ include file="/WEB-INF/recent.jspf" %>
     <div class="side_bottom"><h:local key="page_sideBottom"/></div>
 </aside>

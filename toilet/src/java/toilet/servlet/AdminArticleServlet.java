@@ -40,7 +40,13 @@ public class AdminArticleServlet extends ToiletServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        if (AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+            ToiletBeanAccess beans = allBeans.getInstance(request);
+            Article art = new Article();
+            AdminArticleServlet.displayArticleEdit(beans, request, response, art);
+        } else {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        }
     }
 
     @Override

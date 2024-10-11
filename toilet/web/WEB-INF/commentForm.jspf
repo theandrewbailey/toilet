@@ -1,14 +1,14 @@
 <%@ page trimDirectiveWhitespaces="true" %>
 <c:choose><c:when test="${Article.comments && spamSuspected}">
     <form action="${commentForm}" class="commentForm noPrint" method="get" accept-charset="UTF-8">
-        <h:localVar key="page_commentOpen" /><input type="submit" name="iframe" value="${page_commentOpen}"/>
+        <h:localVar key="page_commentOpen" /><button type="submit" name="iframe" value="${page_commentOpen}">${page_commentOpen}</button>
     </form>
 </c:when><c:when test="${Article.comments && !spamSuspected}">
 <form action="${commentForm}" class="commentForm noPrint" method="post" accept-charset="UTF-8"><fieldset>
     <legend><h:local key="page_commentLegend" /></legend><h:localVar key="page_patternMismatch" var="patternMismatch" /><h:localVar key="page_valueMissing" var="valueMissing" />
     <h:localVar key="page_commentName" /><h:textbox name="name" label="${page_commentName}" maxLength="30" value="${sessionScope.LastPostedName}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" inputMode="latin-name" autocomplete="name" /><br/>
     <h:localVar key="page_commentText" /><h:textarea name="text" label="${page_commentText}" styleClass="comment" height="10" value="${commentText}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" /><br/>
-    <h:localVar key="page_commentSubmit" /><input type="submit" value="${page_commentSubmit}"/>
+    <h:localVar key="page_commentSubmit" /><button type="submit" value="${page_commentSubmit}">${page_commentSubmit}</button>
     <h:hidden name="submit-type" value="comment" />
     <h:hidden name="original-request-time" value="${$_LIBWEBSITETOOLS_REQUEST_START_TIME.toInstant().toEpochMilli()}" />
 </fieldset></form><br/></c:when>

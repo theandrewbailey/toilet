@@ -3,7 +3,7 @@
 <c:if test="${ERROR_MESSAGE != null}"><p class="error">${ERROR_MESSAGE}</p></c:if>
 <form action="adminDingus" method="post" class="adminform adminAddArticle" accept-charset="UTF-8">
     <h:textarea name="postedmarkdown" length="100" height="20" label="Commonmark formatted markdown:" styleClass="articleText" value="${Article.postedmarkdown}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" pattern=".*" /><br/>
-    <button type="submit" name="action" value="Preview">Preview</button>
+    <button type="submit" name="action" value="Preview"><h:local key="page_preview"/></button>
 </form>
 <br/>
 <c:if test="${null != Article}"><div><main><article class="article${Article.articleid}">

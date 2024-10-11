@@ -64,6 +64,7 @@ public class FileUtil {
 
     public static byte[] runProcess(String command, byte[] stdin, int expectedOutputSize) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream(expectedOutputSize);
+                ByteArrayOutputStream error = new ByteArrayOutputStream(4000);
         Process encoder = Runtime.getRuntime().exec(command);
         if (null != stdin) {
             try (OutputStream out = encoder.getOutputStream()) {
@@ -74,16 +75,23 @@ public class FileUtil {
         while (true) {
             try {
                 try (InputStream input = encoder.getInputStream()) {
-                    byte content[] = new byte[65536];
+                    byte content[] = new byte[expectedOutputSize];
                     int readCount = 0;
                     while (-1 != (readCount = input.read(content))) {
                         output.write(content, 0, readCount);
                     }
                 }
+                try (InputStream input = encoder.getErrorStream()) {
+                    byte content[] = new byte[4000];
+                    int readCount = 0;
+                    while (-1 != (readCount = input.read(content))) {
+                        error.write(content, 0, readCount);
+                    }
+                }
                 int exitcode = encoder.waitFor();
                 if (exitcode == 0) {
                 } else {
-                    LOG.log(Level.WARNING, "Command exited with {0}:\n{1}", new Object[]{exitcode, new String(output.toByteArray())});
+                    LOG.log(Level.WARNING, "Command exited with {0}:\n{1}", new Object[]{exitcode, new String(error.toByteArray())});
                 }
                 break;
             } catch (InterruptedException | IOException ix) {

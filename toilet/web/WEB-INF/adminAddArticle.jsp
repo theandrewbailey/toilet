@@ -12,8 +12,8 @@
     <h:textbox name="suggestion" label="Suggestion search term: " maxLength="250" size="43" labelNextLine="false" value="${Article.suggestion}" patternMismatch="${patternMismatch}" placeholder="${defaultSearchTerm}" /><br/>
     <h:checkbox name="comments" label="Commentable" checked="${Article.comments}" /><br/>
     <h:textarea name="postedmarkdown" length="100" height="20" label="Text (>64000):" styleClass="articleText" value="${Article.postedmarkdown}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" /><br/>
-    <button type="submit" name="action" value="Preview">Preview</button>
-    <button type="submit" name="action" value="Add Article">Add Article</button>
+    <button type="submit" name="action" value="Preview"><h:local key="page_preview"/></button>
+    <button type="submit" name="action" value="Add Article"><h:local key="page_articleAdd"/></button>
     <h:hidden name="submit-type" value="article" />
 </form>
 <br/>

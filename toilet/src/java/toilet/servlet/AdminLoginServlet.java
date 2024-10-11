@@ -12,33 +12,29 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.GuardFilter;
-import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.IMEADHolder;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.AllBeanAccess;
 import toilet.IndexFetcher;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
-import toilet.rss.ErrorRss;
 
 @WebServlet(name = "AdminLoginServlet", description = "Populates admin view JSPs", urlPatterns = {"/adminLogin", "/edit/*"})
 public class AdminLoginServlet extends ToiletServlet {
 
-    public static final String ADD_ARTICLE = "admin_addArticle";
     public static final String FILES = "admin_files";
     public static final String EDIT_POSTS = "admin_editPosts";
-    public static final String DINGUS = "admin_dingus";
-    public static final String ERROR_LOG = "admin_errorLog";
     public static final String HEALTH = "admin_health";
     public static final String IMEAD = "admin_imead";
-    public static final String RELOAD = "admin_reload";
-    public static final List<String> SCOPES = List.of(ADD_ARTICLE, FILES, EDIT_POSTS, DINGUS, ERROR_LOG, HEALTH, IMEAD, RELOAD);
+    public static final String IMPORT_EXPORT = "admin_importExport";
+    public static final List<String> SCOPES = List.of(FILES, EDIT_POSTS, HEALTH, IMEAD, IMPORT_EXPORT);
     public static final String PERMISSION = "$_ADMIN_LOGIN_SERVLET_PERMISSION";
     public static final String HEALTH_COMMANDS = "site_healthCommands";
     public static final String ADMIN_ADD_ARTICLE = "/WEB-INF/adminAddArticle.jsp";
     public static final String ADMIN_CONTENT = "/WEB-INF/adminFile.jsp";
     public static final String ADMIN_DINGUS = "/WEB-INF/adminDingus.jsp";
-    public static final String ADMIN_IMPORT = "/WEB-INF/adminImport.jsp";
+    public static final String ADMIN_IMPORT_EXPORT = "/WEB-INF/adminImportExport.jsp";
     public static final String ADMIN_HEALTH = "/WEB-INF/adminHealth.jsp";
     public static final String ADMIN_EDIT_POSTS = "/WEB-INF/adminEditPosts.jsp";
     public static final String ADMIN_LOGIN_PAGE = "/WEB-INF/adminLogin.jsp";
@@ -64,36 +60,19 @@ public class AdminLoginServlet extends ToiletServlet {
                 throw new IllegalArgumentException("No answer!");
             }
             switch (getScope(beans, answer)) {
-                case ERROR_LOG:
-                    request.getSession().setAttribute(PERMISSION, ERROR_LOG);
-                    response.sendRedirect(beans.getImeadValue(SecurityRepo.BASE_URL) + "rss/" + ErrorRss.NAME);
-                    return;
                 case EDIT_POSTS:
                     request.getSession().setAttribute(PERMISSION, EDIT_POSTS);
-                    AdminArticleServlet.showList(request, response, beans.getArts().getAll(null));
-                    return;
-                case DINGUS:
-                    request.getSession().setAttribute(PERMISSION, DINGUS);
-                    request.getRequestDispatcher("/adminDingus").forward(request, response);
-                    return;
-                case ADD_ARTICLE:
-                    request.getSession().setAttribute(PERMISSION, ADD_ARTICLE);
-                    Article art = (Article) request.getSession().getAttribute(Article.class.getSimpleName());
-                    if (null == art) {
-                        art = new Article();
+                    List<Article> articles = beans.getArts().getAll(null);
+                    if (articles.isEmpty()) {
+                        response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString() + "adminArticle");
+                    } else {
+                        AdminArticleServlet.showList(request, response, articles);
                     }
-                    AdminArticleServlet.displayArticleEdit(beans, request, response, art);
                     return;
+
                 case FILES:
                     request.getSession().setAttribute(AdminLoginServlet.PERMISSION, FILES);
                     AdminFileServlet.showFileList(request, response, beans.getFile().getFileMetadata(null));
-                    return;
-                case RELOAD:
-                    beans.reset();
-                    beans.getExec().submit(beans.getBackup());
-                    request.getSession().invalidate();
-                    request.getSession(true);
-                    response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
                     return;
                 case HEALTH:
                     request.getSession().setAttribute(PERMISSION, HEALTH);
@@ -102,6 +81,10 @@ public class AdminLoginServlet extends ToiletServlet {
                 case IMEAD:
                     request.getSession().setAttribute(PERMISSION, IMEAD);
                     request.getRequestDispatcher("/adminImead").forward(request, response);
+                    return;
+                case IMPORT_EXPORT:
+                    request.getSession().setAttribute(PERMISSION, IMPORT_EXPORT);
+                    request.getRequestDispatcher("/adminImport").forward(request, response);
                     return;
                 default:
                     beans.getError().logException(request, "Bad Login", "Tried to access restricted area. Login not recognized: " + answer, null);

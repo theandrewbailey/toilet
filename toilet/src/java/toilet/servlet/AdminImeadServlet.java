@@ -54,6 +54,7 @@ public class AdminImeadServlet extends ToiletServlet {
         loadProperties(beans);
         if (beans.isFirstTime()) {
             request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.IMEAD);
+            request.getSession().setAttribute(AbstractInput.DISABLE_FIELDNAME_OBFUSCATION, AbstractInput.DISABLE_FIELDNAME_OBFUSCATION);
             if (null == beans.getImeadValue(SecurityRepo.BASE_URL)) {
                 String canonicalRoot = AbstractInput.getTokenURL(request);
                 if (!canonicalRoot.endsWith("/")) {
@@ -64,7 +65,6 @@ public class AdminImeadServlet extends ToiletServlet {
                 if (originMatcher.matches()) {
                     String currentReg = originMatcher.group(2).replace(".", "\\.");
                     locals.add(new Localization("", SecurityRepo.ALLOWED_ORIGINS, String.format(ALLOWED_ORIGINS_TEMPLATE, currentReg)));
-                    //locals.add(new Localization("", OdysseyFilter.CERTIFICATE_NAME, ""));
                     locals.add(new Localization("", JspFilter.CONTENT_SECURITY_POLICY, String.format(CSP_TEMPLATE, canonicalRoot)));
                     locals.add(new Localization("", SecurityRepo.BASE_URL, canonicalRoot));
                 }
@@ -89,6 +89,7 @@ public class AdminImeadServlet extends ToiletServlet {
         }
         ToiletBeanAccess beans = allBeans.getInstance(request);
         loadProperties(beans);
+        boolean initialFirstTime = beans.isFirstTime();
         // save things
         String action = AbstractInput.getParameter(request, "action");
         if (null == action) {
@@ -126,7 +127,11 @@ public class AdminImeadServlet extends ToiletServlet {
             beans.getImead().delete(new LocalizationPK(params[2], params[1]));
             beans.getGlobalCache().clear();
         }
-        showProperties(beans, request, response);
+        if (initialFirstTime && !beans.isFirstTime()) {
+            response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
+        } else {
+            showProperties(beans, request, response);
+        }
     }
 
     private static class LocalizationRetriever implements Iterable<Localization>, Iterator<Localization> {
@@ -238,7 +243,7 @@ public class AdminImeadServlet extends ToiletServlet {
         Properties IMEAD = getProperties(c.getResourceAsStream(filename));
         for (Map.Entry<Object, Object> property : IMEAD.entrySet()) {
             try {
-                beans.getImead().getLocal(property.getKey().toString(), locale.toLanguageTag());
+                beans.getImead().getLocal(property.getKey().toString(), locale.toLanguageTag()).toString();
             } catch (RuntimeException r) {
                 locals.add(new Localization(locale.toString(), property.getKey().toString(), property.getValue().toString()));
             }

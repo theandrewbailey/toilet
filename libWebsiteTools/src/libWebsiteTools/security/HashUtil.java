@@ -1,11 +1,10 @@
 package libWebsiteTools.security;
 
-import at.gadermaier.argon2.Argon2;
+import com.password4j.Password;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
@@ -19,21 +18,6 @@ import libWebsiteTools.JVMNotSupportedError;
 public abstract class HashUtil {
 
     public static final Pattern ARGON2_ENCODING_PATTERN = Pattern.compile("^\\$(?<type>\\w*?)\\$v=(?<v>\\d*?)\\$m=(?<m>\\d*?),t=(?<t>\\d*?),p=(?<p>\\d*?)\\$(?<salt>[A-Za-z0-9\\+\\/\\=]*?)\\$(?<hash>[A-Za-z0-9\\+\\/\\=]*?)$");
-    /**
-     *
-     * @param bytes to convert to hexadecimal
-     * @return string of hexadecimal
-     */
-    public static String getHex(byte[] bytes) {
-        char[] hexArray = "0123456789ABCDEF".toCharArray();
-        char[] hexChars = new char[bytes.length * 2];
-        for (int j = 0; j < bytes.length; j++) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
-    }
 
     /**
      * @return SHA-256 MessageDigest
@@ -98,9 +82,10 @@ public abstract class HashUtil {
      */
     public static String getArgon2Hash(String password) {
         try {
-            byte[] salt = new byte[16];
-            new SecureRandom().nextBytes(salt);
-            return Argon2.create().hash(password.getBytes("UTF-8"), salt).asEncoded();
+            //byte[] salt = new byte[16];
+            //new SecureRandom().nextBytes(salt);
+            //return Argon2.create().hash(password.getBytes("UTF-8"), salt).asEncoded();
+            return Password.hash(password.getBytes("UTF-8")).addRandomSalt(64).withArgon2().getResult();
         } catch (UnsupportedEncodingException ex) {
             throw new JVMNotSupportedError(ex);
         }
@@ -115,6 +100,7 @@ public abstract class HashUtil {
      * @see HashUtil.getArgon2Hash
      */
     public static boolean verifyArgon2Hash(String encoded, String password) {
-        return Argon2.checkHash(encoded, password);
+        return Password.check(password, encoded).withArgon2();
+        //return Argon2.checkHash(encoded, password);
     }
 }
