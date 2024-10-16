@@ -9,17 +9,17 @@ import jakarta.json.JsonReader;
 import jakarta.json.JsonValue;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.BaseServlet;
 
 /**
  *
  * @author alpha
  */
 @WebServlet(name = "CSP Reporter", description = "Receives and logs Content Security Policy reports", urlPatterns = {"/report"})
-public class CSPReporter extends HttpServlet {
+public class CSPReporter extends BaseServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -41,35 +41,5 @@ public class CSPReporter extends HttpServlet {
         }
         AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         beans.getError().logException(null, "Content Security Policy violation", report.toString(), null);
-    }
-
-    @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doHead(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doTrace(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     }
 }

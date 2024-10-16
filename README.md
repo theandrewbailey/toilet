@@ -40,11 +40,12 @@ Security is important!
 (Having trouble? Open an issue on this repository.)
 
 1. Download `toilet.war` release and [`setupUsTheBlog.sh`](https://github.com/theandrewbailey/toilet/blob/master/setupUsTheBlog.sh) from the repository. Run `setupUsTheBlog.sh`.
-	1. This script will create will create a directory, `toilet`, in your home directory and dump most stuff there. (Feel free to create it yourself and put the war and script there.) Payara will be extracted to your home directory under `payara6`.
+	1. This script will create will create a directory, `~/toilet`, and dump most stuff there. (Feel free to create it yourself and put the war and script there.) Payara will be extracted to `~/payara6`.
 	1. This script will build zopfli and brotli, setup a Postgres database, download Payara, setup a domain on Payara (and slightly optimize it), and deploy `toilet.war`.
 	1. The last 7 or so lines are important. Save them somewhere.
 1. Setup Toilet.
-	1. Go to the toilet homepage. The script will let you know the URL (both http and https), like http://localhost:22980
+	1. Go to the toilet homepage. The script will let you know the URL, like https://localhost:22981
+		* The HTTPS certificate is self signed. It's OK to ignore that error.
 		* You should see a configuration page with lots of text boxes.
 	1. If you have a backup, upload it at the bottom of the page at "Not your first flush?", and skip the rest of this.
 	1. Set passwords for administrative tasks (YOU MUST CHANGE THESE):

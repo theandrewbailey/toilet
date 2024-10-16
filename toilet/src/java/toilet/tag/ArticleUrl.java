@@ -3,7 +3,6 @@ package toilet.tag;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.Locale;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.jsp.JspException;
 import jakarta.servlet.jsp.PageContext;
@@ -24,8 +23,7 @@ public class ArticleUrl extends SimpleTagSupport {
 
     @Override
     public void doTag() throws JspException, IOException {
-        HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
-        StringBuilder b = new StringBuilder(200);
+        StringBuilder b = new StringBuilder(300);
         if (link) {
             b.append("<a href=\"");
         }

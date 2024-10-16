@@ -29,7 +29,7 @@ public class WellKnownServlet extends ToiletServlet {
                 break;
             default:
                 if (URL.contains("/.well-known/")) {
-                    request.getServletContext().getRequestDispatcher(URL.replaceFirst("/.well-known/", "/content/")).forward(request, response);
+                    request.getServletContext().getRequestDispatcher(URL.replaceFirst("/.well-known/", FileServlet.class.getAnnotation(WebServlet.class).urlPatterns()[0] + "/")).forward(request, response);
                 } else if (null != beans.getFile().get(URL.substring(1))) {
                     String next = "/file" + URL;
                     request.getServletContext().getRequestDispatcher(next).forward(request, response);

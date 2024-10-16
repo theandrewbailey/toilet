@@ -6,7 +6,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.transform.Transformer;
@@ -14,10 +13,11 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.BaseServlet;
 import org.w3c.dom.Document;
 
 @WebServlet(name = "Sitemap", description = "Provides a sitemap xml", urlPatterns = {"/sitemap.xml"})
-public class SitemapServlet extends HttpServlet {
+public class SitemapServlet extends BaseServlet {
 
     public static final String XML_JSP = "/XMLOut.jsp";
     private final TransformerFactory xFormFact = TransformerFactory.newInstance();

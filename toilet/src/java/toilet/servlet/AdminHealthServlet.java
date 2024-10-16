@@ -14,7 +14,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.ws.rs.core.HttpHeaders;
+import java.time.OffsetDateTime;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.imead.Local;
@@ -31,8 +31,16 @@ import toilet.rss.ErrorRss;
  *
  * @author alpha
  */
-@WebServlet(name = "AdminHealth", urlPatterns = {"/adminHealth"})
-public class AdminHealthServlet extends ToiletServlet {
+@WebServlet(name = "AdminHealth", description = "Show some vital stats about the server and blog", urlPatterns = {"/adminHealth"})
+public class AdminHealthServlet extends AdminServlet {
+
+    public static final String HEALTH_COMMANDS = "site_healthCommands";
+    public static final String ADMIN_HEALTH = "/WEB-INF/adminHealth.jsp";
+
+    @Override
+    public AdminServletPermission getRequiredPermission(HttpServletRequest req) {
+        return AdminServletPermission.HEALTH;
+    }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -54,14 +62,9 @@ public class AdminHealthServlet extends ToiletServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
-        if (!AdminLoginServlet.HEALTH.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
-            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic");
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
-        }
         request.setAttribute("processes", beans.getExec().submit(() -> {
             LinkedHashMap<String, Future< String>> processes = new LinkedHashMap<>();
-            for (String command : beans.getImeadValue(AdminLoginServlet.HEALTH_COMMANDS).split("\n")) {
+            for (String command : beans.getImeadValue(HEALTH_COMMANDS).split("\n")) {
                 processes.put(command, beans.getExec().submit(() -> {
                     try {
                         return new String(FileUtil.runProcess(command, null, 1000));
@@ -83,7 +86,7 @@ public class AdminHealthServlet extends ToiletServlet {
         }));
         request.setAttribute("cached", beans.getExec().submit(() -> {
             ArrayList<String> cached = new ArrayList<>();
-            cached.add(UtilStatic.htmlFormat("Total pages: " + beans.getGlobalCache().getTotalPages() + "\nTotal hits: " + beans.getGlobalCache().getTotalHits(), false, false, true));
+            cached.add(UtilStatic.htmlFormat("Total hits: " + beans.getGlobalCache().getTotalHits(), false, false, true));
             ArrayList<CachedPage> pages = new ArrayList<>(beans.getGlobalCache().getAll(null).values());
             Collections.sort(pages, (page, other) -> {
                 int difference = other.getHits() - page.getHits();
@@ -113,7 +116,10 @@ public class AdminHealthServlet extends ToiletServlet {
                 for (CertPath<X509Certificate> path : certPaths) {
                     for (X509Certificate x509 : path.getCertificates()) {
                         LinkedHashMap<String, String> cert = CertUtil.formatCert(x509);
+                        OffsetDateTime localNow = (OffsetDateTime) request.getAttribute(GuardFilter.TIME_PARAM);
+                        Long days = (x509.getNotAfter().getTime() - localNow.toInstant().toEpochMilli()) / 86400000;
                         if (null != cert) {
+                            cert.put("daysUntilExpiration", days.toString());
                             certInfo.put(x509, cert);
                         }
                     }
@@ -125,6 +131,6 @@ public class AdminHealthServlet extends ToiletServlet {
         }
         request.setAttribute("certInfo", certInfo);
         request.setAttribute("locales", Local.resolveLocales(beans.getImead(), request));
-        request.getRequestDispatcher(AdminLoginServlet.ADMIN_HEALTH).forward(request, response);
+        request.getRequestDispatcher(ADMIN_HEALTH).forward(request, response);
     }
 }

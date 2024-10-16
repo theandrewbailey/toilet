@@ -64,7 +64,7 @@ public class CommentServlet extends ToiletServlet {
                 art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
-                request.getServletContext().getRequestDispatcher("/coroner/30").forward(request, response);
+                request.getServletContext().getRequestDispatcher(CoronerServlet.class.getAnnotation(WebServlet.class).urlPatterns()[0] + "/30").forward(request, response);
                 return;
             }
         }

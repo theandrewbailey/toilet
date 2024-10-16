@@ -17,12 +17,12 @@ import java.util.regex.Pattern;
 import jakarta.ejb.EJBException;
 import jakarta.persistence.NoResultException;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.BaseServlet;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.tag.ResponseTag;
 import libWebsiteTools.security.SecurityRepo;
@@ -32,9 +32,8 @@ import libWebsiteTools.cache.CompressedOutput;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
-import libWebsiteTools.tag.AbstractInput;
 
-public abstract class BaseFileServlet extends HttpServlet {
+public abstract class BaseFileServlet extends BaseServlet {
 
     // 0b1111111111111111111111100000000 == 0x7fffff00 == 2,147,483,392 ms == 24 days, 20 hours 31 minutes 23.392 seconds exactly
     public static final long MAX_AGE_MILLISECONDS = 0b1111111111111111111111100000000;

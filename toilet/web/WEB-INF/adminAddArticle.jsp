@@ -2,7 +2,7 @@
 <%@ include file="/WEB-INF/head.jspf" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jstl/fmt_rt" %>
 <c:if test="${ERROR_MESSAGE != null}"><p class="error">${ERROR_MESSAGE}</p></c:if>
-<form action="article" method="post" class="adminform adminAddArticle" accept-charset="UTF-8">
+<form action="adminArticle" method="post" class="adminform adminAddArticle" accept-charset="UTF-8">
     <h:localVar key="page_patternMismatch" var="patternMismatch" /><h:localVar key="page_valueMissing" var="valueMissing" />
     <h:textbox name="section" label="Category: " labelNextLine="false" patternMismatch="${patternMismatch}" datalist="${groups}" value="${Article.sectionid.name}"/><br/>
     <h:textbox name="articletitle" label="Title: " maxLength="250" size="64" labelNextLine="false" value="${Article.articletitle}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" /><br/>

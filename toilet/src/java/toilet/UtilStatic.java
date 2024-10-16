@@ -35,7 +35,6 @@ public final class UtilStatic {
                 task.get();
             } catch (InterruptedException | ExecutionException ex) {
                 LOG.log(Level.SEVERE, "Tried to finish a bunch of jobs, but couldn't.", ex);
-                //libWebsiteTools.AllBeanAccess.getBean(SecurityRepo.LOCAL_NAME, SecurityRepo.class).logException(null, "Multithread Exception", "Tried to finish a bunch of jobs, but couldn't.", ex);
                 throw new RuntimeException(ex);
             }
         }

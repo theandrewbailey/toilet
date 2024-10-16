@@ -9,11 +9,11 @@
     <button type="submit" name="action" value="Markdown Dingus"><h:local key="page_markdown_dingus"/></button>
 </form>
 
-<form action="adminArticle" method="POST" class="adminform adminArticle" accept-charset="UTF-8"><c:forEach items="${articles}" var="art">
+<form action="adminPost" method="POST" class="adminform adminArticle" accept-charset="UTF-8"><c:forEach items="${articles}" var="art">
 <article class="adminform">
     <c:choose><c:when test="${null==art.imageurl}"><h:checkbox name="selectedArticle" label="" value="${art.articleid}" styleClass="articleCheckbox"/></c:when>
     <c:otherwise><h:checkbox name="selectedArticle" value="${art.articleid}" styleClass="articleCheckbox articleCheckboxWithImage"/></c:otherwise></c:choose>
-    <button type="submit" name="editarticle" value="${art.articleid}"><h:local key="page_edit"/></button>&nbsp;
+    <button type="submit" formmethod="GET" formaction="edit/${art.articleid}"><h:local key="page_edit"/></button>&nbsp;
     <t:articleUrl article="${art}"/>&nbsp;<c:if test="${art.sectionid.name != ' '}">under ${art.sectionid.name},&nbsp;</c:if>
     <h:time datetime="${art.posted}" pattern="EEE MM/dd/yy h:mm a"/>&nbsp;
     <c:if test="${0!=fn:length(art.commentCollection)}"><p class="secondmin" >

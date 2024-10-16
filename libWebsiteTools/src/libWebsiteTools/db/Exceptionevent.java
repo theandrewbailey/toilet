@@ -93,14 +93,6 @@ public class Exceptionevent implements Serializable {
         this.title = title;
     }
 
-/*    public Pagerequest getPagerequestid() {
-        return pagerequestid;
-    }
-
-    public void setPagerequestid(Pagerequest pagerequestid) {
-        this.pagerequestid = pagerequestid;
-    }*/
-
     @Override
     public int hashCode() {
         int hash = 0;
@@ -120,7 +112,7 @@ public class Exceptionevent implements Serializable {
 
     @Override
     public String toString() {
-        return "libOdyssey.db.Exceptionevent[ exceptioneventid=" + exceptioneventid + " ]";
+        return "libWebsiteTools.db.Exceptionevent[ exceptioneventid=" + exceptioneventid + " ]";
     }
 
 }

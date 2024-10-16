@@ -14,7 +14,7 @@ readonly databasePort="5432"
 readonly postgresJdbcJarVersion="42.7.4"
 readonly postgresJdbcJar="postgresql-${postgresJdbcJarVersion}.jar"
 
-readonly payaraVersion="6.2024.9"
+readonly payaraVersion="6.2024.10"
 readonly payaraDir="payara6"
 readonly payaraZip="payara-web-${payaraVersion}.zip"
 
@@ -261,6 +261,9 @@ function setupPayara(){
 	if [[ ! -d "$HOME/$payaraDir" ]]; then
 		cd "$HOME"
 		unzip -qq "$toiletDirectory/$payaraZip"
+		if [[ -d "$HOME/$payaraDir/glassfish/domains/domain1" ]]; then
+			rm -rf "$HOME/$payaraDir/glassfish/domains/domain1"
+		fi
 	fi
 
 	# copy postgres JDBC driver JAR into payara
@@ -345,16 +348,23 @@ setupDb
 setupPayara
 setupToilet
 
-echo ""
-echo -e "${r}SAVE THESE SOMEWHERE! These will be important later!$n"
-echo "Postgres username: $databaseRole"
-echo "Postgres password: $databasePass"
-echo "Payara username: $AS_ADMIN_USER"
-echo "Payara password: $payaraPass"
 if [ $development = False ] ; then
-	echo "Payara admin console is at https://$hostname:$AS_ADMIN_PORT"
-	echo "Blog homepage is at https://$hostname:$((portBase+81))"
+	summary="Postgres username: $databaseRole
+Postgres password: $databasePass
+Payara username: $AS_ADMIN_USER
+Payara password: $payaraPass
+Payara admin console is at https://$hostname:$AS_ADMIN_PORT
+Blog homepage is at https://$hostname:$((portBase+81))"
 else
-	echo "Payara admin console at http://$hostname:$AS_ADMIN_PORT"
+	summary="Postgres username: $databaseRole
+Postgres password: $databasePass
+Payara username: $AS_ADMIN_USER
+Payara password: $payaraPass
+Payara admin console is at http://$hostname:$AS_ADMIN_PORT"
 fi
 
+cd "$toiletDirectory"
+echo "$summary">passwords.txt
+echo -e "
+${r}SAVE THESE SOMEWHERE! These will be important later!$n"
+echo "$summary"

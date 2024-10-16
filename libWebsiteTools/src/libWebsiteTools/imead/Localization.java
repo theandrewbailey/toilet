@@ -77,7 +77,7 @@ public class Localization implements Serializable {
 
     @Override
     public String toString() {
-        return "libOdyssey.db.Localization[ localizationPK=" + localizationPK + " ]";
+        return "libWebsiteTools.imead.Localization[ localizationPK=" + localizationPK + " ]";
     }
 
 }

@@ -21,15 +21,26 @@ import toilet.bean.ToiletBeanAccess;
 
 @WebServlet(name = "AdminImportServlet", description = "Download the entire site as a zip. Insert articles, comments, and files via zip file upload", urlPatterns = {"/adminImport", "/adminExport"})
 @MultipartConfig(maxRequestSize = 999999999)
-public class AdminImportServlet extends ToiletServlet {
+public class AdminImportServlet extends AdminServlet {
+
+    public static final String ADMIN_IMPORT_EXPORT = "/WEB-INF/adminImportExport.jsp";
+
+    @Override
+    public AdminServletPermission getRequiredPermission(HttpServletRequest req) {
+        return AdminServletPermission.IMPORT_EXPORT;
+    }
+
+    @Override
+    public boolean isAuthorized(HttpServletRequest req) {
+        try {
+            return isAuthorized(req, AdminServletPermission.IMPORT_EXPORT);
+        } catch (IllegalArgumentException i) {
+            return allBeans.getInstance(req).isFirstTime(req);
+        }
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminLoginServlet.IMPORT_EXPORT.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
-            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic");
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
-        }
         ToiletBeanAccess beans = allBeans.getInstance(request);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=" + beans.getBackup().getZipName());
         response.setContentType("application/zip");
@@ -39,12 +50,6 @@ public class AdminImportServlet extends ToiletServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
-        if (beans.isFirstTime()) {
-            // this is OK
-        } else if (!AdminLoginServlet.IMPORT_EXPORT.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
-        }
         try {
             Part p = AbstractInput.getPart(request, "zip");
             InputStream i = p.getInputStream();
@@ -60,7 +65,7 @@ public class AdminImportServlet extends ToiletServlet {
             request.setAttribute(GuardFilter.HANDLED_ERROR, true);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         } catch (IllegalStateException sx) {
-            request.getRequestDispatcher(AdminLoginServlet.ADMIN_IMPORT_EXPORT).forward(request, response);
+            request.getRequestDispatcher(ADMIN_IMPORT_EXPORT).forward(request, response);
         }
     }
 }

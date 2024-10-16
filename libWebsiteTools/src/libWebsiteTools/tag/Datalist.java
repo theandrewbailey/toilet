@@ -22,6 +22,7 @@ public class Datalist extends SimpleTagSupport {
 
     /**
      * Creates a <datalist> with the specified ID and <option> nodes
+     *
      * @param id
      * @param options
      * @return datalist
@@ -37,7 +38,9 @@ public class Datalist extends SimpleTagSupport {
             }
         } else {
             for (Object option : options) {
-                out.append("<option value=\"").append(option.toString()).append("\">").append(option.toString()).append("</option>");
+                if (null != option) {
+                    out.append("<option value=\"").append(option.toString()).append("\">").append(option.toString()).append("</option>");
+                }
             }
         }
         return out.append("</datalist>").toString();

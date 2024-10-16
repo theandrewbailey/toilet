@@ -24,6 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.cache.JspFilter;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
+import static libWebsiteTools.file.BaseFileServlet.getImmutableURL;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.Local;
@@ -41,27 +42,40 @@ import toilet.db.Article;
  * @author alpha
  */
 @WebServlet(name = "AdminImead", description = "Edit IMEAD properties", urlPatterns = {"/adminImead"})
-public class AdminImeadServlet extends ToiletServlet {
+public class AdminImeadServlet extends AdminServlet {
 
+    public static final String INITIAL_PROPERTIES_FILE = "/WEB-INF/IMEAD.properties";
     public static final String ADMIN_IMEAD = "WEB-INF/adminImead.jsp";
     private static final String CSP_TEMPLATE = "default-src data: 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; report-uri %sreport";
     private static final String ALLOWED_ORIGINS_TEMPLATE = "%s\n^https?://(?:10\\.[0-9]{1,3}\\.|192\\.168\\.)[0-9]{1,3}\\.[0-9]{1,3}(?::[0-9]{1,5})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?google(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?googleusercontent(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?feedly\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?slack\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?bing\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yandex(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://images\\.rambler\\.ru(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yahoo(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?duckduckgo\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?baidu\\.com(?:$|/.*)";
     private static final Logger LOG = Logger.getLogger(AdminImeadServlet.class.getName());
 
     @Override
+    public AdminServletPermission getRequiredPermission(HttpServletRequest req) {
+        return AdminServletPermission.IMEAD;
+    }
+
+    @Override
+    public boolean isAuthorized(HttpServletRequest req) {
+        try {
+            return isAuthorized(req, AdminServletPermission.IMEAD);
+        } catch (IllegalArgumentException i) {
+            return allBeans.getInstance(req).isFirstTime(req);
+        }
+    }
+
+    @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
         loadProperties(beans);
-        if (beans.isFirstTime()) {
-            request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.IMEAD);
-            request.getSession().setAttribute(AbstractInput.DISABLE_FIELDNAME_OBFUSCATION, AbstractInput.DISABLE_FIELDNAME_OBFUSCATION);
+        if (beans.isFirstTime(request)) {
             if (null == beans.getImeadValue(SecurityRepo.BASE_URL)) {
+                ArrayList<Localization> locals = new ArrayList<>();
                 String canonicalRoot = AbstractInput.getTokenURL(request);
                 if (!canonicalRoot.endsWith("/")) {
                     canonicalRoot += "/";
                 }
                 Matcher originMatcher = SecurityRepo.ORIGIN_PATTERN.matcher(canonicalRoot);
-                ArrayList<Localization> locals = new ArrayList<>();
                 if (originMatcher.matches()) {
                     String currentReg = originMatcher.group(2).replace(".", "\\.");
                     locals.add(new Localization("", SecurityRepo.ALLOWED_ORIGINS, String.format(ALLOWED_ORIGINS_TEMPLATE, currentReg)));
@@ -69,27 +83,31 @@ public class AdminImeadServlet extends ToiletServlet {
                     locals.add(new Localization("", SecurityRepo.BASE_URL, canonicalRoot));
                 }
                 beans.getImead().upsert(locals);
+                beans.getImead().evict();
+                locals.clear();
+                beans.getArts().refreshSearch();
                 request.setAttribute(SecurityRepo.BASE_URL, canonicalRoot);
-                beans.getFile().processArchive((fileupload) -> {
-                    fileupload.setUrl(BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), fileupload));
-                }, true);
+                // load and save default files
+                try {
+                    loadFile(beans, getServletContext(), "/WEB-INF/toiletwave.css", "text/css");
+                    loadFile(beans, getServletContext(), "/WEB-INF/toiletwave.js", "text/javascript");
+                    locals.add(new Localization("", "site_css", "toiletwave.css"));
+                    locals.add(new Localization("", "site_javascript", "toiletwave.js"));
+                    beans.getImead().upsert(locals);
+                } catch (IOException ex) {
+                    LOG.log(Level.SEVERE, null, ex);
+                }
             }
             request.setAttribute("FIRST_TIME_SETUP", "FIRST_TIME_SETUP");
-            showProperties(beans, request, response);
-        } else {
-            super.doGet(request, response);
         }
+        showProperties(beans, request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminLoginServlet.IMEAD.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
-        }
         ToiletBeanAccess beans = allBeans.getInstance(request);
         loadProperties(beans);
-        boolean initialFirstTime = beans.isFirstTime();
+        boolean initialFirstTime = beans.isFirstTime(request);
         // save things
         String action = AbstractInput.getParameter(request, "action");
         if (null == action) {
@@ -97,6 +115,7 @@ public class AdminImeadServlet extends ToiletServlet {
             ArrayList<Localization> props = new ArrayList<>();
             HashSet<LocalizationPK> errors = new HashSet<>();
             request.setAttribute("ERRORS", errors);
+            String argon2_parameters = beans.getImeadValue("site_argon2_parameters");
             for (Localization l : new LocalizationRetriever(request)) {
                 String previousValue = beans.getImead().getLocal(l.getLocalizationPK().getKey(), l.getLocalizationPK().getLocalecode());
                 if (!l.getValue().equals(previousValue)) {
@@ -106,7 +125,7 @@ public class AdminImeadServlet extends ToiletServlet {
                             errors.add(l.getLocalizationPK());
                             request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, beans.getImead().getLocal("error_adminadmin", Local.resolveLocales(beans.getImead(), request)));
                         }
-                        l.setValue(HashUtil.getArgon2Hash(l.getValue()));
+                        l.setValue(HashUtil.getArgon2Hash(argon2_parameters, l.getValue()));
                     }
                     if (l.getLocalizationPK().getKey().endsWith("_markdown")) {
                         Article a = new Article(1);
@@ -127,7 +146,7 @@ public class AdminImeadServlet extends ToiletServlet {
             beans.getImead().delete(new LocalizationPK(params[2], params[1]));
             beans.getGlobalCache().clear();
         }
-        if (initialFirstTime && !beans.isFirstTime()) {
+        if (initialFirstTime && !beans.isFirstTime(request)) {
             response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
         } else {
             showProperties(beans, request, response);
@@ -153,7 +172,7 @@ public class AdminImeadServlet extends ToiletServlet {
         public Localization next() {
             if (hasNext()) {
                 ++current;
-                return new Localization(AbstractInput.getParameter(req, "locale" + current), AbstractInput.getParameter(req, "key" + current), AbstractInput.getParameter(req, "value" + current));
+                return new Localization(AbstractInput.getParameter(req, "locale" + current).trim(), AbstractInput.getParameter(req, "key" + current).trim(), AbstractInput.getParameter(req, "value" + current).trim());
             } else {
                 throw new NoSuchElementException();
             }
@@ -202,25 +221,9 @@ public class AdminImeadServlet extends ToiletServlet {
         List<Localization> locals = new ArrayList<>();
         // in a new release, some properties may be added
         try {
-            locals.addAll(getNewLocalizations(beans, getServletContext(), "/WEB-INF/IMEAD.properties", Locale.ROOT));
+            locals.addAll(getNewLocalizations(beans, getServletContext(), INITIAL_PROPERTIES_FILE, Locale.ROOT));
         } catch (IOException ex) {
             LOG.log(Level.SEVERE, null, ex);
-        }
-        if (beans.isFirstTime()) {
-            beans.getArts().refreshSearch();
-            // load and save default files
-            try {
-                loadFile(beans, getServletContext(), "/WEB-INF/toiletwave.css", "text/css");
-                loadFile(beans, getServletContext(), "/WEB-INF/toiletwave.js", "text/javascript");
-                if (null == beans.getImeadValue("site_css")) {
-                    locals.add(new Localization("", "site_css", "toiletwave.css"));
-                }
-                if (null == beans.getImeadValue("site_javascript")) {
-                    locals.add(new Localization("", "site_javascript", "toiletwave.js"));
-                }
-            } catch (IOException ex) {
-                LOG.log(Level.SEVERE, null, ex);
-            }
         }
         if (!locals.isEmpty()) {
             beans.getImead().upsert(locals);
@@ -259,12 +262,20 @@ public class AdminImeadServlet extends ToiletServlet {
      * @return
      * @throws IOException
      */
-    private Properties getProperties(InputStream file) throws IOException {
+    public static Properties getProperties(InputStream file) throws IOException {
         Properties IMEAD = new Properties();
         IMEAD.load(file);
         return IMEAD;
     }
 
+    /**
+     * Must be called after BASE_URL is set.
+     * @param beans
+     * @param c
+     * @param filename
+     * @param type
+     * @throws IOException 
+     */
     private void loadFile(ToiletBeanAccess beans, ServletContext c, String filename, String type) throws IOException {
         String servedName = filename.substring("/WEB-INF/".length());
         if (null == beans.getFile().get(servedName)) {
@@ -274,6 +285,7 @@ public class AdminImeadServlet extends ToiletServlet {
             cssFile.setEtag(HashUtil.getSHA256Hash(cssFile.getFiledata()));
             cssFile.setFilename(servedName);
             cssFile.setMimetype(type);
+            cssFile.setUrl(getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), cssFile));
             beans.getFile().upsert(Arrays.asList(cssFile));
         }
     }

@@ -3,9 +3,9 @@ package toilet.servlet;
 import java.io.IOException;
 import jakarta.ejb.EJB;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import libWebsiteTools.BaseServlet;
 import libWebsiteTools.imead.Local;
 import toilet.bean.ToiletBeanAccess;
 
@@ -13,7 +13,7 @@ import toilet.bean.ToiletBeanAccess;
  *
  * @author alpha
  */
-public abstract class ToiletServlet extends HttpServlet {
+public abstract class ToiletServlet extends BaseServlet {
 
     public static final String ERROR_PREFIX = "page_error_";
     public static final String ERROR_MESSAGE_PARAM = "ERROR_MESSAGE";
@@ -23,18 +23,6 @@ public abstract class ToiletServlet extends HttpServlet {
     public static final String TAGLINE = "page_tagline";
     @EJB
     protected ToiletBeanAccess allBeans;
-
-    /**
-     * tells the client to go to a new location. WHY is this not included in the
-     * standard servlet API????
-     *
-     * @param res
-     * @param newLocation
-     */
-    public static void permaMove(HttpServletResponse res, String newLocation) {
-        res.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
-        res.setHeader("Location", newLocation);
-    }
 
     protected void showError(HttpServletRequest req, HttpServletResponse res, String errorMessage) {
         req.setAttribute(ERROR_MESSAGE_PARAM, errorMessage);
@@ -48,40 +36,5 @@ public abstract class ToiletServlet extends HttpServlet {
         req.setAttribute("title", "ERROR " + errorCode);
         ToiletBeanAccess beans = allBeans.getInstance(req);
         showError(req, res, beans.getImead().getLocal(ERROR_PREFIX + errorCode, Local.resolveLocales(beans.getImead(), req)));
-    }
-
-    @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doHead(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doTrace(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     }
 }

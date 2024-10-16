@@ -24,7 +24,7 @@ public class FileServlet extends BaseFileServlet {
     @Override
     @SuppressWarnings("unchecked")
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        if (!AdminLoginServlet.FILES.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        if (!AdminServlet.isAuthorized(request, AdminServletPermission.FILES)) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }

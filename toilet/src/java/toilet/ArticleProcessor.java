@@ -217,7 +217,11 @@ public class ArticleProcessor implements Callable<Article> {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileUpload.getFiledata()));
             attributes.put("width", Integer.toString(image.getWidth()));
             attributes.put("height", Integer.toString(image.getHeight()));
-            //} catch (NoResultException nre) {            return null;
+        } catch (IllegalArgumentException ia) {
+            // file hasn't been uploaded, just guess something reasonable
+            attributes.put("src", url);
+            attributes.put("width", "960");
+            attributes.put("height", "540");
         } catch (IOException e) {
         }
         return attributes;

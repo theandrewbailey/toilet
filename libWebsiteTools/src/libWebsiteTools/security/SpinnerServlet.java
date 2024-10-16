@@ -9,10 +9,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.BaseServlet;
 import libWebsiteTools.tag.AbstractInput;
 
 /**
@@ -20,7 +20,7 @@ import libWebsiteTools.tag.AbstractInput;
  * @author alpha
  */
 @WebServlet(name = "SpinnerServlet", urlPatterns = {"/spin"}, asyncSupported = true)
-public class SpinnerServlet extends HttpServlet {
+public class SpinnerServlet extends BaseServlet {
 
     public static final String REASON = "$_SPINNER_REASON";
     @EJB
@@ -131,36 +131,6 @@ public class SpinnerServlet extends HttpServlet {
     public boolean killInHoney(HttpServletRequest req, HttpServletResponse res) {
         GuardFilter.kill(req, res);
         return allBeans.getInstance(req).getError().putInHoneypot(SecurityRepo.getIP(req));
-    }
-
-    @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        serve(request, response);
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        serve(request, response);
-    }
-
-    @Override
-    protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        serve(request, response);
-    }
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        serve(request, response);
-    }
-
-    @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        serve(request, response);
-    }
-
-    @Override
-    protected void doTrace(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        serve(request, response);
     }
 
     @Override

@@ -111,7 +111,7 @@ public class Honeypot implements Serializable {
 
     @Override
     public String toString() {
-        return "libOdyssey.db.Honeypot[ honeypotid=" + honeypotid + " ]";
+        return "libWebsiteTools.db.Honeypot[ honeypotid=" + honeypotid + " ]";
     }
     
 }

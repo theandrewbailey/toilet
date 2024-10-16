@@ -2,7 +2,6 @@ package libWebsiteTools.rss;
 
 import java.io.Serializable;
 import org.w3c.dom.Element;
-import libWebsiteTools.rss.Publishable;
 
 /**
  *

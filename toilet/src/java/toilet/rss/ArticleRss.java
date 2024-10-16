@@ -86,7 +86,7 @@ public class ArticleRss implements DynamicFeed {
     /**
      *
      * @param req
-     * @return (category)Articles.rss
+     * @return Map of (category)Articles.rss, (category) articles
      */
     @Override
     public Map<String, String> getFeedURLs(HttpServletRequest req) {

@@ -1,11 +1,14 @@
 package libWebsiteTools.security;
 
+import com.password4j.Argon2Function;
 import com.password4j.Password;
+import com.password4j.types.Argon2;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -75,19 +78,58 @@ public abstract class HashUtil {
     }
 
     /**
-     * Returns an encoded argon2 hash. Uses defaults.
+     * Reads an argon2 hash and returns a Argon2Function object having the same
+     * parameters. Salt length must be specified separately.
      *
+     * @param parameters an argon2 hash like $argon2id$v=19$m=9999,t=2,p=1$...........$...........
+     * @return an Argon2Function object ready to use with com.​password4j.Password builders
+     */
+    public static Argon2Function getArgon2WithParameters(String parameters) {
+        try {
+            Matcher m = ARGON2_ENCODING_PATTERN.matcher(parameters);
+            if (m.find()) {
+                int memory = Integer.parseInt(m.group("m"));
+                int version = Integer.parseInt(m.group("v"));
+                int iterations = Integer.parseInt(m.group("t"));
+                int parallelism = Integer.parseInt(m.group("p"));
+                int length = Base64.getDecoder().decode(m.group("hash")).length;
+                Argon2 type;
+                switch (m.group("type")) {
+                    case "argon2i":
+                        type = Argon2.I;
+                        break;
+                    case "argon2d":
+                        type = Argon2.D;
+                        break;
+                    case "argon2id":
+                    default:
+                        type = Argon2.ID;
+                }
+                return Argon2Function.getInstance(memory, iterations, parallelism, length, type, version);
+            } else {
+                throw new IllegalArgumentException("Parameter string doesn't match argon2 encoding pattern: " + parameters);
+            }
+        } catch (NumberFormatException n) {
+            throw new IllegalArgumentException("Can't get argon2 parameters from parameter string: " + parameters);
+        }
+    }
+
+    /**
+     * Returns an encoded argon2 hash.
+     *
+     * @param parameters a string that matches ARGON2_ENCODING_PATTERN to read
+     * parameters from, or null for defaults
      * @param password password (presumably) to be hashed
      * @return argon2 hash
      */
-    public static String getArgon2Hash(String password) {
+    public static String getArgon2Hash(String parameters, String password) {
         try {
-            //byte[] salt = new byte[16];
-            //new SecureRandom().nextBytes(salt);
-            //return Argon2.create().hash(password.getBytes("UTF-8"), salt).asEncoded();
-            return Password.hash(password.getBytes("UTF-8")).addRandomSalt(64).withArgon2().getResult();
+            Argon2Function argon2 = getArgon2WithParameters(parameters);
+            return Password.hash(password.getBytes("UTF-8")).addRandomSalt(64).with(argon2).getResult();
         } catch (UnsupportedEncodingException ex) {
             throw new JVMNotSupportedError(ex);
+        } catch (NumberFormatException n) {
+            throw new IllegalArgumentException("Can't get argon2 parameters from parameter string: " + parameters);
         }
     }
 
@@ -100,7 +142,6 @@ public abstract class HashUtil {
      * @see HashUtil.getArgon2Hash
      */
     public static boolean verifyArgon2Hash(String encoded, String password) {
-        return Password.check(password, encoded).withArgon2();
-        //return Argon2.checkHash(encoded, password);
+        return Password.check(password, encoded).with(getArgon2WithParameters(encoded));
     }
 }

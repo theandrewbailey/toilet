@@ -4,12 +4,6 @@
     <short-name>t</short-name>
     <uri>uri:toilet</uri>
     <tag>
-        <description>Injects a random sentence</description>
-        <name>sentence</name>
-        <tag-class>toilet.tag.Spruce</tag-class>
-        <body-content>scriptless</body-content>
-    </tag>
-    <tag>
         <name>categorizer</name>
         <tag-class>toilet.tag.Categorizer</tag-class>
         <body-content>scriptless</body-content>

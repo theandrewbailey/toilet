@@ -12,8 +12,9 @@ import libWebsiteTools.rss.RssChannel;
 import libWebsiteTools.rss.RssItem;
 import org.w3c.dom.Document;
 import toilet.bean.ToiletBeanAccess;
-import toilet.servlet.AdminLoginServlet;
 import libWebsiteTools.rss.Feed;
+import toilet.servlet.AdminServlet;
+import toilet.servlet.AdminServletPermission;
 
 /**
  *
@@ -32,16 +33,17 @@ public class ErrorRss implements Feed {
     @Override
     public Feed doHead(HttpServletRequest req, HttpServletResponse res) {
         res.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
-        if (null != req.getSession(false) && AdminLoginServlet.HEALTH.equals(req.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        if (AdminServlet.isAuthorized(req, AdminServletPermission.HEALTH)) {
             return this;
         }
         res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        return this;
+        return null;
     }
 
     @Override
     public Document preWrite(HttpServletRequest req, HttpServletResponse res) {
-        if (null != req.getSession(false) && AdminLoginServlet.HEALTH.equals(req.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
+        doHead(req, res);
+        if (AdminServlet.isAuthorized(req, AdminServletPermission.HEALTH)) {
             LOG.fine("Exception RSS feed requested");
             RssChannel badRequests = new RssChannel("running log", req.getRequestURL().toString(), "404s, etc.");
             badRequests.setLimit(1000);

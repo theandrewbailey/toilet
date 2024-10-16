@@ -5,13 +5,12 @@
     <non-jta-data-source>java/toilet/default</non-jta-data-source>
     <class>libWebsiteTools.db.Exceptionevent</class>
     <class>libWebsiteTools.db.Honeypot</class>
-    <class>libWebsiteTools.file.Filemetadata</class>
     <class>libWebsiteTools.file.Fileupload</class>
     <class>libWebsiteTools.imead.Localization</class>
     <class>toilet.db.Article</class>
     <class>toilet.db.Comment</class>
     <class>toilet.db.Section</class>
-    <exclude-unlisted-classes>false</exclude-unlisted-classes>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
       <property name="jakarta.persistence.schema-generation.create-source" value="script"/>

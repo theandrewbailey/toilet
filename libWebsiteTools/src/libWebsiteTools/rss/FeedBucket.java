@@ -42,27 +42,14 @@ public class FeedBucket implements Repository<Feed> {
     public final static DateTimeFormatter RFC1123;
 
     static {
-        Map<Long, String> dow = new HashMap<>();
-        dow.put(1L, "Mon");
-        dow.put(2L, "Tue");
-        dow.put(3L, "Wed");
-        dow.put(4L, "Thu");
-        dow.put(5L, "Fri");
-        dow.put(6L, "Sat");
-        dow.put(7L, "Sun");
-        Map<Long, String> moy = new HashMap<>();
-        moy.put(1L, "Jan");
-        moy.put(2L, "Feb");
-        moy.put(3L, "Mar");
-        moy.put(4L, "Apr");
-        moy.put(5L, "May");
-        moy.put(6L, "Jun");
-        moy.put(7L, "Jul");
-        moy.put(8L, "Aug");
-        moy.put(9L, "Sep");
-        moy.put(10L, "Oct");
-        moy.put(11L, "Nov");
-        moy.put(12L, "Dec");
+        Map<Long, String> dow = Map.ofEntries(Map.entry(1L, "Mon"),
+                Map.entry(2L, "Tue"), Map.entry(3L, "Wed"), Map.entry(4L, "Thu"),
+                Map.entry(5L, "Fri"), Map.entry(6L, "Sat"), Map.entry(7L, "Sun"));
+        Map<Long, String> moy = Map.ofEntries(
+                Map.entry(1L, "Jan"), Map.entry(2L, "Feb"), Map.entry(3L, "Mar"),
+                Map.entry(4L, "Apr"), Map.entry(5L, "May"), Map.entry(6L, "Jun"),
+                Map.entry(7L, "Jul"), Map.entry(8L, "Aug"), Map.entry(9L, "Sep"),
+                Map.entry(10L, "Oct"), Map.entry(11L, "Nov"), Map.entry(12L, "Dec"));
         RFC1123 = new DateTimeFormatterBuilder().parseCaseInsensitive().parseLenient()
                 .optionalStart().appendText(ChronoField.DAY_OF_WEEK, dow).appendLiteral(", ").optionalEnd()
                 .appendValue(ChronoField.DAY_OF_MONTH, 1, 2, SignStyle.NOT_NEGATIVE).appendLiteral(' ')

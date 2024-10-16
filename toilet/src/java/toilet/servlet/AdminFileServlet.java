@@ -8,7 +8,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.ToiletBeanAccess;
@@ -18,31 +17,35 @@ import toilet.bean.ToiletBeanAccess;
  * @author alpha
  */
 @WebServlet(name = "adminFile", description = "Performs admin stuff on file uploads", urlPatterns = {"/adminFile"})
-public class AdminFileServlet extends ToiletServlet {
+public class AdminFileServlet extends AdminServlet {
+
+    public static final String ADMIN_FILE = "/WEB-INF/adminFile.jsp";
+
+    @Override
+    public AdminServletPermission getRequiredPermission(HttpServletRequest req) {
+        return AdminServletPermission.FILES;
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        ToiletBeanAccess beans = allBeans.getInstance(request);
+        showFileList(request, response, beans.getFile().getFileMetadata(null));
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
         String del = AbstractInput.getParameter(request, "action");
-        String answer = AbstractInput.getParameter(request, "answer");
-        if (answer != null && HashUtil.verifyArgon2Hash(beans.getImeadValue(AdminLoginServlet.FILES), answer)) {
-            showFileList(request, response, beans.getFile().getFileMetadata(null));
-        } else if (AdminLoginServlet.FILES.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION)) && del != null) {
+        if (del != null) {
             Fileupload deleted = beans.getFile().delete(del.split("\\|")[1]);
             String[] split = splitDirectoryAndName(deleted.getFilename());
             request.setAttribute("opened_dir", split[0]);
             beans.reset();
-            showFileList(request, response, beans.getFile().getFileMetadata(null));
         }
+        showFileList(request, response, beans.getFile().getFileMetadata(null));
     }
 
     public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Fileupload> uploads) throws ServletException, IOException {
-        request.getSession().setAttribute(AdminLoginServlet.PERMISSION, AdminLoginServlet.FILES);
         LinkedHashMap<String, List<Fileupload>> files = new LinkedHashMap<>(uploads.size() * 2);
         List<String> directories = new ArrayList<>();
         // root "directory" first
@@ -64,7 +67,7 @@ public class AdminFileServlet extends ToiletServlet {
         if (null == request.getAttribute("opened_dir")) {
             request.setAttribute("opened_dir", "");
         }
-        request.getRequestDispatcher(AdminLoginServlet.ADMIN_CONTENT).forward(request, response);
+        request.getRequestDispatcher(ADMIN_FILE).forward(request, response);
     }
 
     public static String[] splitDirectoryAndName(String filename) {

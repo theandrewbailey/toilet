@@ -170,7 +170,7 @@ public class Fileupload implements Serializable {
 
     @Override
     public String toString() {
-        return "libOdyssey.db.Fileupload[ filename=" + filename + " ]";
+        return "libWebsiteTools.file.Fileupload[ filename=" + filename + " ]";
     }
 
     /**

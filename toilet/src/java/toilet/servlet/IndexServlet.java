@@ -82,8 +82,8 @@ public class IndexServlet extends ToiletServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
-        if (beans.isFirstTime()) {
-            request.getRequestDispatcher("adminImead").forward(request, response);
+        if (beans.isFirstTime(request)) {
+            request.getRequestDispatcher(AdminImeadServlet.class.getAnnotation(WebServlet.class).urlPatterns()[0]).forward(request, response);
             return;
         }
         doHead(request, response);

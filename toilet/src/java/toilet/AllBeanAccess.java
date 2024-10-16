@@ -4,11 +4,8 @@ import jakarta.ejb.Local;
 import libWebsiteTools.db.Repository;
 import toilet.bean.ArticleRepository;
 import toilet.bean.BackupDaemon;
-import toilet.bean.database.CommentDatabase;
-import toilet.bean.database.SectionDatabase;
 import toilet.db.Comment;
 import toilet.db.Section;
-//import toilet.bean.SpruceGenerator;
 
 /**
  * Easy way to ensure static functions have access to requisite bean classes.
@@ -25,6 +22,4 @@ public interface AllBeanAccess extends libWebsiteTools.AllBeanAccess {
     public Repository<Section> getSects();
 
     public BackupDaemon getBackup();
-
-//    public SpruceGenerator getSpruce();
 }

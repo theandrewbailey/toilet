@@ -267,7 +267,6 @@ public class BackupDaemon implements Runnable {
         final Queue<Future> altTasks = new ConcurrentLinkedQueue<>();
         Future<Queue<Future<Article>>> masterArticleTask = null;
         Future<List<Comment>> masterCommentTask = null;
-        List<Fileupload> files = Collections.synchronizedList(new ArrayList<>(PROCESSING_CHUNK_SIZE * 2));
         try {
             for (ZipEntry zipFile = zip.getNextEntry(); zipFile != null; zipFile = zip.getNextEntry()) {
                 if (zipFile.isDirectory()) {
@@ -408,25 +407,13 @@ public class BackupDaemon implements Runnable {
                             incomingFile.setFiledata(FileUtil.getByteArray(zip));
                             fileTasks.add(beans.getExec().submit(() -> {
                                 incomingFile.setEtag(HashUtil.getSHA256Hash(incomingFile.getFiledata()));
-                                if (null == incomingFile.getMimetype() && mimes.containsKey(incomingFile.getFilename())) {
-                                    incomingFile.setMimetype(mimes.get(incomingFile.getFilename()));
-                                    mimes.remove(incomingFile.getFilename());
-                                } else if (null == incomingFile.getMimetype()) {
+                                if (null == incomingFile.getMimetype()) {
                                     incomingFile.setMimetype(FileRepository.DEFAULT_MIME_TYPE);
                                 }
                                 Fileupload existingFile = beans.getFile().get(incomingFile.getFilename());
                                 if (null == existingFile || !incomingFile.getEtag().equals(existingFile.getEtag())) {
                                     LOG.log(Level.INFO, "Existing file different, updating {0}", incomingFile.getFilename());
-                                    files.add(incomingFile);
-                                    synchronized (files) {
-                                        if (files.size() > PROCESSING_CHUNK_SIZE) {
-                                            final List<Fileupload> fileChunk = new ArrayList<>(files);
-                                            altTasks.add(beans.getExec().submit(() -> {
-                                                beans.getFile().upsert(fileChunk);
-                                            }));
-                                            files.clear();
-                                        }
-                                    }
+                                    beans.getFile().upsert(List.of(incomingFile));
                                 }
                                 return null;
                             }));
@@ -439,44 +426,18 @@ public class BackupDaemon implements Runnable {
             throw new RuntimeException(ix);
         }
         UtilStatic.finish(altTasks).clear();
-        if (!fileTasks.isEmpty()) {
-            UtilStatic.finish(fileTasks).clear();
-            altTasks.add(beans.getExec().submit(() -> {
-                if (!files.isEmpty()) {
-                    final List<Fileupload> fileChunk = new ArrayList<>(files);
-                    altTasks.add(beans.getExec().submit(() -> {
-                        beans.getFile().upsert(fileChunk);
-                    }));
-                    files.clear();
+        UtilStatic.finish(fileTasks).clear();
+        altTasks.add(beans.getExec().submit(() -> {
+            beans.getFile().evict().processArchive((file) -> {
+                if (mimes.containsKey(file.getFilename()) && !file.getMimetype().equals(mimes.get(file.getFilename()))) {
+                    file.setMimetype(mimes.get(file.getFilename()));
                 }
-                beans.getFile().processArchive((file) -> {
-                    if (mimes.containsKey(file.getFilename()) && !file.getMimetype().equals(mimes.get(file.getFilename()))) {
-                        file.setMimetype(mimes.get(file.getFilename()));
-                    }
-                    String fileUrl = BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), file);
-                    if (!fileUrl.equals(file.getUrl())) {
-                        file.setUrl(fileUrl);
-                    }
-                    files.add(file);
-                    synchronized (files) {
-                        if (files.size() > PROCESSING_CHUNK_SIZE) {
-                            final List<Fileupload> fileChunk = new ArrayList<>(files);
-                            altTasks.add(beans.getExec().submit(() -> {
-                                beans.getFile().upsert(fileChunk);
-                            }));
-                            files.clear();
-                        }
-                    }
-                }, false);
-                if (!files.isEmpty()) {
-                    final List<Fileupload> fileChunk = new ArrayList<>(files);
-                    altTasks.add(beans.getExec().submit(() -> {
-                        beans.getFile().upsert(fileChunk);
-                    }));
-                    files.clear();
+                String fileUrl = BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), file);
+                if (!fileUrl.equals(file.getUrl())) {
+                    file.setUrl(fileUrl);
                 }
-            }, true));
-        }
+            }, true);
+        }, true));
         try {
             if (null != masterArticleTask) {
                 List<Article> articles = new ArrayList<>();

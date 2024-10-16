@@ -42,8 +42,7 @@ public final class PageCaches implements CacheManager {
                 CachedPage page = cache.get(entry);
                 // hasn't been used more than once per hour? drop it
                 Duration d = Duration.between(page.getCreated(), now).abs();
-                if (null != page
-                        && Math.max(Double.valueOf(page.getHits()), 1.0) / d.toHours() < 1.0) {
+                if (Math.max(Double.valueOf(page.getHits()), 1.0) / d.toHours() < 1.0) {
                     cache.remove(entry);
                 }
             }

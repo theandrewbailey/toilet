@@ -51,18 +51,17 @@ public class RssServlet extends HttpServlet {
 
     public Feed getFeed(HttpServletRequest req) {
         Feed feed = (Feed) req.getAttribute(Feed.class.getCanonicalName());
-        if (null != feed) {
-            return feed;
+        if (null == feed) {
+            String name = getRssName(req.getRequestURL().toString());
+            req.setAttribute(RssServlet.class.getSimpleName(), name);
+            AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
+            feed = beans.getFeeds().get(name);
+            if (feed == null) {
+                LOG.log(Level.FINE, "RSS feed {0} not found", name);
+                return null;
+            }
+            req.setAttribute(Feed.class.getCanonicalName(), feed);
         }
-        String name = getRssName(req.getRequestURL().toString());
-        req.setAttribute(RssServlet.class.getSimpleName(), name);
-        AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
-        feed = beans.getFeeds().get(name);
-        if (feed == null) {
-            LOG.log(Level.FINE, "RSS feed {0} not found", name);
-            return null;
-        }
-        req.setAttribute(Feed.class.getCanonicalName(), feed);
         return feed;
     }
 
@@ -96,7 +95,7 @@ public class RssServlet extends HttpServlet {
      *
      * @param request
      * @param response
-     * @throws javax.servlet.ServletException
+     * @throws jakarta.servlet.ServletException
      * @throws java.io.IOException
      */
     @Override

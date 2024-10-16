@@ -2,8 +2,6 @@ package toilet.servlet;
 
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.time.DateTimeException;
-import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,8 +10,6 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import jakarta.json.Json;
 import jakarta.json.JsonArrayBuilder;
 import jakarta.json.JsonObjectBuilder;
@@ -29,14 +25,10 @@ import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
-import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
-import toilet.UtilStatic;
 import toilet.bean.ArticleRepository;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
-import toilet.db.Comment;
-import toilet.db.Section;
 import toilet.tag.ArticleUrl;
 import toilet.tag.Categorizer;
 
@@ -44,7 +36,6 @@ import toilet.tag.Categorizer;
 public class ArticleServlet extends ToiletServlet {
 
     private static final String ARTICLE_JSP = "/WEB-INF/singleArticle.jsp";
-    private static final String DEFAULT_NAME = "site_defaultName";
     public static final String SPAM_WORDS = "site_spamwords";
 
     @Override
@@ -165,6 +156,10 @@ public class ArticleServlet extends ToiletServlet {
         }
     }
 
+    public String getCommentFormUrl(Article art, Locale lang) {
+        return "comments/" + art.getArticleid() + "?iframe";
+    }
+
     /**
      *
      * @param arts Article repository to get articles from
@@ -203,128 +198,5 @@ public class ArticleServlet extends ToiletServlet {
         } catch (Exception x) {
         }
         return new ArrayList<>();
-    }
-
-    public String getCommentFormUrl(Article art, Locale lang) {
-        @SuppressWarnings("ReplaceStringBufferByString")
-        StringBuilder url = new StringBuilder("comments/").append(art.getArticleid()).append("?iframe");
-        return url.toString();
-    }
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        Matcher validator = AbstractInput.DEFAULT_REGEXP.matcher("");
-        ToiletBeanAccess beans = allBeans.getInstance(request);
-        switch (AbstractInput.getParameter(request, "submit-type")) {
-            case "comment":     // submitted comment
-                if (AbstractInput.getParameter(request, "text") == null || AbstractInput.getParameter(request, "text").isEmpty()
-                        || AbstractInput.getParameter(request, "name") == null || AbstractInput.getParameter(request, "name").isEmpty()) {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST);
-                    return;
-                }
-                String referred = request.getHeader("Referer");
-                if (request.getSession().isNew() || referred == null) {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                    return;
-                }
-                String rawin = AbstractInput.getParameter(request, "text");
-                String totest = rawin.toLowerCase();
-                String[] spamwords = beans.getImeadValue(SPAM_WORDS).split("\n");
-                for (String ua : spamwords) {
-                    if (Pattern.matches(ua, totest)) {
-                        response.sendError(HttpServletResponse.SC_FORBIDDEN);
-                        return;
-                    }
-                }
-                Comment c = new Comment();
-                c.setPostedhtml(UtilStatic.htmlFormat(UtilStatic.removeSpaces(rawin), false, true, true));
-                String postName = AbstractInput.getParameter(request, "name");
-                postName = postName.trim();
-                c.setPostedname(UtilStatic.htmlFormat(postName, false, false, true));
-                if (!validator.reset(postName).matches()
-                        || !validator.reset(rawin).matches()
-                        || c.getPostedname().length() > 250 || c.getPostedhtml().length() > 64000) {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST);
-                    return;
-                }
-                Integer id = IndexFetcher.getArticleFromURI(beans, request.getRequestURI()).getArticleid();
-                c.setArticleid(new Article(id));
-                beans.getComms().upsert(Arrays.asList(c));
-                request.getSession().setAttribute("LastPostedName", postName);
-                doGet(request, response);
-                break;
-            case "article":     // added or edited article
-                if (!AdminLoginServlet.EDIT_POSTS.equals(request.getSession().getAttribute(AdminLoginServlet.PERMISSION))) {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                    break;
-                }
-                Article art = updateArticleFromPage(request);
-                if ("Preview".equals(request.getParameter("action"))) {
-                    AdminArticleServlet.displayArticleEdit(beans, request, response, art);
-                    return;
-                } else if (!validator.reset(art.getArticletitle()).matches()
-                        || !validator.reset(art.getDescription()).matches()
-                        || !validator.reset(art.getPostedname()).matches()
-                        || !validator.reset(art.getPostedmarkdown()).matches()
-                        || !validator.reset(art.getSectionid().getName()).matches()) {
-                    request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, beans.getImead().getLocal("page_patternMismatch", Local.resolveLocales(beans.getImead(), request)));
-                    AdminArticleServlet.displayArticleEdit(beans, request, response, art);
-                    return;
-                }
-                art = beans.getArts().upsert(Arrays.asList(art)).iterator().next();
-                beans.reset();
-                response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
-                request.getSession().removeAttribute(Article.class.getSimpleName());
-                beans.getExec().submit(() -> {
-                    beans.getArts().refreshSearch();
-                });
-                break;
-            default:
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                break;
-        }
-    }
-
-    private Article updateArticleFromPage(HttpServletRequest req) {
-        ToiletBeanAccess beans = allBeans.getInstance(req);
-        Article art = (Article) req.getSession().getAttribute(Article.class.getSimpleName());
-        boolean isNewArticle = null == art.getArticleid();
-        if (isNewArticle) {
-            int nextID = beans.getArts().count().intValue();
-            art.setArticleid(++nextID);
-            req.setAttribute("isNewArticle", true);
-        } else {
-            req.setAttribute("isNewArticle", false);
-        }
-        art.setArticletitle(AbstractInput.getParameter(req, "articletitle"));
-        art.setDescription(AbstractInput.getParameter(req, "description"));
-        art.setSectionid(new Section(0, AbstractInput.getParameter(req, "section")));
-        art.setPostedname(AbstractInput.getParameter(req, "postedname") == null || AbstractInput.getParameter(req, "postedname").isEmpty()
-                ? beans.getImeadValue(DEFAULT_NAME)
-                : AbstractInput.getParameter(req, "postedname"));
-        String date = AbstractInput.getParameter(req, "posted");
-        if (date != null) {
-            try {
-                art.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, date));
-            } catch (DateTimeException p) {
-                art.setPosted(OffsetDateTime.now());
-            }
-        }
-        art.setComments(AbstractInput.getParameter(req, "comments") != null);
-        art.setPostedmarkdown(AbstractInput.getParameter(req, "postedmarkdown"));
-        String suggestion = AbstractInput.getParameter(req, "suggestion");
-        if (null != suggestion && suggestion.length() > 0) {
-            art.setSuggestion(suggestion);
-        } else {
-            art.setSuggestion(null);
-        }
-        try {
-            art.setImageurl(null);
-            return new ArticleProcessor(beans, ArticleProcessor.convert(art)).call();
-        } finally {
-            if (isNewArticle) {
-                art.setArticleid(null);
-            }
-        }
     }
 }

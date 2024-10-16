@@ -24,7 +24,6 @@ public abstract class AbstractInput extends SimpleTagSupport {
 
     public static final String DISABLE_FIELDNAME_OBFUSCATION = "$_LIBWEBSITETOOLS_DISABLE_FIELDNAME_OBFUSCATION";
     public static final String DISABLE_REFERRER_CHECKING = "$_LIBWEBSITETOOLS_DISABLE_REQUEST_TOKEN_REFERRER_CHECKING";
-    //public static final String ORIGINAL_URL = "$_security_ORIGINAL_URL";
     public static final String ORIGINAL_REQUEST_URL = "$_LIBWEBSITETOOLS_ORIGINAL_REQUEST_URL";
     // TODO: these should be merged somehow
     public static final String DEFAULT_PATTERN = "^[\\u000A\\u000D\\u0020-\\uFFFF\\u20000-\\u2FFFF]*$";
@@ -128,6 +127,9 @@ public abstract class AbstractInput extends SimpleTagSupport {
             return HashUtil.getHmacSHA256Hash(req.getSession().getId(), str);
         }
         String url = req.getHeader("referer");
+        if (url.endsWith("?")) {
+            url = url.substring(0, url.length() - 1);
+        }
         return HashUtil.getHmacSHA256Hash(req.getSession().getId(), url + str);
     }
 
@@ -151,7 +153,7 @@ public abstract class AbstractInput extends SimpleTagSupport {
             return null;
         }
         StringBuilder out = new StringBuilder(attr.length() * 2);
-        for (int i = 0; i < attr.length(); i++) {;
+        for (int i = 0; i < attr.length(); i++) {
             switch (attr.charAt(i)) {
                 case '<':
                     out.append("&lt;");

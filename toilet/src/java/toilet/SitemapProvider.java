@@ -32,9 +32,6 @@ public class SitemapProvider implements Iterable<UrlMap> {
         List<Section> sects = beans.getSects().getAll(null);
         ArrayList<UrlMap> urlMap = new ArrayList<>(entries.size() + sects.size() + 10);
         urlMap.add(new UrlMap(beans.getImeadValue(SecurityRepo.BASE_URL), null, ChangeFreq.daily, "0.7"));
-//        if (beans.getSpruce().shouldBeReady()) {
-//            urlMap.add(new UrlMap(beans.getImeadValue(SecurityRepo.BASE_URL) + "spruce", null, ChangeFreq.always, "0.1"));
-//        }
         @SuppressWarnings("null")
         int maxArticleID = !entries.isEmpty() ? entries.get(entries.size() - 1).getArticleid() : 1;
         for (Article e : entries) {
@@ -49,7 +46,6 @@ public class SitemapProvider implements Iterable<UrlMap> {
                 difference = 0.1f;
             } else {
                 OffsetDateTime date=OffsetDateTime.now();
-                //GregorianCalendar date = new GregorianCalendar();
                 date.minusMonths(1);
                 if (date.isAfter(e.getPosted())) {
                     freq = ChangeFreq.monthly;

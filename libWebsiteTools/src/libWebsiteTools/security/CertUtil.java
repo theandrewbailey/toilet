@@ -1,6 +1,5 @@
 package libWebsiteTools.security;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
@@ -34,6 +33,7 @@ import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import javax.security.auth.x500.X500Principal;
 import jakarta.ws.rs.core.MultivaluedHashMap;
+import java.io.File;
 import java.util.HexFormat;
 import libWebsiteTools.JVMNotSupportedError;
 
@@ -147,9 +147,7 @@ public class CertUtil {
      */
     public static KeyStore getKeystore(String filename, char[] pass) {
         try {
-            KeyStore jks = KeyStore.getInstance("JKS");
-            jks.load(new FileInputStream(filename), pass);
-            return jks;
+            return KeyStore.getInstance(new File(filename), pass);
         } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException ex) {
             return null;
         }

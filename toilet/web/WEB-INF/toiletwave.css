@@ -38,7 +38,7 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   text-align: center;
   text-transform: full-width;
 }p,pre,li,.pagenation{
-  margin: 0.0rem 0.0rem 1.3rem 0.0rem;
+  margin: 0.0rem 0.0rem 1.0rem 0.0rem;
 }img{
   height: auto;
   max-width: 100%;
@@ -102,14 +102,18 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
 }.pagenation{
   list-style-type: none;
   text-align: center;
-}.pagen_newest:before{
+}.pagen_newest>a:before{
   content: "<< ";
-}.pagen_newer:before{
+  speak: none;
+}.pagen_newer>a:before{
   content: "< ";
-}.pagen_older:after{
+  speak: none;
+}.pagen_older>a:after{
   content: " >";
-}.pagen_oldest:after{
+  speak: none;
+}.pagen_oldest>a:after{
   content: " >>";
+  speak: none;
 }.pagenation *{
   display: inline;
 }.pagenation>span,.pagenation>a,.pagenation>ul>li{
@@ -148,6 +152,12 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   max-width: max-content;
   position: relative;
   width: auto;
+}a.withFigure>figure>picture>img{
+  min-height: 7rem;
+  max-height: 25rem;
+}.indexPage>article>a.withFigure{
+  display: block;
+  max-width: max-content;
 }input,textarea,select,input[type="submit"],button{
   background-color: #fff;
   border-style: inset;
@@ -164,19 +174,24 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
 }.seeAlso h1{
   font-size: 1.5rem;
 }.seeAlso>ul>li{
-  display: inline-table;
-  min-height: 13rem;
+  display: inline-block;
+  height: 13rem;
   width: 13rem;
   margin: 0.25rem;
+  overflow: hidden;
 }.seeAlso>ul>li.withFigure{
   vertical-align: top;
+}.seeAlso>ul>li.withFigure figcaption{
+  bottom: 0;
+  left: 0;
+  position: sticky;
+  background: #e9fbff;
 }.seeAlso>ul img{
-  height: 10rem;
+  height: 10.25rem;
   width: 15rem;
   object-fit: cover;
 }.seeAlso>ul>li p{
   display: none;
-}.seeAlso>ul>li.noFigure>article{
 }.seeAlso>ul>li.noFigure>article>a{
   position: relative;
   height: 11.45rem;
@@ -193,7 +208,7 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   background-color: #ffa07a;
   color: #000088;
 }body>footer{
-    clear: both;
+  clear: both;
 }} /* DESKTOP STYLES */
 @media screen and (min-width: 901px){body>*{
   max-width: 1160px;
@@ -207,11 +222,13 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   clear: both;
 }main{
   float: left;
-}html aside{
+}img.stretch{
+  width: -webkit-fill-available;
+  width: -moz-available;
+}aside{
   float: right;
-  width: calc(200px - 0.3rem);
-  margin: 0.3rem 0rem 0.3rem 0.3rem;
-}html>body>div>aside{
+  width: 200px;
+}body>div>aside{
   margin-left: -200px;
 }.asideCollide{
   max-width: calc(100% - 200px);

@@ -1,13 +1,11 @@
 package libWebsiteTools.security;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoField;
 import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
@@ -27,9 +25,7 @@ import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.cache.CachedPage;
-import libWebsiteTools.cache.JspFilter;
 import libWebsiteTools.cache.PageCache;
-import libWebsiteTools.cache.ServletOutputWrapper;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;

@@ -10,13 +10,13 @@
     </c:forEach>
     <c:set scope="page" var="Subject" value="Subject"/>
     <c:forEach items="${certPaths}" var="certPath"><details class="certpath">
-        <summary><h:local key="page_footerFormat"><h:param object="${certInfo.get(certPath.getCertificates().get(certPath.getCertificates().size()-1)).get(Subject)}"/><h:param>${fn:substringBefore(((certPath.getExpiration().getTime() - $_LIBWEBSITETOOLS_REQUEST_START_TIME.toInstant().toEpochMilli()) / 86400000),".")}</h:param></h:local></summary><c:forEach items="${certPath.getCertificates()}" var="cert">
-        <details class="secondmin"><summary><h:local key="page_footerFormat"><h:param object="${certInfo.get(cert).get(Subject)}"/><h:param>${fn:substringBefore(((cert.getNotAfter().getTime() - $_LIBWEBSITETOOLS_REQUEST_START_TIME.toInstant().toEpochMilli()) / 86400000),".")}</h:param></h:local></summary>
+        <summary><h:local key="page_health_cert_path"><h:param object="${certInfo.get(certPath.getCertificates().get(certPath.getCertificates().size()-1)).get(Subject)}"/><h:param>${fn:substringBefore(((certPath.getExpiration().getTime() - $_LIBWEBSITETOOLS_REQUEST_START_TIME.toInstant().toEpochMilli()) / 86400000),".")}</h:param></h:local></summary><c:forEach items="${certPath.getCertificates()}" var="cert">
+        <details class="secondmin"><summary><h:local key="page_health_cert"><h:param object="${certInfo.get(cert).get(Subject)}"/><h:param object="${certInfo.get(cert).daysUntilExpiration}"/></h:local></summary>
             <table><c:forEach items="${certInfo.get(cert)}" var="info">
                 <tr class="secondmin"><td class="secondmin">${info.key}</td><td>${info.value}</td></tr></c:forEach>
         </table></details>
     </c:forEach></details></c:forEach>
-    <details class="cached"><summary><h:local key="page_health_cache_count"><h:param object="${cached.get().size()}"/></h:local></summary>
+    <details class="cached"><summary><h:local key="page_health_cache_count"><h:param object="${cached.get().size()-1}"/></h:local></summary>
         <ul><c:forEach items="${cached.get()}" var="pageEnt"><li>${pageEnt}</li></c:forEach></ul>
     </details>
     <details class="articles"><summary><h:local key="page_health_article_count"><h:param object="${articles.get().size()}"/></h:local></summary><table>
