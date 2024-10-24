@@ -32,6 +32,12 @@ public class AdminLoginServlet extends AdminServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        ToiletBeanAccess beans = allBeans.getInstance(request);
+        if (beans.isFirstTime(request)) {
+            String url = AdminImeadServlet.class.getAnnotation(WebServlet.class).urlPatterns()[0];
+            request.getRequestDispatcher(url).forward(request, response);
+            return;
+        }
         request.getRequestDispatcher(ADMIN_LOGIN_PAGE).forward(request, response);
     }
 

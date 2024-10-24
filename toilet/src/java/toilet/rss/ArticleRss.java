@@ -131,8 +131,6 @@ public class ArticleRss implements DynamicFeed {
                 Transformer trans = TransformerFactory.newInstance().newTransformer();
                 trans.transform(DOMsrc, str);
                 String etag = "\"" + HashUtil.getSHA256Hash(holder.toString()) + "\"";
-                res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=10000, s-maxage=100");
-                res.setDateHeader(HttpHeaders.EXPIRES, OffsetDateTime.now().plusSeconds(10000).toInstant().toEpochMilli());
                 res.setHeader(HttpHeaders.ETAG, etag);
                 req.removeAttribute(Local.LOCALE_PARAM);
                 req.setAttribute(Local.OVERRIDE_LOCALE_PARAM, Locale.forLanguageTag(beans.getImeadValue(Feed.LANGUAGE)));

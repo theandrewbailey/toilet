@@ -27,7 +27,7 @@ public class AdminDingus extends AdminServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        doPost(request, response);
+        request.getRequestDispatcher(ADMIN_DINGUS).forward(request, response);
     }
 
     @Override

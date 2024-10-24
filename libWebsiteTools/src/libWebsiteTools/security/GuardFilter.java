@@ -36,7 +36,6 @@ public class GuardFilter implements Filter {
     public static final String STRICT_TRANSPORT_SECURITY = "Strict-Transport-Security";
     public static final String KILLED_REQUEST = "$_LIBWEBSITETOOLS_KILLED_REQUEST";
     public static final String HANDLED_ERROR = "$_LIBWEBSITETOOLS_HANDLED_ERROR";
-    public static final String TIME_PARAM = "$_LIBWEBSITETOOLS_REQUEST_START_TIME";
     public static final String CERTIFICATE_NAME = "site_security_certificateName";
     public static final String DEFAULT_REQUEST_ENCODING = "UTF-8";
     public static final String DEFAULT_RESPONSE_ENCODING = "UTF-8";
@@ -48,31 +47,30 @@ public class GuardFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        OffsetDateTime localNow = OffsetDateTime.now();
+        OffsetDateTime localNow = RequestTimer.getStartTime(request);
         HttpServletRequest req = (HttpServletRequest) request;
         req.setCharacterEncoding(DEFAULT_REQUEST_ENCODING);
         HttpServletResponse res = (HttpServletResponse) response;
         response.setCharacterEncoding(DEFAULT_RESPONSE_ENCODING);
         res.setStatus(HttpServletResponse.SC_OK);
         AllBeanAccess beans = allBeans.getInstance(req);
-        req.setAttribute(TIME_PARAM, localNow);
         AbstractInput.getTokenURL(req);
         // kill suspicious requests
         if (null == req.getSession(false) || req.getSession().isNew()) {
             if (beans.getError().inHoneypot(SecurityRepo.getIP(req))) {
                 req.setAttribute(SpinnerServlet.REASON, "IP already in honeypot");
-                req.getRequestDispatcher("/spin").forward(request, response);
+//                req.getRequestDispatcher("/spin").forward(request, response);
                 return;
             }
             if (IMEADHolder.matchesAny(req.getRequestURL(), beans.getImead().getPatterns(SecurityRepo.HONEYPOTS))) {
                 req.setAttribute(SpinnerServlet.REASON, "IP added to honeypot: Illegal URL");
-                req.getRequestDispatcher("/spin").forward(request, response);
+//                req.getRequestDispatcher("/spin").forward(request, response);
                 return;
             }
             String userAgent = req.getHeader("User-Agent");
             if (userAgent != null && IMEADHolder.matchesAny(userAgent, beans.getImead().getPatterns(SecurityRepo.DENIED_USER_AGENTS))) {
                 req.setAttribute(SpinnerServlet.REASON, "IP added to honeypot: Illegal User-Agent");
-                req.getRequestDispatcher("/spin").forward(request, response);
+//                req.getRequestDispatcher("/spin").forward(request, response);
                 return;
             }
         }
@@ -112,8 +110,8 @@ public class GuardFilter implements Filter {
             }
         }
         if (null == res.getHeader(HttpHeaders.CACHE_CONTROL)) {
-            res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=200000, s-maxage=100");
-            res.setDateHeader(HttpHeaders.EXPIRES, localNow.toInstant().toEpochMilli() + 200000000);
+            res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=100000, s-maxage=100");
+            res.setDateHeader(HttpHeaders.EXPIRES, localNow.plusSeconds(100000).toInstant().toEpochMilli());
         }
         // set request language
         String forwardURL = null;
@@ -176,10 +174,6 @@ public class GuardFilter implements Filter {
         }
     }
 
-    public static OffsetDateTime getRequestTime(HttpServletRequest req) {
-        return (OffsetDateTime) req.getAttribute(TIME_PARAM);
-    }
-
     /**
      * Look up response from cache, and if found, write to response. Bypass with
      * nocache" URL query parameter.
@@ -210,6 +204,7 @@ public class GuardFilter implements Filter {
                         res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
                         return true;
                     }
+                    res.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(req, Boolean.TRUE));
                     ServletOutputStream out = res.getOutputStream();
                     out.write(page.getBody());
                     out.flush();
@@ -227,6 +222,7 @@ public class GuardFilter implements Filter {
                         res.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
                     }
                     writeHeaders(beans.getImead(), res, page);
+                    res.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(req, Boolean.TRUE));
                     page.hit();
                     beans.getGlobalCache().incrementTotalHit();
                     return true;

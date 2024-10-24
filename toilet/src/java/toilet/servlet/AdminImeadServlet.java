@@ -21,16 +21,19 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
+import java.time.Instant;
 import libWebsiteTools.cache.JspFilter;
 import libWebsiteTools.security.SecurityRepo;
-import libWebsiteTools.file.BaseFileServlet;
 import static libWebsiteTools.file.BaseFileServlet.getImmutableURL;
+import libWebsiteTools.file.FileCompressorJob;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.Localization;
 import libWebsiteTools.imead.LocalizationPK;
 import libWebsiteTools.security.HashUtil;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.AllBeanAccess;
 import toilet.ArticleProcessor;
@@ -57,16 +60,13 @@ public class AdminImeadServlet extends AdminServlet {
 
     @Override
     public boolean isAuthorized(HttpServletRequest req) {
-        try {
-            return isAuthorized(req, AdminServletPermission.IMEAD);
-        } catch (IllegalArgumentException i) {
-            return allBeans.getInstance(req).isFirstTime(req);
-        }
+        return isAuthorized(req, AdminServletPermission.IMEAD) || allBeans.getInstance(req).isFirstTime(req);
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
+        Instant start = Instant.now();
         loadProperties(beans);
         if (beans.isFirstTime(request)) {
             if (null == beans.getImeadValue(SecurityRepo.BASE_URL)) {
@@ -100,12 +100,14 @@ public class AdminImeadServlet extends AdminServlet {
             }
             request.setAttribute("FIRST_TIME_SETUP", "FIRST_TIME_SETUP");
         }
+        RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
         showProperties(beans, request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
+        Instant start = Instant.now();
         loadProperties(beans);
         boolean initialFirstTime = beans.isFirstTime(request);
         // save things
@@ -139,13 +141,14 @@ public class AdminImeadServlet extends AdminServlet {
             }
             if (errors.isEmpty()) {
                 beans.getImead().upsert(props);
-                beans.getGlobalCache().clear();
+                beans.reset();
             }
         } else if (action.startsWith("delete")) {
             String[] params = action.split("\\|");
             beans.getImead().delete(new LocalizationPK(params[2], params[1]));
-            beans.getGlobalCache().clear();
+            beans.reset();
         }
+        RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
         if (initialFirstTime && !beans.isFirstTime(request)) {
             response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
         } else {
@@ -172,7 +175,7 @@ public class AdminImeadServlet extends AdminServlet {
         public Localization next() {
             if (hasNext()) {
                 ++current;
-                return new Localization(AbstractInput.getParameter(req, "locale" + current).trim(), AbstractInput.getParameter(req, "key" + current).trim(), AbstractInput.getParameter(req, "value" + current).trim());
+                return new Localization(AbstractInput.getParameter(req, "locale" + current).trim(), AbstractInput.getParameter(req, "key" + current).trim(), AbstractInput.getParameter(req, "value" + current));
             } else {
                 throw new NoSuchElementException();
             }
@@ -270,11 +273,12 @@ public class AdminImeadServlet extends AdminServlet {
 
     /**
      * Must be called after BASE_URL is set.
+     *
      * @param beans
      * @param c
      * @param filename
      * @param type
-     * @throws IOException 
+     * @throws IOException
      */
     private void loadFile(ToiletBeanAccess beans, ServletContext c, String filename, String type) throws IOException {
         String servedName = filename.substring("/WEB-INF/".length());
@@ -287,6 +291,7 @@ public class AdminImeadServlet extends AdminServlet {
             cssFile.setMimetype(type);
             cssFile.setUrl(getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), cssFile));
             beans.getFile().upsert(Arrays.asList(cssFile));
+            FileCompressorJob.startAllJobs(beans, cssFile);
         }
     }
 }

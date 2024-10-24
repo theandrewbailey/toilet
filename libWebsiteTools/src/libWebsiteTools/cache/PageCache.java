@@ -73,7 +73,7 @@ public class PageCache implements Cache<String, CachedPage> {
         Object lookup = req.getAttribute(PAGECACHE_LOOKUP);
         if (null == lookup) {
             StringBuilder lookupBuild = new StringBuilder(300).append(req.getAttribute(AbstractInput.ORIGINAL_REQUEST_URL).toString());
-            lookupBuild.append("\n").append(JspFilter.getCompression(req));
+            lookupBuild.append("\n").append(CompressedOutput.getBestCompression(req));
             lookupBuild.append("; ").append(Local.getLocaleString(imead, req));
             lookupBuild.append("; ").append(imead.getLocalizedHash());
             lookup = lookupBuild.toString();

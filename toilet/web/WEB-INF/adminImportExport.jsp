@@ -1,7 +1,7 @@
 <%@ page trimDirectiveWhitespaces="true" %>
 <%@ include file="/WEB-INF/head.jspf" %>
 
-<p><a href="adminExport"><h:local key="page_downloadLegend"/></a></p>
+<p><a href="adminExport" class="nocache"><h:local key="page_downloadLegend"/></a></p>
 <form action="adminImport" method="POST" enctype="multipart/form-data" accept-charset="UTF-8" class="uploadBackup">
     <fieldset><legend><h:local key="page_uploadLegend"/></legend>
         <h:localVar key="page_uploadField"/><h:file name="zip" label="${page_uploadField} " labelNextLine="false" /><br/>

@@ -18,10 +18,13 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.HttpHeaders;
+import java.time.Duration;
+import java.time.Instant;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.LocalizedStringNotFoundException;
 import libWebsiteTools.rss.FeedBucket;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
@@ -42,7 +45,9 @@ public class ArticleServlet extends ToiletServlet {
     protected long getLastModified(HttpServletRequest request) {
         try {
             ToiletBeanAccess beans = allBeans.getInstance(request);
+            Instant now = Instant.now();
             Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
+            RequestTimer.addTiming(request, "query", Duration.between(now, Instant.now()));
             request.setAttribute(Article.class.getCanonicalName(), art);
             return art.getModified().toInstant().toEpochMilli();
         } catch (RuntimeException ex) {
@@ -54,13 +59,16 @@ public class ArticleServlet extends ToiletServlet {
     @SuppressWarnings("UnnecessaryReturnStatement")
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
+        ToiletBeanAccess beans = allBeans.getInstance(request);
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null == art) {
+            Instant start = Instant.now();
             try {
-                ToiletBeanAccess beans = allBeans.getInstance(request);
                 art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
+                RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
+                RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
@@ -92,13 +100,18 @@ public class ArticleServlet extends ToiletServlet {
         Article art = (Article) request.getAttribute(Article.class.getCanonicalName());
         if (null != art && !response.isCommitted()) {
             ToiletBeanAccess beans = allBeans.getInstance(request);
+            List<Article> pageArticles = Collections.synchronizedList(new ArrayList<>());
+            pageArticles.add(art);
+            request.setAttribute("seeAlso", beans.getExec().submit(() -> {
+                Instant start = Instant.now();
+                Collection<Article> seeAlso = getArticleSuggestions(beans.getArts(), art);
+                RequestTimer.addTiming(request, "seeAlsoQuery", Duration.between(start, Instant.now()));
+                pageArticles.addAll(seeAlso);
+                return seeAlso;
+            }));
             List<Locale> resolvedLocales = Local.resolveLocales(beans.getImead(), request);
-            Collection<Article> seeAlso = getArticleSuggestions(beans.getArts(), art);
-            request.setAttribute("seeAlso", seeAlso);
             request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art));
             // keep track of articles referenced on the page, to help de-duplicate links and maximize unique articles linked to
-            ArrayList<Article> pageArticles = new ArrayList<>(Arrays.asList(art));
-            pageArticles.addAll(seeAlso);
             request.setAttribute("articles", pageArticles);
             request.setAttribute(Article.class.getSimpleName(), art);
             request.setAttribute("title", art.getArticletitle());
@@ -169,7 +182,7 @@ public class ArticleServlet extends ToiletServlet {
     @SuppressWarnings("unchecked")
     public static Collection<Article> getArticleSuggestions(ArticleRepository arts, Article art) {
         try {
-            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art)));
+            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art), 6));
             if (7 > seeAlso.size()) {
                 seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 7, null));
             }

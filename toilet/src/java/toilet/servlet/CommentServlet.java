@@ -15,6 +15,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.HttpHeaders;
+import java.time.Duration;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.security.SecurityRepo;
@@ -29,6 +30,7 @@ import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.rss.CommentRss;
 import libWebsiteTools.rss.DynamicFeed;
+import libWebsiteTools.security.RequestTimer;
 
 /**
  *
@@ -45,11 +47,12 @@ public class CommentServlet extends ToiletServlet {
         ToiletBeanAccess beans = allBeans.getInstance(request);
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
         try {
+            Instant start = Instant.now();
             Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             request.setAttribute(Article.class.getCanonicalName(), art);
             return spamSuspected ? art.getModified().toInstant().toEpochMilli() - 10000 : art.getModified().toInstant().toEpochMilli();
         } catch (RuntimeException ex) {
-
         }
         return 0L;
     }
@@ -61,7 +64,9 @@ public class CommentServlet extends ToiletServlet {
         ToiletBeanAccess beans = allBeans.getInstance(request);
         if (null == art) {
             try {
+                Instant start = Instant.now();
                 art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
+                RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
                 request.setAttribute(Article.class.getCanonicalName(), art);
             } catch (RuntimeException ex) {
                 request.getServletContext().getRequestDispatcher(CoronerServlet.class.getAnnotation(WebServlet.class).urlPatterns()[0] + "/30").forward(request, response);
@@ -75,7 +80,7 @@ public class CommentServlet extends ToiletServlet {
         boolean spamSuspected = (request.getSession(false) == null || request.getSession().isNew()) && request.getParameter("referer") == null;
         response.setDateHeader(HttpHeaders.DATE, spamSuspected ? art.getModified().toInstant().toEpochMilli() - 10000 : art.getModified().toInstant().toEpochMilli());
         request.setAttribute("spamSuspected", spamSuspected);
-        response.setHeader(HttpHeaders.CACHE_CONTROL, spamSuspected ? "no-cache" : "private, must-revalidate, max-age=600");
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
         String ifNoneMatch = request.getHeader(HttpHeaders.IF_NONE_MATCH);
         try {
             MessageDigest md = HashUtil.getSHA256();
@@ -115,71 +120,66 @@ public class CommentServlet extends ToiletServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         Matcher validator = AbstractInput.DEFAULT_REGEXP.matcher("");
         ToiletBeanAccess beans = allBeans.getInstance(request);
-        switch (AbstractInput.getParameter(request, "submit-type")) {
-            case "comment":     // submitted comment
-                String postName = AbstractInput.getParameter(request, "name");
-                String postText = AbstractInput.getParameter(request, "text");
-                if (null == postText || postText.isEmpty()
-                        || null == postName || postName.isEmpty()) {
-                    response.sendError(422, "Unprocessable Entity");
-                    return;
-                }
-                postName = postName.trim();
-                postText = UtilStatic.removeSpaces(postText);
-                String referred = request.getHeader("Referer");
-                if (request.getSession().isNew() || referred == null) {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                    return;
-                }
-                String[] spamwords = beans.getImeadValue(ArticleServlet.SPAM_WORDS).split("\n");
-                for (String ua : spamwords) {
-                    if (Pattern.matches(ua, postText.toLowerCase())) {
-                        response.sendError(HttpServletResponse.SC_FORBIDDEN);
-                        return;
-                    }
-                }
-                Comment newComment = new Comment();
-                newComment.setPostedhtml(UtilStatic.htmlFormat(postText, false, true, true));
-                newComment.setPostedname(UtilStatic.htmlFormat(postName, false, false, true));
-                if (!validator.reset(postName).matches()
-                        || !validator.reset(postText).matches()
-                        || newComment.getPostedname().length() > 250 || newComment.getPostedhtml().length() > 64000) {
-                    response.sendError(HttpServletResponse.SC_BAD_REQUEST);
-                    return;
-                }
-                Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
-                // prevent posting from old page
-                String postRequest = AbstractInput.getParameter(request, "original-request-time");
-                if (null != postRequest) {
-                    OffsetDateTime postRequestDate = Instant.ofEpochMilli(Long.valueOf(postRequest) + 100).atZone(ZoneId.systemDefault()).toOffsetDateTime();
-                    for (Comment existingComment : art.getCommentCollection()) {
-                        if ((existingComment.getPostedname().equals(newComment.getPostedname())) && existingComment.getPosted().isAfter(postRequestDate)
-                                || existingComment.getPostedhtml().equals(newComment.getPostedhtml())) {
-                            response.setStatus(HttpServletResponse.SC_CONFLICT);
-                            request.getSession().setAttribute("LastPostedName", postName);
-                            request.setAttribute("commentText", postText);
-                            doGet(request, response);
-                            return;
-                        }
-                    }
-                }
-                newComment.setArticleid(art);
-                beans.getComms().upsert(Arrays.asList(newComment));
-                request.getSession().setAttribute("LastPostedName", postName);
-                Article refreshedArt = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
-                request.setAttribute(Article.class.getCanonicalName(), refreshedArt);
-                beans.getExec().submit(() -> {
-                    PageCache global = beans.getGlobalCache();
-                    global.removeAll(global.searchLookups("/" + refreshedArt.getArticleid().toString() + "/"));
-                    for (String url : ((DynamicFeed) beans.getFeeds().get(CommentRss.NAME)).getFeedURLs(request).keySet()) {
-                        global.removeAll(global.searchLookups("rss/" + url));
-                    }
-                });
-                doGet(request, response);
-                break;
-            default:
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                break;
+        Instant start = Instant.now();
+        String postName = AbstractInput.getParameter(request, "name");
+        String postText = AbstractInput.getParameter(request, "text");
+        if (null == postText || postText.isEmpty()
+                || null == postName || postName.isEmpty()) {
+            response.sendError(422, "Unprocessable Entity");
+            return;
         }
+        postName = postName.trim();
+        postText = UtilStatic.removeSpaces(postText);
+        String referred = request.getHeader("Referer");
+        if (request.getSession().isNew() || referred == null) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+        String[] spamwords = beans.getImeadValue(ArticleServlet.SPAM_WORDS).split("\n");
+        for (String ua : spamwords) {
+            if (Pattern.matches(ua, postText.toLowerCase())) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+        }
+        Comment newComment = new Comment();
+        newComment.setPostedhtml(UtilStatic.htmlFormat(postText, false, true, true));
+        newComment.setPostedname(UtilStatic.htmlFormat(postName, false, false, true));
+        if (!validator.reset(postName).matches()
+                || !validator.reset(postText).matches()
+                || newComment.getPostedname().length() > 250 || newComment.getPostedhtml().length() > 64000) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+        Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
+        // prevent posting from old page
+        String postRequest = AbstractInput.getParameter(request, "original-request-time");
+        if (null != postRequest) {
+            OffsetDateTime postRequestDate = Instant.ofEpochMilli(Long.valueOf(postRequest) + 100).atZone(ZoneId.systemDefault()).toOffsetDateTime();
+            for (Comment existingComment : art.getCommentCollection()) {
+                if ((existingComment.getPostedname().equals(newComment.getPostedname())) && existingComment.getPosted().isAfter(postRequestDate)
+                        || existingComment.getPostedhtml().equals(newComment.getPostedhtml())) {
+                    response.setStatus(HttpServletResponse.SC_CONFLICT);
+                    request.getSession().setAttribute("LastPostedName", postName);
+                    request.setAttribute("commentText", postText);
+                    doGet(request, response);
+                    return;
+                }
+            }
+        }
+        newComment.setArticleid(art);
+        beans.getComms().upsert(Arrays.asList(newComment));
+        request.getSession().setAttribute("LastPostedName", postName);
+        RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
+        Article refreshedArt = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
+        request.setAttribute(Article.class.getCanonicalName(), refreshedArt);
+        beans.getExec().submit(() -> {
+            PageCache global = beans.getGlobalCache();
+            global.removeAll(global.searchLookups("/" + refreshedArt.getArticleid().toString() + "/"));
+            for (String url : ((DynamicFeed) beans.getFeeds().get(CommentRss.NAME)).getFeedURLs(request).keySet()) {
+                global.removeAll(global.searchLookups("rss/" + url));
+            }
+        });
+        doGet(request, response);
     }
 }

@@ -14,6 +14,7 @@ import jakarta.servlet.http.Part;
 import jakarta.ws.rs.core.HttpHeaders;
 import java.util.Arrays;
 import libWebsiteTools.security.GuardFilter;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.BackupDaemon;
@@ -32,11 +33,7 @@ public class AdminImportServlet extends AdminServlet {
 
     @Override
     public boolean isAuthorized(HttpServletRequest req) {
-        try {
-            return isAuthorized(req, AdminServletPermission.IMPORT_EXPORT);
-        } catch (IllegalArgumentException i) {
-            return allBeans.getInstance(req).isFirstTime(req);
-        }
+        return isAuthorized(req, AdminServletPermission.IMPORT_EXPORT) || allBeans.getInstance(req).isFirstTime(req);
     }
 
     @Override
@@ -55,10 +52,8 @@ public class AdminImportServlet extends AdminServlet {
             InputStream i = p.getInputStream();
             ZipInputStream zip = new ZipInputStream(i);
             beans.getBackup().restoreFromZip(zip);
-            OffsetDateTime start = GuardFilter.getRequestTime(request);
-            Duration d = Duration.between(start, OffsetDateTime.now()).abs();
-            log("Backup restored in " + d.toMillis() + " milliseconds.");
             request.getSession().invalidate();
+            response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
             response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
         } catch (IOException ex) {
             beans.getError().logException(request, "Restore from zip failed", null, ex);

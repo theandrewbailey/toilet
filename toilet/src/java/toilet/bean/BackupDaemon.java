@@ -51,11 +51,10 @@ import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.XmlNodeSearcher;
-import libWebsiteTools.file.Brotlier;
 import libWebsiteTools.file.BaseFileServlet;
+import libWebsiteTools.file.FileCompressorJob;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.file.Fileupload;
-import libWebsiteTools.file.Gzipper;
 import libWebsiteTools.imead.Localization;
 import libWebsiteTools.rss.FeedBucket;
 import org.w3c.dom.Document;
@@ -493,8 +492,7 @@ public class BackupDaemon implements Runnable {
         beans.getExec().submit(() -> {
             beans.getArts().refreshSearch();
             beans.getFile().processArchive((f) -> {
-                beans.getExec().submit(new Brotlier(beans, f));
-                beans.getExec().submit(new Gzipper(beans, f));
+                FileCompressorJob.startAllJobs(beans, f);
             }, false);
         });
     }

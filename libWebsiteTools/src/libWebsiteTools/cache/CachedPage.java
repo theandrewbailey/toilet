@@ -13,6 +13,7 @@ import jakarta.ws.rs.core.CacheControl;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.ext.RuntimeDelegate;
 import libWebsiteTools.security.GuardFilter;
+import libWebsiteTools.security.RequestTimer;
 
 /**
  *
@@ -20,7 +21,7 @@ import libWebsiteTools.security.GuardFilter;
  */
 public class CachedPage {
 
-    private static final List<String> EXCLUDE_HEADERS = Arrays.asList(GuardFilter.STRICT_TRANSPORT_SECURITY, HttpHeaders.SET_COOKIE, HttpHeaders.VARY);
+    private static final List<String> EXCLUDE_HEADERS = Arrays.asList(GuardFilter.STRICT_TRANSPORT_SECURITY, HttpHeaders.SET_COOKIE, HttpHeaders.VARY, RequestTimer.SERVER_TIMING);
     private final Map<String, String> headers;
     private final byte[] body;
     private final int status;

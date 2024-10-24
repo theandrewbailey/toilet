@@ -8,7 +8,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
+import java.time.Instant;
 import libWebsiteTools.file.Fileupload;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.ToiletBeanAccess;
 
@@ -46,6 +49,7 @@ public class AdminFileServlet extends AdminServlet {
     }
 
     public static void showFileList(HttpServletRequest request, HttpServletResponse response, List<Fileupload> uploads) throws ServletException, IOException {
+        Instant start = Instant.now();
         LinkedHashMap<String, List<Fileupload>> files = new LinkedHashMap<>(uploads.size() * 2);
         List<String> directories = new ArrayList<>();
         // root "directory" first
@@ -67,6 +71,7 @@ public class AdminFileServlet extends AdminServlet {
         if (null == request.getAttribute("opened_dir")) {
             request.setAttribute("opened_dir", "");
         }
+        RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
         request.getRequestDispatcher(ADMIN_FILE).forward(request, response);
     }
 

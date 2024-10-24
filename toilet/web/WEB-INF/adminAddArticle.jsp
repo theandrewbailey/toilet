@@ -14,7 +14,6 @@
     <h:textarea name="postedmarkdown" length="100" height="20" label="Text (>64000):" styleClass="articleText" value="${Article.postedmarkdown}" required="true" valueMissing="${valueMissing}" patternMismatch="${patternMismatch}" /><br/>
     <button type="submit" name="action" value="Preview"><h:local key="page_preview"/></button>
     <button type="submit" name="action" value="Add Article"><h:local key="page_articleAdd"/></button>
-    <h:hidden name="submit-type" value="article" />
 </form>
 <br/>
 <c:if test="${param.action == 'Preview' || null != Article.articleid}"><div><main><%@ include file="/WEB-INF/article.jspf" %></main>

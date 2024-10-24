@@ -14,17 +14,23 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import libWebsiteTools.cache.CachedPage;
 import libWebsiteTools.file.FileUtil;
+import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.security.CertPath;
 import libWebsiteTools.security.CertUtil;
 import libWebsiteTools.security.GuardFilter;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.UtilStatic;
 import toilet.bean.ToiletBeanAccess;
+import toilet.db.Article;
+import toilet.db.Comment;
 import toilet.rss.ErrorRss;
 
 /**
@@ -66,25 +72,38 @@ public class AdminHealthServlet extends AdminServlet {
             LinkedHashMap<String, Future< String>> processes = new LinkedHashMap<>();
             for (String command : beans.getImeadValue(HEALTH_COMMANDS).split("\n")) {
                 processes.put(command, beans.getExec().submit(() -> {
+                    Instant start = Instant.now();
                     try {
-                        return new String(FileUtil.runProcess(command, null, 1000));
+                        return new String(FileUtil.runProcess(command.trim(), null, 1000));
                     } catch (IOException | RuntimeException t) {
                         return t.getLocalizedMessage();
+                    } finally {
+                        RequestTimer.addTiming(request, "command;desc=\""+command.trim()+"\"", Duration.between(start, Instant.now()));
                     }
                 }));
             }
             return processes;
         }));
         request.setAttribute("articles", beans.getExec().submit(() -> {
-            return beans.getArts().getAll(null);
+            Instant start = Instant.now();
+            List<Article> arts = beans.getArts().getAll(null);
+            RequestTimer.addTiming(request, "articleQuery", Duration.between(start, Instant.now()));
+            return arts;
         }));
         request.setAttribute("comments", beans.getExec().submit(() -> {
-            return beans.getComms().getAll(null);
+            Instant start = Instant.now();
+            List<Comment> comms = beans.getComms().getAll(null);
+            RequestTimer.addTiming(request, "commentQuery", Duration.between(start, Instant.now()));
+            return comms;
         }));
         request.setAttribute("files", beans.getExec().submit(() -> {
-            return beans.getFile().getFileMetadata(null);
+            Instant start = Instant.now();
+            List<Fileupload> files = beans.getFile().getFileMetadata(null);
+            RequestTimer.addTiming(request, "fileQuery", Duration.between(start, Instant.now()));
+            return files;
         }));
         request.setAttribute("cached", beans.getExec().submit(() -> {
+            Instant start = Instant.now();
             ArrayList<String> cached = new ArrayList<>();
             cached.add(UtilStatic.htmlFormat("Total hits: " + beans.getGlobalCache().getTotalHits(), false, false, true));
             ArrayList<CachedPage> pages = new ArrayList<>(beans.getGlobalCache().getAll(null).values());
@@ -106,6 +125,7 @@ public class AdminHealthServlet extends AdminServlet {
             } catch (Exception ex) {
                 System.out.println(ex.toString());
             }
+            RequestTimer.addTiming(request, "cachedQuery", Duration.between(start, Instant.now()));
             return cached;
         }));
         Map<X509Certificate, LinkedHashMap> certInfo = new HashMap<>();
@@ -116,7 +136,7 @@ public class AdminHealthServlet extends AdminServlet {
                 for (CertPath<X509Certificate> path : certPaths) {
                     for (X509Certificate x509 : path.getCertificates()) {
                         LinkedHashMap<String, String> cert = CertUtil.formatCert(x509);
-                        OffsetDateTime localNow = (OffsetDateTime) request.getAttribute(GuardFilter.TIME_PARAM);
+                        OffsetDateTime localNow = RequestTimer.getStartTime(request);
                         Long days = (x509.getNotAfter().getTime() - localNow.toInstant().toEpochMilli()) / 86400000;
                         if (null != cert) {
                             cert.put("daysUntilExpiration", days.toString());

@@ -19,14 +19,17 @@ public class PostgresArticleDatabase extends ArticleDatabase {
     public PostgresArticleDatabase(EntityManagerFactory toiletPU, IMEADHolder imead) {
         super(toiletPU, imead);
     }
-    
+
     @SuppressWarnings("unchecked")
     @Override
-    public List<Article> search(String searchTerm) {
+    public List<Article> search(String searchTerm, Integer limit) {
         EntityManager em = toiletPU.createEntityManager();
         try {
             Query q = em.createNativeQuery("SELECT r.* FROM toilet.article r, websearch_to_tsquery(?1) query WHERE query @@ r.searchindexdata ORDER BY ts_rank_cd(r.searchindexdata, query) DESC, r.posted", Article.class);
             q.setParameter(1, searchTerm);
+            if (null != limit) {
+                q.setMaxResults(limit);
+            }
             return q.getResultList();
         } finally {
             em.close();

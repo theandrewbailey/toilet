@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.regex.Matcher;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.FeedBucket;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
@@ -23,6 +26,7 @@ import toilet.bean.ArticleRepository;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.db.Section;
+import static toilet.servlet.ArticleServlet.getArticleSuggestions;
 import toilet.tag.ArticleUrl;
 
 /**
@@ -43,6 +47,7 @@ public class AdminArticleServlet extends AdminServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
+        Instant start = Instant.now();
         Article art = IndexFetcher.getArticleFromURI(beans, request.getRequestURI());
         if (null == art) {
             art = IndexFetcher.getArticleFromURI(beans, request.getHeader("Referer"));
@@ -50,6 +55,7 @@ public class AdminArticleServlet extends AdminServlet {
         if (null == art) {
             art = new Article();
         }
+        RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
         AdminArticleServlet.displayArticleEdit(beans, request, response, art);
     }
 
@@ -70,7 +76,10 @@ public class AdminArticleServlet extends AdminServlet {
             AdminArticleServlet.displayArticleEdit(beans, request, response, art);
             return;
         }
+        Instant start = Instant.now();
         art = beans.getArts().upsert(Arrays.asList(art)).iterator().next();
+        RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
+        response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
         beans.reset();
         response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
         request.getSession().removeAttribute(Article.class.getSimpleName());
@@ -81,6 +90,7 @@ public class AdminArticleServlet extends AdminServlet {
     }
 
     private Article updateArticleFromPage(HttpServletRequest req) {
+        Instant start = Instant.now();
         ToiletBeanAccess beans = allBeans.getInstance(req);
         Article art = (Article) req.getSession().getAttribute(Article.class.getSimpleName());
         boolean isNewArticle = null == art.getArticleid();
@@ -120,10 +130,17 @@ public class AdminArticleServlet extends AdminServlet {
             if (isNewArticle) {
                 art.setArticleid(null);
             }
+            RequestTimer.addTiming(req, "parse", Duration.between(start, Instant.now()));
         }
     }
 
     public static void displayArticleEdit(ToiletBeanAccess beans, HttpServletRequest request, HttpServletResponse response, Article art) throws ServletException, IOException {
+        request.setAttribute("seeAlso", beans.getExec().submit(() -> {
+            Instant start = Instant.now();
+            Collection<Article> seeAlso = getArticleSuggestions(beans.getArts(), art);
+            RequestTimer.addTiming(request, "seeAlsoQuery", Duration.between(start, Instant.now()));
+            return seeAlso;
+        }));
         if (art.getCommentCollection() == null) {
             art.setCommentCollection(new ArrayList<>());
         }
@@ -141,8 +158,6 @@ public class AdminArticleServlet extends AdminServlet {
         request.setAttribute(Article.class.getSimpleName(), art);
         request.setAttribute("defaultSearchTerm", ArticleRepository.getArticleSuggestionTerm(art));
         request.getSession().setAttribute(Article.class.getSimpleName(), art);
-        Collection<Article> seeAlso = ArticleServlet.getArticleSuggestions(beans.getArts(), art);
-        request.setAttribute("seeAlso", seeAlso);
         request.setAttribute("seeAlsoTerm", null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art));
         String formattedDate = null != art.getPosted() ? DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(art.getPosted()) : "";
         request.setAttribute("formattedDate", formattedDate);

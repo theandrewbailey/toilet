@@ -5,11 +5,9 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.URLDecoder;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoField;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -21,10 +19,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.HttpHeaders;
+import java.time.Duration;
+import java.time.Instant;
 import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.BaseServlet;
 import libWebsiteTools.security.GuardFilter;
-import libWebsiteTools.tag.ResponseTag;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.cache.CachedContent;
@@ -32,6 +31,7 @@ import libWebsiteTools.cache.CompressedOutput;
 import libWebsiteTools.cache.PageCache;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.security.RequestTimer;
 
 public abstract class BaseFileServlet extends BaseServlet {
 
@@ -39,7 +39,6 @@ public abstract class BaseFileServlet extends BaseServlet {
     public static final long MAX_AGE_MILLISECONDS = 0b1111111111111111111111100000000;
     public static final String MAX_AGE_SECONDS = Long.toString(MAX_AGE_MILLISECONDS / 1000);
     public static final long YEAR_SECONDS = 31535000;
-    public static final Pattern BR_PATTERN = Pattern.compile("(?:.*? )?br(?:,.*)?");
     private static final String CROSS_SITE_REQUEST = "page_error_cross_site_request";
     // [ origin, timestamp for immutable requests (guaranteed null if not immutable), file path, query string ]
     private static final Pattern FILE_URL = Pattern.compile("^(.*?)file(?:Immutable/([^/]+))?/([^\\?]+)\\??(.*)?");
@@ -80,26 +79,14 @@ public abstract class BaseFileServlet extends BaseServlet {
                 .append("/").append(f.getFilename()).toString();
     }
 
-    public static List<String> getCompression(HttpServletRequest req) {
-        List<String> output = new ArrayList<>();
-        String encoding = req.getHeader(HttpHeaders.ACCEPT_ENCODING);
-        if (null != encoding) {
-            if (BR_PATTERN.matcher(encoding).find()) {
-                output.add("br");
-            }
-            if (CompressedOutput.Gzip.PATTERN.matcher(encoding).find()) {
-                output.add("gzip");
-            }
-        }
-        return output;
-    }
-
     @Override
     protected long getLastModified(HttpServletRequest request) {
         AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         Fileupload c;
         try {
+            Instant start = Instant.now();
             c = beans.getFile().get(getNameFromURL(request.getRequestURL()));
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             c.getAtime();
             request.setAttribute(BaseFileServlet.class.getCanonicalName(), c);
         } catch (Exception ex) {
@@ -137,9 +124,11 @@ public abstract class BaseFileServlet extends BaseServlet {
         Fileupload c = (Fileupload) request.getAttribute(BaseFileServlet.class.getCanonicalName());
         AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         if (null == c) {
+            Instant start = Instant.now();
             try {
                 String name = getNameFromURL(request.getRequestURL());
                 c = beans.getFile().get(name);
+                RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
                 if (null == c) {
                     throw new FileNotFoundException(name);
                 }
@@ -175,27 +164,36 @@ public abstract class BaseFileServlet extends BaseServlet {
         if (!c.getMimetype().startsWith("text")) {
             response.setCharacterEncoding(null);
         }
-        String etag;
-        List<String> compressions = getCompression(request);
-        if (compressions.contains("br") && null != c.getBrdata()) {
-            if ((compressions.contains("gzip") && null != c.getGzipdata()
-                    && c.getGzipdata().length < c.getBrdata().length)) {
-                response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
-                response.setContentLength(c.getGzipdata().length);
-                etag = "\"" + c.getEtag() + "g\"";
-            } else {
-                response.setHeader(HttpHeaders.CONTENT_ENCODING, "br");
-                response.setContentLength(c.getBrdata().length);
+        String etag = null;
+
+        String encoding = request.getHeader(HttpHeaders.ACCEPT_ENCODING);
+        if (null != encoding) {
+            if (CompressedOutput.Zstd.PATTERN.matcher(encoding).find()
+                    && null != c.getZstddata() && null != c.getZstdsize()) {
+                response.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Zstd.TYPE);
+                response.setContentLength(c.getZstdsize());
+                request.setAttribute("response", c.getZstddata());
+                etag = "\"" + c.getEtag() + "z\"";
+            } else if (CompressedOutput.Brotli.PATTERN.matcher(encoding).find()
+                    && null != c.getBrdata() && null != c.getBrsize()) {
+                response.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Brotli.TYPE);
+                response.setContentLength(c.getBrsize());
+                request.setAttribute("response", c.getBrdata());
                 etag = "\"" + c.getEtag() + "b\"";
+            } else if (CompressedOutput.Gzip.PATTERN.matcher(encoding).find()
+                    && null != c.getGzipdata() && null != c.getGzipsize()) {
+                response.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Gzip.TYPE);
+                response.setContentLength(c.getGzipsize());
+                request.setAttribute("response", c.getGzipdata());
+                etag = "\"" + c.getEtag() + "g\"";
             }
-        } else if (compressions.contains("gzip") && null != c.getGzipdata()) {
-            response.setHeader(HttpHeaders.CONTENT_ENCODING, "gzip");
-            response.setContentLength(c.getGzipdata().length);
-            etag = "\"" + c.getEtag() + "g\"";
-        } else {
+        }
+        if (null == etag) {
             response.setContentLength(c.getFiledata().length);
+            request.setAttribute("response", c.getFiledata());
             etag = "\"" + c.getEtag() + "\"";
         }
+
         response.setHeader(HttpHeaders.ETAG, etag);
         if (etag.equals(request.getHeader(HttpHeaders.IF_NONE_MATCH))) {
             response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
@@ -209,36 +207,21 @@ public abstract class BaseFileServlet extends BaseServlet {
         doHead(request, response);
         AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         Fileupload c = (Fileupload) request.getAttribute(BaseFileServlet.class.getCanonicalName());
-        byte[] responseBytes;
+        byte[] responseBytes = (byte[]) request.getAttribute("response");
         if (HttpServletResponse.SC_OK == response.getStatus() && null != c) {
-            try {
-                switch (response.getHeader(HttpHeaders.CONTENT_ENCODING)) {
-                    case "br":
-                        responseBytes = c.getBrdata();
-                        break;
-                    case "gzip":
-                        responseBytes = c.getGzipdata();
-                        break;
-                    default:
-                        responseBytes = c.getFiledata();
-                        break;
-                }
-            } catch (NullPointerException n) {
-                responseBytes = c.getFiledata();
-            }
+            response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
             response.getOutputStream().write(responseBytes);
             PageCache global = beans.getGlobalCache().getCache(request, response);
             if (null != global) {
                 global.put(PageCache.getLookup(beans.getImead(), request), new CachedContent(beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS), response, responseBytes, PageCache.getLookup(beans.getImead(), request)));
             }
-            Duration d = Duration.between((OffsetDateTime) GuardFilter.getRequestTime(request), OffsetDateTime.now()).abs();
-            request.setAttribute(ResponseTag.RENDER_TIME_PARAM, d.toMillis());
         }
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
+        Instant start = Instant.now();
         try {
             List<Fileupload> uploadedfiles = FileUtil.getFilesFromRequest(request, "filedata");
             //boolean overwrite = AbstractInput.getParameter(request, "overwrite") != null;
@@ -250,13 +233,13 @@ public abstract class BaseFileServlet extends BaseServlet {
                 uploadedfile.setUrl(getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), uploadedfile));
             }
             beans.getFile().upsert(uploadedfiles);
+            RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
             PageCache global = beans.getGlobalCache();
             for (Fileupload uploadedfile : uploadedfiles) {
                 if (null != global) {
                     global.removeAll(global.searchLookups(uploadedfile.getFilename()));
                 }
-                beans.getExec().submit(new Brotlier(beans, uploadedfile));
-                beans.getExec().submit(new Gzipper(beans, uploadedfile));
+                FileCompressorJob.startAllJobs(beans, uploadedfile);
             }
             request.setAttribute("uploadedfiles", uploadedfiles);
         } catch (FileNotFoundException fx) {

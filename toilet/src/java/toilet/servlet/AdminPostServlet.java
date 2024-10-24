@@ -15,9 +15,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.time.Duration;
+import java.time.Instant;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
 import toilet.bean.ToiletBeanAccess;
@@ -41,9 +44,11 @@ public class AdminPostServlet extends AdminServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
+        Instant start = Instant.now();
         if (request.getParameter("deletecomment") != null) {      // delete comment
             beans.getComms().delete(Integer.parseInt(request.getParameter("deletecomment")));
             beans.reset();
+            RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
             showList(request, response, beans.getArts().getAll(null));
         } else if (request.getParameter("disablecomments") != null) {
             List<Article> articles = new ArrayList<>();
@@ -54,6 +59,8 @@ public class AdminPostServlet extends AdminServlet {
             }
             beans.getArts().upsert(articles);
             beans.reset();
+            RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
+            response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
             response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
         } else if (request.getParameter("rewrite") != null) {
             List<Fileupload> files = Collections.synchronizedList(new ArrayList<>(BackupDaemon.PROCESSING_CHUNK_SIZE * 2));
@@ -105,9 +112,13 @@ public class AdminPostServlet extends AdminServlet {
             } catch (NullPointerException n) {
             }
             beans.getGlobalCache().clear();
+            RequestTimer.addTiming(request, "rewrite", Duration.between(start, Instant.now()));
+            response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
             response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
         } else {
-            showList(request, response, beans.getArts().getAll(null));
+            List<Article> articles = beans.getArts().getAll(null);
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
+            showList(request, response, articles);
         }
     }
 

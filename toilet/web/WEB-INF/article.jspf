@@ -12,7 +12,7 @@
 <c:if test="${!Article.comments}"><h:local key="page_commentDisabled" /></c:if>
 </section></c:when><c:when test="${null != commentForm}"><iframe src="${commentForm}" id="comments" title="${commentFormTitle}" width="100%" height="${600+(fn:length(Article.commentCollection)*200)}"></iframe></c:when></c:choose>
 <!-- ${seeAlsoTerm} -->
-<c:if test="${null != seeAlso}"><nav class="seeAlso"><h1><h:local key="page_mightLike"/></h1><ul>
-<c:forEach items="${seeAlso}" var="seeArticle"><c:choose><c:when test="${null == seeArticle.imageurl}"><li class="noFigure"><article class="article${seeArticle.articleid}"><a href="<t:articleUrl article="${seeArticle}" link="${false}"/>"><h1>${seeArticle.articletitle}</h1></a></article></li><!---->
+<c:if test="${null != seeAlso.get()}"><nav class="seeAlso"><h1><h:local key="page_mightLike"/></h1><ul>
+<c:forEach items="${seeAlso.get()}" var="seeArticle"><c:choose><c:when test="${null == seeArticle.imageurl}"><li class="noFigure"><article class="article${seeArticle.articleid}"><a href="<t:articleUrl article="${seeArticle}" link="${false}"/>"><h1>${seeArticle.articletitle}</h1></a></article></li><!---->
 </c:when><c:otherwise><li class="withFigure"><c:out escapeXml="false" value="${seeArticle.summary}"/></li><!---->
 </c:otherwise></c:choose></c:forEach></ul></nav></c:if>

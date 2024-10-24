@@ -7,13 +7,12 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
-import java.util.Map;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import libWebsiteTools.JVMNotSupportedError;
+import libWebsiteTools.security.RequestTimer;
 
 /**
  *
@@ -25,7 +24,6 @@ public class ServletOutputWrapper<ALT extends ServletOutputStream> extends HttpS
     private final Class<ALT> type;
     private ALT outputStream;
     private PrintWriter printWriter;
-    private final HashMap<String, String> headers = new HashMap<>();
 
     public ServletOutputWrapper(Class<ALT> type, HttpServletResponse res) throws IOException {
         super(res);
@@ -42,18 +40,14 @@ public class ServletOutputWrapper<ALT extends ServletOutputStream> extends HttpS
         }
     }
 
-    public Map<String, String> getHeaders() {
-        return new HashMap<>(headers);
-    }
-
     @Override
     public void addHeader(String name, String value) {
-        headers.put(name, value);
+        ((HttpServletResponse) getResponse()).addHeader(name, value);
     }
 
     @Override
     public void setHeader(String name, String value) {
-        headers.put(name, value);
+        ((HttpServletResponse) getResponse()).setHeader(name, value);
     }
 
     @Override
@@ -63,10 +57,6 @@ public class ServletOutputWrapper<ALT extends ServletOutputStream> extends HttpS
         }
         if (outputStream != null) {
             outputStream.flush();
-        }
-        try {
-            super.flushBuffer();
-        } catch (IOException ix) {
         }
     }
 

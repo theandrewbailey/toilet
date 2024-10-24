@@ -1,5 +1,7 @@
 package libWebsiteTools.cache;
 
+import com.aayushatharva.brotli4j.Brotli4jLoader;
+import com.github.luben.zstd.util.Native;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
@@ -18,6 +20,7 @@ import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.LocalizedStringNotFoundException;
 import libWebsiteTools.rss.FeedBucket;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
 
@@ -87,31 +90,26 @@ public class JspFilter implements Filter {
             }
         }
         PageCache cache = beans.getGlobalCache().getCache(req, res);
+        CachedPage page = capturePage(chain, req, res);
         if (null != cache) {
-            CachedPage page = capturePage(chain, req, res);
             cache.put(PageCache.getLookup(beans.getImead(), req), page);
-        } else {
-            compressBody(chain, req, res);
         }
         res.flushBuffer();
     }
 
     private CachedPage capturePage(FilterChain chain, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
         AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
-        if (CompressedOutput.Gzip.TYPE.equals(getCompression(req))) {
-            res.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Gzip.TYPE);
-//        } else if (CompressedOutput.Zstd.TYPE.equals(getCompression(req))) {
-//            res.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Zstd.TYPE);
-        }
         String etag = res.getHeader(HttpHeaders.ETAG);
         if (null == etag) {
             etag = PageCache.getETag(beans.getImead(), req);
             res.setHeader(HttpHeaders.ETAG, etag);
         }
         ServletOutputWrapper<ServletOutputWrapper.ByteArrayOutput> wrap = new ServletOutputWrapper<>(ServletOutputWrapper.ByteArrayOutput.class, res);
+        RequestTimer.getFrontTime(req);
         compressBody(chain, req, wrap);
         wrap.flushBuffer();
         byte[] responseBytes = wrap.getOutputStream().getWriter().toByteArray();
+        wrap.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(req, Boolean.FALSE));
         ServletOutputStream out = res.getOutputStream();
         out.write(responseBytes);
         try {
@@ -122,46 +120,9 @@ public class JspFilter implements Filter {
     }
 
     private void compressBody(FilterChain chain, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
-        switch (getCompression(req)) {
-            case CompressedOutput.Gzip.TYPE:
-                try (ServletOutputWrapper<CompressedOutput.Gzip> gzWrap = new ServletOutputWrapper<>(CompressedOutput.Gzip.class, (HttpServletResponse) res)) {
-                    chain.doFilter(req, gzWrap);
-                    gzWrap.flushBuffer();
-                }
-                break;
-//            case CompressedOutput.Zstd.TYPE:
-//                try (ServletOutputWrapper<CompressedOutput.Zstd> zWrap = new ServletOutputWrapper<>(CompressedOutput.Zstd.class, (HttpServletResponse) res)) {
-//                    chain.doFilter(req, zWrap);
-//                    zWrap.flushBuffer();
-//                }
-//                break;
-            default:
-                chain.doFilter(req, res);
-                break;
+        try (ServletOutputWrapper wrap = CompressedOutput.getCompressedOutput(req, res)) {
+            chain.doFilter(req, wrap);
+            wrap.flushBuffer();
         }
-    }
-
-    /**
-     * Checks if client supports gzip compression
-     *
-     * @param req
-     * @return "gzip" or null
-     */
-    public static String getCompression(HttpServletRequest req) {
-        String encoding = req.getHeader(HttpHeaders.ACCEPT_ENCODING);
-        if (null != encoding) {
-            //if (CompressedOutput.Zstd.PATTERN.matcher(encoding).find()) { return CompressedOutput.Zstd.TYPE;
-            //} else 
-                if (CompressedOutput.Gzip.PATTERN.matcher(encoding).find()) {
-                return CompressedOutput.Gzip.TYPE;
-                //} else if (BR_PATTERN.matcher(encoding).find()) {
-                //  return "br";
-            }
-        }
-        return "none";
-    }
-
-    @Override
-    public void destroy() {
     }
 }

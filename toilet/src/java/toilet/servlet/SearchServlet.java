@@ -22,6 +22,7 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
+import toilet.IndexFetcher;
 import toilet.UtilStatic;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
@@ -45,6 +46,7 @@ public class SearchServlet extends ToiletServlet {
             response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
+        int articleLimit = Integer.parseInt(beans.getImeadValue(IndexFetcher.POSTS_PER_PAGE)) * Integer.parseInt(beans.getImeadValue(IndexFetcher.PAGES_AROUND_CURRENT));
         String searchTerm = request.getParameter("searchTerm");
         String searchSuggestion = request.getParameter("suggestion");
         if (null != searchTerm && !searchTerm.isEmpty()) {
@@ -52,7 +54,7 @@ public class SearchServlet extends ToiletServlet {
                 response.sendError(422);
                 return;
             }
-            List<Article> results = beans.getArts().search(searchTerm);
+            List<Article> results = beans.getArts().search(searchTerm, articleLimit);
             Locale loc = Local.resolveLocales(beans.getImead(), request).get(0);
             try {
                 if (!results.stream().anyMatch((art) -> {
@@ -122,7 +124,7 @@ public class SearchServlet extends ToiletServlet {
                 }
             }
             for (String word : beans.getArts().getSearchSuggestion(baseJoin.toString(), 2)) {
-                List<Article> result = beans.getArts().search(base + word);
+                List<Article> result = beans.getArts().search(base + word, articleLimit);
                 if (!result.isEmpty()) {
                     countResults.add(Integer.MIN_VALUE, base + word);
                 }
@@ -142,18 +144,18 @@ public class SearchServlet extends ToiletServlet {
                 for (String first : firsts) {
                     String stem = base + first;
                     if (null == seconds) {
-                        List<Article> result = beans.getArts().search(stem);
+                        List<Article> result = beans.getArts().search(stem, articleLimit);
                         if (!result.isEmpty()) {
                             countResults.add(result.size(), stem);
                         }
                     } else {
                         for (String second : seconds) {
                             if (!stem.contains(second)) {
-                                List<Article> result = beans.getArts().search(stem + second);
+                                List<Article> result = beans.getArts().search(stem + second, articleLimit);
                                 if (!result.isEmpty()) {
                                     countResults.add(result.size(), stem + second);
                                 }
-                                result = beans.getArts().search(stem + " " + second);
+                                result = beans.getArts().search(stem + " " + second, articleLimit);
                                 if (!result.isEmpty()) {
                                     countResults.add(result.size(), stem + " " + second);
                                 }

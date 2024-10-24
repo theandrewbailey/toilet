@@ -36,9 +36,10 @@ public interface ArticleRepository extends Repository<Article> {
     /**
      *
      * @param searchTerm Perform a search based on this term
+     * @param limit Return maximum of this many. Can be null to return all possible matches.
      * @return Articles that match the searchTerm, sorted by relevance
      */
-    public abstract List<Article> search(String searchTerm);
+    public abstract List<Article> search(String searchTerm, Integer limit);
 
     /**
      *

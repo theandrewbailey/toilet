@@ -14,8 +14,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.HttpHeaders;
+import java.time.Duration;
+import java.time.Instant;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
+import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.IndexFetcher;
 import toilet.bean.ToiletBeanAccess;
@@ -40,7 +43,9 @@ public class IndexServlet extends ToiletServlet {
     protected long getLastModified(HttpServletRequest request) {
         OffsetDateTime latest = OffsetDateTime.of(2000, 1, 1, 1, 1, 1, 1, ZoneOffset.UTC);
         try {
+            Instant start = Instant.now();
             IndexFetcher f = getIndexFetcher(request);
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             request.setAttribute(IndexFetcher.class.getCanonicalName(), f);
             for (Article a : f.getArticles()) {
                 if (a.getModified().isAfter(latest)) {
@@ -56,7 +61,9 @@ public class IndexServlet extends ToiletServlet {
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         IndexFetcher f = (IndexFetcher) request.getAttribute(IndexFetcher.class.getCanonicalName());
         if (null == f) {
+            Instant start = Instant.now();
             f = getIndexFetcher(request);
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             request.setAttribute(IndexFetcher.class.getCanonicalName(), f);
         }
         Collection<Article> articles = f.getArticles();
@@ -83,7 +90,8 @@ public class IndexServlet extends ToiletServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         ToiletBeanAccess beans = allBeans.getInstance(request);
         if (beans.isFirstTime(request)) {
-            request.getRequestDispatcher(AdminImeadServlet.class.getAnnotation(WebServlet.class).urlPatterns()[0]).forward(request, response);
+            String url = AdminImeadServlet.class.getAnnotation(WebServlet.class).urlPatterns()[0];
+            request.getRequestDispatcher(url).forward(request, response);
             return;
         }
         doHead(request, response);

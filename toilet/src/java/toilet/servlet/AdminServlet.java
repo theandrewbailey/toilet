@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.core.HttpHeaders;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -17,6 +19,7 @@ import java.util.concurrent.Future;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.security.HashUtil;
+import libWebsiteTools.security.RequestTimer;
 import toilet.bean.ToiletBeanAccess;
 
 /**
@@ -55,10 +58,11 @@ public abstract class AdminServlet extends ToiletServlet {
      * permission?
      */
     public static boolean isAuthorized(HttpServletRequest req, AdminServletPermission permission) {
-        if (permission.equals(req.getSession().getAttribute(AdminServletPermission.class.getCanonicalName()))) {
-            return true;
-        }
+        Instant start = Instant.now();
         try {
+            if (permission.equals(req.getSession().getAttribute(AdminServletPermission.class.getCanonicalName()))) {
+                return true;
+            }
             String authHeader = req.getHeader(HttpHeaders.AUTHORIZATION).substring(6);
             String decoded = new String(Base64.getDecoder().decode(authHeader), "UTF-8");
             String[] parts = decoded.split(":", 2);
@@ -68,6 +72,8 @@ public abstract class AdminServlet extends ToiletServlet {
         } catch (UnsupportedEncodingException ex) {
             throw new JVMNotSupportedError(ex);
         } catch (NullPointerException n) {
+        } finally {
+            RequestTimer.addTiming(req, "checkAuth", Duration.between(start, Instant.now()));
         }
         return false;
     }
@@ -84,6 +90,7 @@ public abstract class AdminServlet extends ToiletServlet {
      */
     public AdminServletPermission authorize(HttpServletRequest req, String password) {
         ToiletBeanAccess beans = allBeans.getInstance(req);
+        Instant start = Instant.now();
         List<Future<AdminServletPermission>> checkers = new ArrayList<>(AdminServletPermission.values().length);
         HttpSession sess = req.getSession();
         try {
@@ -99,6 +106,8 @@ public abstract class AdminServlet extends ToiletServlet {
         } catch (InterruptedException | ExecutionException ex) {
             sess.removeAttribute(AdminServletPermission.class.getCanonicalName());
             throw new RuntimeException("Something went wrong while verifying passwords.", ex);
+        } finally {
+            RequestTimer.addTiming(req, "authorize", Duration.between(start, Instant.now()));
         }
         sess.removeAttribute(AdminServletPermission.class.getCanonicalName());
         return null;
