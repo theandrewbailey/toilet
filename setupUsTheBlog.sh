@@ -14,9 +14,18 @@ readonly databasePort="5432"
 readonly postgresJdbcJarVersion="42.7.4"
 readonly postgresJdbcJar="postgresql-${postgresJdbcJarVersion}.jar"
 
-readonly payaraVersion="6.2024.10"
+readonly payaraVersion="6.2023.3"
 readonly payaraDir="payara6"
 readonly payaraZip="payara-web-${payaraVersion}.zip"
+
+readonly brOs="linux"
+readonly brArch="$(arch)"
+readonly brVersion="1.17.0"
+
+readonly zstdOs="linux"
+readonly zstdArch="amd64"
+readonly zstdVersion="1.5.6-6"
+readonly zstdJar="zstd-jni-${zstdVersion}-${zstdOs}_${zstdArch}.jar"
 
 readonly toiletDirectory="$HOME/toilet"
 readonly currentDir=$(pwd)
@@ -183,7 +192,11 @@ function downloadLibraries(){
 "https://repo1.maven.org/maven2/org/commonmark/commonmark-ext-ins/${cmv}/commonmark-ext-ins-${cmv}.jar" 
 "https://repo1.maven.org/maven2/org/commonmark/commonmark-ext-image-attributes/${cmv}/commonmark-ext-image-attributes-${cmv}.jar" 
 "https://repo1.maven.org/maven2/org/commonmark/commonmark-ext-task-list-items/${cmv}/commonmark-ext-task-list-items-${cmv}.jar" 
-"https://repo1.maven.org/maven2/org/commonmark/commonmark-ext-yaml-front-matter/${cmv}/commonmark-ext-yaml-front-matter-${cmv}.jar")
+"https://repo1.maven.org/maven2/org/commonmark/commonmark-ext-yaml-front-matter/${cmv}/commonmark-ext-yaml-front-matter-${cmv}.jar" 
+"https://repo1.maven.org/maven2/com/github/luben/zstd-jni/${zstdVersion}/${zstdJar}" 
+"https://repo1.maven.org/maven2/com/aayushatharva/brotli4j/brotli4j/${brVersion}/brotli4j-${brVersion}.jar" 
+"https://repo1.maven.org/maven2/com/aayushatharva/brotli4j/service/${brVersion}/service-${brVersion}.jar" 
+"https://repo1.maven.org/maven2/com/aayushatharva/brotli4j/native-${brOs}-${brArch}/${brVersion}/native-${brOs}-${brArch}-${brVersion}.jar")
 	fi
 	for lib in "${libraries[@]}"; do
 		download "$lib" "$toiletDirectory"
@@ -192,44 +205,6 @@ function downloadLibraries(){
 
 function createPassword(){ # length
 	password=$(tr -dc 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789(){}[]<>!$%&*+,.?@^_`|~' < /dev/urandom | head -c $1)
-}
-
-function buildCompressionPrograms(){
-	if [[ -z $(type -P git) ]]; then
-		echo "git not available, can't build compression programs"
-		return
-	fi
-	if [[ -z $(type -P gcc) ]]; then
-		echo "gcc not available, can't build compression programs"
-		return
-	fi
-	if [[ -z $(type -P cmake) ]]; then
-		echo "cmake not available, can't build compression programs"
-		return
-	fi
-	cd "$HOME"
-	if [[ ! -d ".local" ]]; then
-		mkdir ".local"
-		cd ".local"
-	fi
-	if [[ ! -d "bin" ]]; then
-		mkdir "bin"
-	fi
-	if [[ -z $(type -P zopfli) ]]; then
-		cd "$toiletDirectory"
-		git clone "https://github.com/google/zopfli.git"
-		cd zopfli
-		make
-		cp zopfli "$HOME/.local/bin"
-	fi
-	if [[ -z $(type -P brotli) ]]; then
-		cd "$toiletDirectory"
-		git clone "https://github.com/google/brotli.git"
-		mkdir brotli/out && cd brotli/out
-		cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./installed ..
-		cmake --build . --config Release
-		cp brotli "$HOME/.local/bin"
-	fi
 }
 
 function setupDb(){
@@ -342,7 +317,6 @@ function setupToilet(){
 	fi
 }
 
-buildCompressionPrograms
 downloadLibraries
 setupDb
 setupPayara
