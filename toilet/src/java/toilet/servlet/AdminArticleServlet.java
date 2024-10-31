@@ -17,7 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.regex.Matcher;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.FeedBucket;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
@@ -80,7 +80,8 @@ public class AdminArticleServlet extends AdminServlet {
         art = beans.getArts().upsert(Arrays.asList(art)).iterator().next();
         RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
         response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
-        beans.reset();
+        beans.getArts().evict();
+        beans.getGlobalCache().clear();
         response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
         request.getSession().removeAttribute(Article.class.getSimpleName());
         request.getSession().removeAttribute(AdminServletPermission.class.getCanonicalName());

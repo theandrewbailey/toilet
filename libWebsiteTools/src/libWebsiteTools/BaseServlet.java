@@ -1,6 +1,7 @@
 package libWebsiteTools;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,6 +24,12 @@ public abstract class BaseServlet extends HttpServlet {
     public static void permaMove(HttpServletResponse res, String newLocation) {
         res.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
         res.setHeader("Location", newLocation);
+    }
+
+    @Override
+    protected void service​(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+        req.setAttribute(WebServlet.class.getCanonicalName(), getClass().getAnnotation(WebServlet.class).urlPatterns()[0]);
+        super.service(req, res);
     }
 
     @Override

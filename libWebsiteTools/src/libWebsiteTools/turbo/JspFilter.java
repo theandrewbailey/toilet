@@ -1,7 +1,5 @@
-package libWebsiteTools.cache;
+package libWebsiteTools.turbo;
 
-import com.aayushatharva.brotli4j.Brotli4jLoader;
-import com.github.luben.zstd.util.Native;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Locale;
@@ -9,7 +7,6 @@ import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.annotation.WebFilter;
@@ -20,7 +17,6 @@ import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.LocalizedStringNotFoundException;
 import libWebsiteTools.rss.FeedBucket;
-import libWebsiteTools.security.RequestTimer;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
 
@@ -104,25 +100,15 @@ public class JspFilter implements Filter {
             etag = PageCache.getETag(beans.getImead(), req);
             res.setHeader(HttpHeaders.ETAG, etag);
         }
-        ServletOutputWrapper<ServletOutputWrapper.ByteArrayOutput> wrap = new ServletOutputWrapper<>(ServletOutputWrapper.ByteArrayOutput.class, res);
         RequestTimer.getFrontTime(req);
-        compressBody(chain, req, wrap);
-        wrap.flushBuffer();
-        byte[] responseBytes = wrap.getOutputStream().getWriter().toByteArray();
-        wrap.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(req, Boolean.FALSE));
-        ServletOutputStream out = res.getOutputStream();
-        out.write(responseBytes);
-        try {
-            out.flush();
-        } catch (IOException ix) {
-        }
-        return new CachedPage(res, responseBytes, PageCache.getLookup(beans.getImead(), req));
-    }
-
-    private void compressBody(FilterChain chain, HttpServletRequest req, HttpServletResponse res) throws IOException, ServletException {
-        try (ServletOutputWrapper wrap = CompressedOutput.getCompressedOutput(req, res)) {
+        try (CompressedServletWrapper wrap = CompressedServletWrapper.getInstance(req, res)) {
             chain.doFilter(req, wrap);
             wrap.flushBuffer();
+            byte[] responseBytes = wrap.getOutputStream().getResult();
+            res.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(req, Boolean.FALSE));
+            res.setContentLength(responseBytes.length);
+            wrap.getOutputStream().setResult(res, responseBytes);
+            return new CachedPage(res, responseBytes, PageCache.getLookup(beans.getImead(), req));
         }
     }
 }

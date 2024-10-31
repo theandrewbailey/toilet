@@ -40,8 +40,7 @@ public abstract class ArticleDatabase implements ArticleRepository {
         if (null != sect && sect.equals(imead.getValue(ArticleDatabase.DEFAULT_CATEGORY))) {
             sect = null;
         }
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             TypedQuery<Article> q = sect == null
                     ? em.createNamedQuery("Article.findAll", Article.class)
                     : em.createNamedQuery("Article.findBySection", Article.class).setParameter("section", sect);
@@ -51,8 +50,6 @@ public abstract class ArticleDatabase implements ArticleRepository {
                 q.setMaxResults(perPage);                      // pagination limit
             }
             return q.getResultList();
-        } finally {
-            em.close();
         }
     }
 
@@ -69,9 +66,7 @@ public abstract class ArticleDatabase implements ArticleRepository {
         LOG.log(Level.INFO, "Upserting {0} articles", articles.size());
         Article dbArt;
         ArrayList<Article> out = new ArrayList<>(articles.size());
-        EntityManager em = toiletPU.createEntityManager();
-
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             em.getTransaction().begin();
             for (Article art : articles) {
                 String sect = art.getSectionid().getName();
@@ -115,39 +110,30 @@ public abstract class ArticleDatabase implements ArticleRepository {
         } catch (Throwable x) {
             LOG.throwing(ArticleRepository.class.getCanonicalName(), "addArticles", x);
             throw x;
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public Article get(Object articleId) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             return em.find(Article.class, articleId);
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public List<Article> getAll(Integer limit) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             TypedQuery<Article> q = em.createNamedQuery("Article.findAll", Article.class).setParameter("exclude", EXCLUDE_NOTHING);
             if (null != limit) {
                 q.setMaxResults(limit);
             }
             return q.getResultList();
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public Article delete(Object articleId) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             if (null == articleId) {
                 em.getTransaction().begin();
                 for (Comment c : em.createNamedQuery("Comment.findAll", Comment.class).getResultList()) {
@@ -167,7 +153,8 @@ public abstract class ArticleDatabase implements ArticleRepository {
             } else {
                 Article e = em.find(Article.class, articleId);
                 em.getTransaction().begin();
-                if (e.getSectionid().getArticleCollection().size() == 1) {
+                TypedQuery<Long> qn = em.createNamedQuery("Article.countBySection", Long.class).setParameter("section", e.getSectionid().getName());
+                if (qn.getSingleResult() == 1) {
                     em.remove(e);
                     em.remove(e.getSectionid());
                 } else {
@@ -177,15 +164,12 @@ public abstract class ArticleDatabase implements ArticleRepository {
                 LOG.info("Article deleted");
                 return e;
             }
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public void processArchive(Consumer<Article> operation, Boolean transaction) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             if (transaction) {
                 em.getTransaction().begin();
                 em.createNamedQuery("Article.findAll", Article.class).setParameter("exclude", EXCLUDE_NOTHING).getResultStream().forEachOrdered(operation);
@@ -193,8 +177,6 @@ public abstract class ArticleDatabase implements ArticleRepository {
             } else {
                 em.createNamedQuery("Article.findAll", Article.class).setParameter("exclude", EXCLUDE_NOTHING).getResultStream().forEachOrdered(operation);
             }
-        } finally {
-            em.close();
         }
     }
 
@@ -206,14 +188,10 @@ public abstract class ArticleDatabase implements ArticleRepository {
 
     @Override
     public Long count() {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Article.count", Long.class);
             Long output = qn.getSingleResult();
             return output;
-        } finally {
-            em.close();
         }
     }
-
 }

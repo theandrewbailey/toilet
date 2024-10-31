@@ -1,4 +1,4 @@
-package libWebsiteTools.db;
+package libWebsiteTools.security;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;

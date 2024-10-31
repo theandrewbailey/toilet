@@ -31,16 +31,13 @@ public abstract class FileDatabase implements FileRepository {
     @Override
     public Fileupload get(Object filename) {
         Fileupload out;
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             out = em.find(Fileupload.class, filename);
             LOG.log(Level.FINEST, "File retrieved: {0}", filename);
             return out;
         } catch (NoResultException n) {
             LOG.log(Level.FINEST, "File doesn't exist: {0}", filename);
             return null;
-        } finally {
-            em.close();
         }
     }
 
@@ -54,14 +51,11 @@ public abstract class FileDatabase implements FileRepository {
         if (null != names && names.isEmpty()) {
             return new ArrayList<>();
         }
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             return null == names ? em.createNamedQuery("Filemetadata.findAll", Fileupload.class).getResultList()
                     : em.createNamedQuery("Filemetadata.findByFilenames", Fileupload.class).setParameter("filenames", names).getResultList();
         } catch (NoResultException n) {
             return null;
-        } finally {
-            em.close();
         }
     }
 
@@ -72,59 +66,53 @@ public abstract class FileDatabase implements FileRepository {
      */
     @Override
     public List<Fileupload> search(String searchTerm) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             return em.createNamedQuery("Filemetadata.searchByFilenames", Fileupload.class).setParameter("term", searchTerm).getResultList();
         } catch (NoResultException n) {
             return null;
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public List<Fileupload> upsert(Collection<Fileupload> entities) {
         ArrayList<Fileupload> out = new ArrayList<>(entities.size());
-        EntityManager em = PU.createEntityManager();
-        try {
-            em.getTransaction().begin();
-            for (Fileupload upload : entities) {
-                if (null == em.find(Fileupload.class, upload.getFilename())) {
-                    em.persist(upload);
-                    LOG.log(Level.INFO, "File added {0}", upload.getFilename());
-                } else {
-                    upload = em.merge(upload);
-                    LOG.log(Level.INFO, "File upserted {0}", upload.getFilename());
+        try (EntityManager em = PU.createEntityManager()) {
+            try {
+                em.getTransaction().begin();
+                for (Fileupload upload : entities) {
+                    if (null == em.find(Fileupload.class, upload.getFilename())) {
+                        em.persist(upload);
+                        LOG.log(Level.INFO, "File added {0}", upload.getFilename());
+                    } else {
+                        upload = em.merge(upload);
+                        LOG.log(Level.INFO, "File upserted {0}", upload.getFilename());
+                    }
+                    out.add(upload);
                 }
-                out.add(upload);
+                em.getTransaction().commit();
+            } catch (RuntimeException d) {
+                LOG.log(Level.SEVERE, "Files not committed");
+                throw d;
+            } finally {
+                if (em.getTransaction().isActive()) {
+                    em.getTransaction().rollback();
+                }
             }
-            em.getTransaction().commit();
-        } catch (RuntimeException d) {
-            LOG.log(Level.SEVERE, "Files not committed");
-            throw d;
-        } finally {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-            em.close();
         }
         return out;
     }
 
     @Override
     public Fileupload delete(Object filename) {
-        EntityManager em = PU.createEntityManager();
-        Fileupload f = em.find(Fileupload.class, filename);
-        if (null != f) {
-            try {
+        try (EntityManager em = PU.createEntityManager()) {
+            Fileupload f = em.find(Fileupload.class, filename);
+            if (null != f) {
                 em.getTransaction().begin();
                 em.remove(f);
                 em.getTransaction().commit();
-            } finally {
-                em.close();
             }
+            return f;
         }
-        return f;
     }
 
     /**
@@ -135,8 +123,7 @@ public abstract class FileDatabase implements FileRepository {
      */
     @Override
     public void processArchive(Consumer<Fileupload> operation, Boolean transaction) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             if (transaction) {
                 em.getTransaction().begin();
                 Stream<Fileupload> results = em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultStream();
@@ -146,33 +133,25 @@ public abstract class FileDatabase implements FileRepository {
                 Stream<Fileupload> results = em.createNamedQuery("Fileupload.findAll", Fileupload.class).getResultStream();
                 results.forEach(operation);
             }
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public List<Fileupload> getAll(Integer limit) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             TypedQuery<Fileupload> q = em.createNamedQuery("Fileupload.findAll", Fileupload.class);
             if (null != limit) {
                 q.setMaxResults(limit);
             }
             return q.getResultList();
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public Long count() {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Fileupload.count", Long.class);
             return qn.getSingleResult();
-        } finally {
-            em.close();
         }
     }
 }

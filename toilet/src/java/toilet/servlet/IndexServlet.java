@@ -18,14 +18,14 @@ import java.time.Duration;
 import java.time.Instant;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.tag.HtmlMeta;
 import toilet.IndexFetcher;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
 import toilet.tag.Categorizer;
 
-@WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/", "/index", "/index/*"})
+@WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/index/*", "/index", "/"})
 public class IndexServlet extends ToiletServlet {
 
     public static final String HOME_JSP = "/WEB-INF/category.jsp";

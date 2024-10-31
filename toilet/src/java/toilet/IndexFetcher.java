@@ -120,7 +120,8 @@ public class IndexFetcher {
             } else {
                 Section thisSection = beans.getSects().get(section);
                 if (null != thisSection) {
-                    counted = thisSection.getArticleCollection().size();
+//                    counted = thisSection.getArticleCollection().size();
+                    counted = beans.getSects().count(section);
                 }
             }
             count = (int) Math.ceil(counted / ppp);

@@ -3,15 +3,16 @@ package libWebsiteTools;
 import jakarta.ejb.Local;
 import jakarta.enterprise.concurrent.ManagedExecutorService;
 import jakarta.servlet.http.HttpServletRequest;
-import libWebsiteTools.cache.CachedPage;
-import libWebsiteTools.cache.PageCache;
-import libWebsiteTools.cache.PageCacheProvider;
-import libWebsiteTools.cache.PageCaches;
+import libWebsiteTools.turbo.CachedPage;
+import libWebsiteTools.turbo.PageCache;
+import libWebsiteTools.turbo.PageCacheProvider;
+import libWebsiteTools.turbo.PageCaches;
 import libWebsiteTools.file.FileRepository;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.sitemap.SiteMapper;
+import libWebsiteTools.turbo.PerfStats;
 
 /**
  * Easy way to ensure static functions have access to requisite bean classes.
@@ -44,6 +45,8 @@ public interface AllBeanAccess {
     public default PageCache getGlobalCache() {
         return (PageCache) getPageCacheProvider().getCacheManager().<String, CachedPage>getCache(PageCaches.DEFAULT_URI);
     }
+
+    public PerfStats getPerfStats();
 
     public void reset();
 }

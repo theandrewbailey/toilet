@@ -1,5 +1,6 @@
 package toilet.bean.database;
 
+import toilet.bean.SectionRepository;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,18 +11,17 @@ import java.util.function.Consumer;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.NoResultException;
-import libWebsiteTools.db.Repository;
+import jakarta.persistence.TypedQuery;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.UtilStatic;
 import toilet.bean.ArticleRepository;
-import toilet.db.Article;
 import toilet.db.Section;
 
 /**
  *
  * @author alpha
  */
-public class SectionDatabase implements Repository<Section> {
+public class SectionDatabase extends SectionRepository {
 
     private final EntityManagerFactory toiletPU;
     private final IMEADHolder imead;
@@ -39,8 +39,7 @@ public class SectionDatabase implements Repository<Section> {
 
     @Override
     public Section get(Object id) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             if (id instanceof Integer) {
                 return em.find(Section.class, id);
             } else if (id instanceof String) {
@@ -48,8 +47,6 @@ public class SectionDatabase implements Repository<Section> {
             }
         } catch (NoResultException n) {
             return null;
-        } finally {
-            em.close();
         }
         throw new IllegalArgumentException("Bad type. Must be String or Integer.");
     }
@@ -67,11 +64,12 @@ public class SectionDatabase implements Repository<Section> {
     @SuppressWarnings("unchecked")
     public List<Section> getAll(Integer limit) {
         if (null == allSections) {
-            EntityManager em = toiletPU.createEntityManager();
-            Article empty = new Article();
+//            Article empty = new Article();
+            List<Object[]> sectionsByArticlesPosted;
+            try (EntityManager em = toiletPU.createEntityManager()) {
+                sectionsByArticlesPosted = em.createNamedQuery("Section.byArticlesPosted").getResultList();
+            }
             try {
-                List<Object[]> sectionsByArticlesPosted = em.createNamedQuery("Section.byArticlesPosted").getResultList();
-                em.close();
                 double now = OffsetDateTime.now().toInstant().toEpochMilli();
                 TreeMap<Double, Section> popularity = new TreeMap<>();
                 for (Object[] data : sectionsByArticlesPosted) {
@@ -84,11 +82,11 @@ public class SectionDatabase implements Repository<Section> {
                     // score = average posts per year since category first started
                     double score = UtilStatic.score(points, years, 1.8);
                     popularity.put(score, section);
-                    List<Article> articles = new ArrayList<>(section.getArticleCollection().size());
-                    for (int i = 0; i < section.getArticleCollection().size(); i++) {
-                        articles.add(empty);
-                    }
-                    section.setArticleCollection(articles);
+//                    List<Article> articles = new ArrayList<>(section.getArticleCollection().size());
+//                    for (int i = 0; i < section.getArticleCollection().size(); i++) {
+//                        articles.add(empty);
+//                    }
+//                    section.setArticleCollection(articles);
                 }
                 allSections = new ArrayList<>(popularity.values());
                 Collections.reverse(allSections);
@@ -100,9 +98,17 @@ public class SectionDatabase implements Repository<Section> {
     }
 
     @Override
+    public Long count(String section) {
+        try (EntityManager em = toiletPU.createEntityManager()) {
+            TypedQuery<Long> qn = em.createNamedQuery("Article.countBySection", Long.class).setParameter("section", section);
+            Long output = qn.getSingleResult();
+            return output;
+        }
+    }
+
+    @Override
     public void processArchive(Consumer<Section> operation, Boolean transaction) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             if (transaction) {
                 em.getTransaction().begin();
                 em.createNamedQuery("Section.findAll", Section.class).getResultStream().forEachOrdered(operation);
@@ -110,8 +116,6 @@ public class SectionDatabase implements Repository<Section> {
             } else {
                 em.createNamedQuery("Section.findAll", Section.class).getResultStream().forEachOrdered(operation);
             }
-        } finally {
-            em.close();
         }
     }
 
@@ -127,5 +131,4 @@ public class SectionDatabase implements Repository<Section> {
         long count = getAll(null).size();
         return count;
     }
-
 }

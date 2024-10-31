@@ -1,10 +1,8 @@
 package toilet.db;
 
 import java.io.Serializable;
-import java.util.Collection;
 import jakarta.persistence.Basic;
 import jakarta.persistence.Cacheable;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -12,7 +10,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -42,8 +39,8 @@ public class Section implements Serializable {
     @Size(min = 1, max = 250)
     @Column(name = "name", nullable = false, length = 250)
     private String name;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "sectionid")
-    private Collection<Article> articleCollection;
+//    @OneToMany(cascade = CascadeType.ALL, mappedBy = "sectionid")
+//    private Collection<Article> articleCollection;
 
     public Section() {
     }
@@ -73,13 +70,13 @@ public class Section implements Serializable {
         this.name = name;
     }
 
-    public Collection<Article> getArticleCollection() {
-        return articleCollection;
-    }
+//    public Collection<Article> getArticleCollection() {
+//        return articleCollection;
+//    }
 
-    public void setArticleCollection(Collection<Article> articleCollection) {
-        this.articleCollection = articleCollection;
-    }
+//    public void setArticleCollection(Collection<Article> articleCollection) {
+//        this.articleCollection = articleCollection;
+//    }
 
     @Override
     public int hashCode() {

@@ -14,77 +14,45 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.zip.GZIPOutputStream;
 import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.CompressionAlgorithm;
+import libWebsiteTools.turbo.GzipOutputStream;
 
 /**
  *
  * @author alpha
  */
-public abstract class FileCompressorJob implements Callable<Boolean>, Comparable<FileCompressorJob> {
+public abstract class FileCompressorJob implements Callable<Boolean>, Comparable<FileCompressorJob>, CompressionAlgorithm<Fileupload, Fileupload> {
 
     static {
-        Brotli4jLoader.ensureAvailability();
         Native.load();
+        Brotli4jLoader.ensureAvailability();
     }
 
-    public static class Brotlier extends FileCompressorJob {
+    public static class Zstd extends FileCompressorJob {
 
-        public Brotlier(AllBeanAccess beans, Fileupload file) {
+        private ByteArrayOutputStream collector;
+
+        public Zstd(AllBeanAccess beans, Fileupload file) {
             super(beans, file);
+            if (!Native.isLoaded()) {
+                throw new IllegalStateException("Zstd is not loaded.");
+            }
         }
 
         @Override
-        public Fileupload setResult(Fileupload file, byte[] compressedData) {
-            file.setBrdata(compressedData);
-            return file;
+        public String getType() {
+            return "zstd";
         }
 
         @Override
-        public OutputStream getOutputStream(ByteArrayOutputStream collector) throws IOException {
-            Encoder.Parameters params = new Encoder.Parameters().setWindow(24).setQuality(11)
-                    .setMode(file.getMimetype().contains("text/") ? Encoder.Mode.TEXT : Encoder.Mode.GENERIC);
-            return new BrotliOutputStream(collector, params);
+        public boolean shouldCompress(Fileupload file) {
+            return null == file.getZstddata();
         }
 
         @Override
-        public boolean shouldCompress() {
-            return null == file.getBrdata();
-        }
-    }
-
-    public static class Gzipper extends FileCompressorJob {
-
-        public Gzipper(AllBeanAccess beans, Fileupload file) {
-            super(beans, file);
-        }
-
-        @Override
-        public Fileupload setResult(Fileupload file, byte[] compressedData) {
-            file.setGzipdata(compressedData);
-            return file;
-        }
-
-        @Override
-        public OutputStream getOutputStream(ByteArrayOutputStream collector) throws IOException {
-            return new GZIPOutputStream(collector);
-        }
-
-        @Override
-        public boolean shouldCompress() {
-            return null == file.getGzipdata();
-
-        }
-    }
-
-    public static class Zstdder extends FileCompressorJob {
-
-        public Zstdder(AllBeanAccess beans, Fileupload file) {
-            super(beans, file);
-        }
-
-        @Override
-        public OutputStream getOutputStream(ByteArrayOutputStream collector) throws IOException {
+        public OutputStream getOutputStream(Fileupload file) throws IOException {
+            collector = new ByteArrayOutputStream(file.getFiledata().length * 2);
             return new ZstdOutputStream(collector, 19);
         }
 
@@ -95,19 +63,94 @@ public abstract class FileCompressorJob implements Callable<Boolean>, Comparable
         }
 
         @Override
-        public boolean shouldCompress() {
-            return null == file.getZstddata();
+        public byte[] getResult() {
+            return collector.toByteArray();
+        }
+    }
+
+    public static class Brotli extends FileCompressorJob {
+
+        private ByteArrayOutputStream collector;
+
+        public Brotli(AllBeanAccess beans, Fileupload file) {
+            super(beans, file);
+            if (!Brotli4jLoader.isAvailable()) {
+                throw new IllegalStateException("Brotli is not loaded.");
+            }
+        }
+
+        @Override
+        public String getType() {
+            return "br";
+        }
+
+        @Override
+        public boolean shouldCompress(Fileupload file) {
+            return null == file.getBrdata();
+        }
+
+        @Override
+        public OutputStream getOutputStream(Fileupload file) throws IOException {
+            collector = new ByteArrayOutputStream(file.getFiledata().length * 2);
+            Encoder.Parameters params = new Encoder.Parameters().setWindow(24).setQuality(11)
+                    .setMode(file.getMimetype().contains("text/") ? Encoder.Mode.TEXT : Encoder.Mode.GENERIC);
+            return new BrotliOutputStream(collector, params);
+        }
+
+        @Override
+        public Fileupload setResult(Fileupload file, byte[] compressedData) {
+            file.setBrdata(compressedData);
+            return file;
+        }
+
+        @Override
+        public byte[] getResult() {
+            return collector.toByteArray();
+        }
+    }
+
+    public static class Gzip extends FileCompressorJob {
+
+        private ByteArrayOutputStream collector;
+
+        public Gzip(AllBeanAccess beans, Fileupload file) {
+            super(beans, file);
+        }
+
+        @Override
+        public String getType() {
+            return "gzip";
+        }
+
+        @Override
+        public boolean shouldCompress(Fileupload file) {
+            return null == file.getGzipdata();
+        }
+
+        @Override
+        public OutputStream getOutputStream(Fileupload file) throws IOException {
+            collector = new ByteArrayOutputStream(file.getFiledata().length * 2);
+            return new GzipOutputStream(collector, 9);
+        }
+
+        @Override
+        public Fileupload setResult(Fileupload file, byte[] compressedData) {
+            file.setGzipdata(compressedData);
+            return file;
+        }
+
+        @Override
+        public byte[] getResult() {
+            return collector.toByteArray();
         }
     }
 
     public static List<Future> startAllJobs(AllBeanAccess beans, Fileupload file) {
-        return List.of(
-                beans.getExec().submit(new Gzipper(beans, file)),
-                beans.getExec().submit(new Brotlier(beans, file)),
-                beans.getExec().submit(new Zstdder(beans, file)));
+        return List.of(beans.getExec().submit(new Gzip(beans, file)),
+                beans.getExec().submit(new Brotli(beans, file)),
+                beans.getExec().submit(new Zstd(beans, file)));
     }
-    private final static Logger LOG = Logger.getLogger(FileCompressorJob.class
-            .getName());
+    private final static Logger LOG = Logger.getLogger(FileCompressorJob.class.getName());
     final Fileupload file;
     final AllBeanAccess beans;
 
@@ -116,41 +159,30 @@ public abstract class FileCompressorJob implements Callable<Boolean>, Comparable
         this.file = file;
     }
 
-    public abstract OutputStream getOutputStream(ByteArrayOutputStream collector) throws IOException;
-
-    public abstract Fileupload setResult(Fileupload file, byte[] compressedData);
-
-    public abstract boolean shouldCompress();
-
     @Override
     public Boolean call() {
-        if (!shouldCompress()) {
+        if (!shouldCompress(file)) {
             LOG.log(Level.FINEST, "File {0} already compressed.", file.getFilename());
             return false;
         }
-        byte[] compressedData = encode();
+
+        try (OutputStream out = getOutputStream(file)) {
+            out.write(file.getFiledata());
+        } catch (IOException ex) {
+            Logger.getLogger(FileCompressorJob.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
+        }
+        byte[] compressedData = getResult();
         synchronized (file) {
             if (null != compressedData && compressedData.length < file.getFiledata().length) {
                 Fileupload activeFile = beans.getFile().get(file.getFilename());
                 beans.getFile().upsert(Arrays.asList(setResult(activeFile, compressedData)));
-                beans.reset();
+                beans.getFile().evict();
+                beans.getGlobalCache().clear();
                 return true;
             }
         }
         return false;
-    }
-
-    public byte[] encode() {
-        ByteArrayOutputStream collector = new ByteArrayOutputStream(file.getFiledata().length * 2);
-        try (OutputStream out = getOutputStream(collector)) {
-            out.write(file.getFiledata());
-
-        } catch (IOException ex) {
-            Logger.getLogger(FileCompressorJob.class
-                    .getName()).log(Level.SEVERE, null, ex);
-            throw new RuntimeException(ex);
-        }
-        return collector.toByteArray();
     }
 
     @Override
@@ -172,5 +204,4 @@ public abstract class FileCompressorJob implements Callable<Boolean>, Comparable
     public String toString() {
         return this.getClass().getName() + " " + file.getFilename();
     }
-
 }

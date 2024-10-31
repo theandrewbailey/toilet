@@ -23,7 +23,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import java.time.Instant;
-import libWebsiteTools.cache.JspFilter;
+import libWebsiteTools.turbo.JspFilter;
 import libWebsiteTools.security.SecurityRepo;
 import static libWebsiteTools.file.BaseFileServlet.getImmutableURL;
 import libWebsiteTools.file.FileCompressorJob;
@@ -33,7 +33,7 @@ import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.Localization;
 import libWebsiteTools.imead.LocalizationPK;
 import libWebsiteTools.security.HashUtil;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.AllBeanAccess;
 import toilet.ArticleProcessor;
@@ -141,13 +141,13 @@ public class AdminImeadServlet extends AdminServlet {
             }
             if (errors.isEmpty()) {
                 beans.getImead().upsert(props);
-                beans.reset();
             }
         } else if (action.startsWith("delete")) {
             String[] params = action.split("\\|");
             beans.getImead().delete(new LocalizationPK(params[2], params[1]));
-            beans.reset();
         }
+        beans.getImead().evict();
+        beans.getGlobalCache().clear();
         RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
         if (initialFirstTime && !beans.isFirstTime(request)) {
             response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());

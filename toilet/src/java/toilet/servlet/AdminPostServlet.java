@@ -20,7 +20,7 @@ import java.time.Instant;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
 import toilet.bean.ToiletBeanAccess;
@@ -47,7 +47,8 @@ public class AdminPostServlet extends AdminServlet {
         Instant start = Instant.now();
         if (request.getParameter("deletecomment") != null) {      // delete comment
             beans.getComms().delete(Integer.parseInt(request.getParameter("deletecomment")));
-            beans.reset();
+            beans.getArts().evict();
+            beans.getGlobalCache().clear();
             RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
             showList(request, response, beans.getArts().getAll(null));
         } else if (request.getParameter("disablecomments") != null) {
@@ -58,7 +59,8 @@ public class AdminPostServlet extends AdminServlet {
                 articles.add(art);
             }
             beans.getArts().upsert(articles);
-            beans.reset();
+            beans.getArts().evict();
+            beans.getGlobalCache().clear();
             RequestTimer.addTiming(request, "save", Duration.between(start, Instant.now()));
             response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
             response.sendRedirect(request.getAttribute(SecurityRepo.BASE_URL).toString());
@@ -107,7 +109,8 @@ public class AdminPostServlet extends AdminServlet {
                         }
                     }
                     beans.getArts().upsert(articles);
-                    beans.reset();
+                    beans.getArts().evict();
+                    beans.getGlobalCache().clear();
                 });
             } catch (NullPointerException n) {
             }

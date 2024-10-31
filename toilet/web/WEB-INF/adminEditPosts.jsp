@@ -14,7 +14,7 @@
     <c:choose><c:when test="${null==art.imageurl}"><h:checkbox name="selectedArticle" label="" value="${art.articleid}" styleClass="articleCheckbox"/></c:when>
     <c:otherwise><h:checkbox name="selectedArticle" value="${art.articleid}" styleClass="articleCheckbox articleCheckboxWithImage"/></c:otherwise></c:choose>
     <button type="submit" formmethod="GET" formaction="edit/${art.articleid}"><h:local key="page_edit"/></button>&nbsp;
-    <t:articleUrl article="${art}"/>&nbsp;<c:if test="${art.sectionid.name != ' '}">under ${art.sectionid.name},&nbsp;</c:if>
+    <t:articleUrl article="${art}" cssClass="nocache"/>&nbsp;<c:if test="${art.sectionid.name != ' '}">under ${art.sectionid.name},&nbsp;</c:if>
     <h:time datetime="${art.posted}" pattern="EEE MM/dd/yy h:mm a"/>&nbsp;
     <c:if test="${0!=fn:length(art.commentCollection)}"><p class="secondmin" >
     <c:forEach items="${art.commentCollection}" var="comm"><h:time datetime="${comm.posted}" pattern="EEE MM/dd/yy h:mm a"/> by ${comm.postedname} <button type="submit" name="deletecomment" value="${comm.commentid}"><h:local key="page_delete"/></button><br/>

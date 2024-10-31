@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.TypedQuery;
-import libWebsiteTools.db.Repository;
+import libWebsiteTools.Repository;
 import toilet.bean.ArticleRepository;
 import toilet.db.Article;
 import toilet.db.Comment;
@@ -39,8 +39,7 @@ public class CommentDatabase implements Repository<Comment> {
     public List<Comment> upsert(Collection<Comment> entities) {
         ArrayList<Comment> out = new ArrayList<>(entities.size());
         HashSet<Integer> updatedArticles = new HashSet<>(entities.size() * 2);
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             em.getTransaction().begin();
             for (Comment c : entities) {
                 Article art = em.find(Article.class, c.getArticleid().getArticleid());
@@ -62,25 +61,19 @@ public class CommentDatabase implements Repository<Comment> {
             }
             em.getTransaction().commit();
             return out;
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public Comment get(Object commentId) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             return em.find(Comment.class, commentId);
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public Comment delete(Object commentId) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             em.getTransaction().begin();
             Comment c = em.find(Comment.class, commentId);
             Article e = c.getArticleid();
@@ -92,22 +85,17 @@ public class CommentDatabase implements Repository<Comment> {
             ArticleRepository.updateArticleHash(e);
             em.getTransaction().commit();
             return c;
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public List<Comment> getAll(Integer limit) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             TypedQuery<Comment> q = em.createNamedQuery("Comment.findAll", Comment.class);
             if (null != limit) {
                 q.setMaxResults(limit);
             }
             return q.getResultList();
-        } finally {
-            em.close();
         }
     }
 
@@ -125,15 +113,11 @@ public class CommentDatabase implements Repository<Comment> {
     @Override
     public Long count() {
         LOG.log(Level.FINE, "Counting comments");
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Comment.count", Long.class);
             Long output = qn.getSingleResult();
             LOG.log(Level.FINE, "Counted comments, got {0}", new Object[]{output});
             return output;
-        } finally {
-            em.close();
         }
     }
-
 }

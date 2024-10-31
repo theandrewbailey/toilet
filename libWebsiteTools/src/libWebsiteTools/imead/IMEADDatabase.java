@@ -47,17 +47,14 @@ public class IMEADDatabase extends IMEADHolder {
      */
     @Override
     public Localization delete(Object localPK) {
-        EntityManager em = PU.createEntityManager();
-        Localization out = em.find(Localization.class, localPK);
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
+            Localization out = em.find(Localization.class, localPK);
             em.getTransaction().begin();
             em.remove(out);
             em.getTransaction().commit();
-        } finally {
-            em.close();
+            evict();
+            return out;
         }
-        evict();
-        return out;
     }
 
     /**
@@ -68,9 +65,8 @@ public class IMEADDatabase extends IMEADHolder {
     @Override
     public List<Localization> upsert(Collection<Localization> entities) {
         ArrayList<Localization> out = new ArrayList<>(entities.size());
-        EntityManager em = PU.createEntityManager();
         boolean dirty = false;
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             em.getTransaction().begin();
             for (Localization l : entities) {
                 Localization existing = em.find(Localization.class, l.localizationPK);
@@ -85,8 +81,6 @@ public class IMEADDatabase extends IMEADHolder {
                 }
             }
             em.getTransaction().commit();
-        } finally {
-            em.close();
         }
         if (dirty) {
             evict();
@@ -96,32 +90,25 @@ public class IMEADDatabase extends IMEADHolder {
 
     @Override
     public Localization get(Object localPK) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             return em.find(Localization.class, localPK);
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public List<Localization> getAll(Integer limit) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             TypedQuery<Localization> q = em.createNamedQuery("Localization.findAll", Localization.class);
             if (null != limit) {
                 q.setMaxResults(limit);
             }
             return q.getResultList();
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public void processArchive(Consumer<Localization> operation, Boolean transaction) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             if (transaction) {
                 em.getTransaction().begin();
                 em.createNamedQuery("Localization.findAll", Localization.class).getResultStream().forEachOrdered(operation);
@@ -129,19 +116,14 @@ public class IMEADDatabase extends IMEADHolder {
             } else {
                 em.createNamedQuery("Localization.findAll", Localization.class).getResultStream().forEachOrdered(operation);
             }
-        } finally {
-            em.close();
         }
     }
 
     @Override
     public Long count() {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Localization.count", Long.class);
             return qn.getSingleResult();
-        } finally {
-            em.close();
         }
     }
 }

@@ -19,7 +19,7 @@ import java.util.concurrent.Future;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.security.HashUtil;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 import toilet.bean.ToiletBeanAccess;
 
 /**

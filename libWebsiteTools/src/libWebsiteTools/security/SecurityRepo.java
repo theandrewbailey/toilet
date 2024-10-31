@@ -20,9 +20,7 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.TypedQuery;
 import jakarta.servlet.http.HttpServletRequest;
-import libWebsiteTools.db.Exceptionevent;
-import libWebsiteTools.db.Honeypot;
-import libWebsiteTools.db.Repository;
+import libWebsiteTools.Repository;
 import libWebsiteTools.imead.IMEADHolder;
 
 /**
@@ -54,15 +52,12 @@ public class SecurityRepo implements Repository<Exceptionevent> {
 
     @Override
     public SecurityRepo evict() {
-        EntityManager em = PU.createEntityManager();
         OffsetDateTime localNow = OffsetDateTime.now();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             em.getTransaction().begin();
             em.createNamedQuery("Honeypot.clean").setParameter("now", localNow).executeUpdate();
             em.createNamedQuery("Exceptionevent.clean").setParameter("past", localNow.minusDays(90)).executeUpdate();
             em.getTransaction().commit();
-        } finally {
-            em.close();
         }
         PU.getCache().evict(Honeypot.class);
         PU.getCache().evict(Exceptionevent.class);
@@ -109,15 +104,12 @@ public class SecurityRepo implements Repository<Exceptionevent> {
 
     @Override
     public Collection<Exceptionevent> upsert(Collection<Exceptionevent> entities) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             em.getTransaction().begin();
             for (Exceptionevent e : entities) {
                 em.persist(e);
             }
             em.getTransaction().commit();
-        } finally {
-            em.close();
         }
         return entities;
     }
@@ -135,15 +127,12 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     @Override
     public List<Exceptionevent> getAll(Integer limit) {
         PU.getCache().evict(Exceptionevent.class);
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             TypedQuery<Exceptionevent> q = em.createNamedQuery("Exceptionevent.findAll", Exceptionevent.class);
             if (null != limit) {
                 q.setMaxResults(limit);
             }
             return q.getResultList();
-        } finally {
-            em.close();
         }
     }
 
@@ -225,23 +214,19 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     }
 
     public boolean inHoneypot(String ip) {
-        EntityManager em = PU.createEntityManager();
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             em.createNamedQuery("Honeypot.findByIpBeforeNow", Honeypot.class).setParameter("ip", ip).setParameter("now", OffsetDateTime.now()).getSingleResult();
             return true;
         } catch (NoResultException n) {
             return false;
-        } finally {
-            em.close();
         }
     }
 
     public boolean putInHoneypot(String ip) {
         OffsetDateTime localNow = OffsetDateTime.now();
         Long honeypotFirstBlockTime = Long.valueOf(imead.getValue(HONEYPOT_INITIAL_BLOCK_TIME));
-        EntityManager em = PU.createEntityManager();
         boolean created = false;
-        try {
+        try (EntityManager em = PU.createEntityManager()) {
             em.getTransaction().begin();
             try {
                 Honeypot h = em.createNamedQuery("Honeypot.findByIp", Honeypot.class).setParameter("ip", ip).getSingleResult();
@@ -259,8 +244,6 @@ public class SecurityRepo implements Repository<Exceptionevent> {
                 created = true;
             }
             em.getTransaction().commit();
-        } finally {
-            em.close();
         }
         return created;
     }

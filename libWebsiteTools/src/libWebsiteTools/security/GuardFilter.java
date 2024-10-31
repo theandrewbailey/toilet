@@ -1,5 +1,6 @@
 package libWebsiteTools.security;
 
+import libWebsiteTools.turbo.RequestTimer;
 import java.io.IOException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
@@ -24,8 +25,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.AllBeanAccess;
-import libWebsiteTools.cache.CachedPage;
-import libWebsiteTools.cache.PageCache;
+import libWebsiteTools.turbo.CachedPage;
+import libWebsiteTools.turbo.PageCache;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;
@@ -241,6 +242,7 @@ public class GuardFilter implements Filter {
         if (null != page.getContentType()) {
             res.setContentType(page.getContentType());
         }
+        res.setContentLength(page.getBody().length);
         for (Map.Entry<String, String> field : page.getHeaders().entrySet()) {
             res.setHeader(field.getKey(), field.getValue());
         }

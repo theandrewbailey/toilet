@@ -26,12 +26,11 @@ import libWebsiteTools.BaseServlet;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.cache.CachedContent;
-import libWebsiteTools.cache.CompressedOutput;
-import libWebsiteTools.cache.PageCache;
+import libWebsiteTools.turbo.CachedContent;
+import libWebsiteTools.turbo.PageCache;
 import libWebsiteTools.imead.IMEADHolder;
 import libWebsiteTools.imead.Local;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 
 public abstract class BaseFileServlet extends BaseServlet {
 
@@ -133,7 +132,7 @@ public abstract class BaseFileServlet extends BaseServlet {
                     throw new FileNotFoundException(name);
                 }
                 request.setAttribute(BaseFileServlet.class.getCanonicalName(), c);
-            } catch (FileNotFoundException ex) {
+            } catch (FileNotFoundException | NoResultException ex) {
                 response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=" + MAX_AGE_SECONDS);
                 response.setDateHeader(HttpHeaders.EXPIRES, localNow.toInstant().toEpochMilli());
                 if (HttpMethod.HEAD.equals(request.getMethod()) && fromApprovedDomain(request, beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS))) {
@@ -164,36 +163,10 @@ public abstract class BaseFileServlet extends BaseServlet {
         if (!c.getMimetype().startsWith("text")) {
             response.setCharacterEncoding(null);
         }
-        String etag = null;
-
-        String encoding = request.getHeader(HttpHeaders.ACCEPT_ENCODING);
-        if (null != encoding) {
-            if (CompressedOutput.Zstd.PATTERN.matcher(encoding).find()
-                    && null != c.getZstddata() && null != c.getZstdsize()) {
-                response.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Zstd.TYPE);
-                response.setContentLength(c.getZstdsize());
-                request.setAttribute("response", c.getZstddata());
-                etag = "\"" + c.getEtag() + "z\"";
-            } else if (CompressedOutput.Brotli.PATTERN.matcher(encoding).find()
-                    && null != c.getBrdata() && null != c.getBrsize()) {
-                response.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Brotli.TYPE);
-                response.setContentLength(c.getBrsize());
-                request.setAttribute("response", c.getBrdata());
-                etag = "\"" + c.getEtag() + "b\"";
-            } else if (CompressedOutput.Gzip.PATTERN.matcher(encoding).find()
-                    && null != c.getGzipdata() && null != c.getGzipsize()) {
-                response.setHeader(HttpHeaders.CONTENT_ENCODING, CompressedOutput.Gzip.TYPE);
-                response.setContentLength(c.getGzipsize());
-                request.setAttribute("response", c.getGzipdata());
-                etag = "\"" + c.getEtag() + "g\"";
-            }
-        }
-        if (null == etag) {
-            response.setContentLength(c.getFiledata().length);
-            request.setAttribute("response", c.getFiledata());
-            etag = "\"" + c.getEtag() + "\"";
-        }
-
+        CompressionSorter sorted = CompressionSorter.getInstance(c, request);
+        request.setAttribute(CompressionSorter.class.getCanonicalName(), sorted);
+        sorted.getOutputStream(response);
+        String etag = "\"" + c.getEtag() + sorted.getType() + "\"";
         response.setHeader(HttpHeaders.ETAG, etag);
         if (etag.equals(request.getHeader(HttpHeaders.IF_NONE_MATCH))) {
             response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
@@ -207,13 +180,13 @@ public abstract class BaseFileServlet extends BaseServlet {
         doHead(request, response);
         AllBeanAccess beans = (AllBeanAccess) request.getAttribute(AllBeanAccess.class.getCanonicalName());
         Fileupload c = (Fileupload) request.getAttribute(BaseFileServlet.class.getCanonicalName());
-        byte[] responseBytes = (byte[]) request.getAttribute("response");
         if (HttpServletResponse.SC_OK == response.getStatus() && null != c) {
+            CompressionSorter sorted = (CompressionSorter) request.getAttribute(CompressionSorter.class.getCanonicalName());
             response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
-            response.getOutputStream().write(responseBytes);
+            response.getOutputStream().write(sorted.getResult());
             PageCache global = beans.getGlobalCache().getCache(request, response);
             if (null != global) {
-                global.put(PageCache.getLookup(beans.getImead(), request), new CachedContent(beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS), response, responseBytes, PageCache.getLookup(beans.getImead(), request)));
+                global.put(PageCache.getLookup(beans.getImead(), request), new CachedContent(beans.getImead().getPatterns(SecurityRepo.ALLOWED_ORIGINS), response, sorted.getResult(), PageCache.getLookup(beans.getImead(), request)));
             }
         }
     }

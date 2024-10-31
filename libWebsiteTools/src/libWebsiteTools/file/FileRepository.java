@@ -1,7 +1,7 @@
 package libWebsiteTools.file;
 
 import java.util.List;
-import libWebsiteTools.db.Repository;
+import libWebsiteTools.Repository;
 
 /**
  *

@@ -17,16 +17,17 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import libWebsiteTools.cache.CachedPage;
+import libWebsiteTools.turbo.CachedPage;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.file.Fileupload;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.security.CertPath;
 import libWebsiteTools.security.CertUtil;
 import libWebsiteTools.security.GuardFilter;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.AbstractInput;
+import libWebsiteTools.turbo.RequestTimes;
 import toilet.UtilStatic;
 import toilet.bean.ToiletBeanAccess;
 import toilet.db.Article;
@@ -54,6 +55,7 @@ public class AdminHealthServlet extends AdminServlet {
         String action = AbstractInput.getParameter(request, "action");
         if ("reload".equals(action)) {
             beans.reset();
+            beans.isFirstTime(request);
             beans.getExec().submit(beans.getBackup());
             request.getSession().invalidate();
             request.getSession(true);
@@ -78,7 +80,7 @@ public class AdminHealthServlet extends AdminServlet {
                     } catch (IOException | RuntimeException t) {
                         return t.getLocalizedMessage();
                     } finally {
-                        RequestTimer.addTiming(request, "command;desc=\""+command.trim()+"\"", Duration.between(start, Instant.now()));
+                        RequestTimer.addTiming(request, "command;desc=\"" + command.trim() + "\"", Duration.between(start, Instant.now()));
                     }
                 }));
             }
@@ -127,6 +129,40 @@ public class AdminHealthServlet extends AdminServlet {
             }
             RequestTimer.addTiming(request, "cachedQuery", Duration.between(start, Instant.now()));
             return cached;
+        }));
+        request.setAttribute("performance", beans.getExec().submit(() -> {
+            Map<String, List<RequestTimes>> perfs = beans.getPerfStats().getAll();
+            Map<String, Map<String, String>> out = new LinkedHashMap<>(perfs.size() * 2);
+            for (Map.Entry<String, List<RequestTimes>> e : perfs.entrySet()) {
+                List<RequestTimes> reqtimes = e.getValue();
+                Map<String, List<Long>> allValues = new LinkedHashMap<>(reqtimes.size() * 2);
+                int count = 0;
+                for (RequestTimes reqtime : reqtimes) {
+                    if (reqtime.isCached()) {
+                        continue;
+                    }
+                    ++count;
+                    for (Map.Entry<String, Duration> time : reqtime.getTimings().entrySet()) {
+                        List<Long> vals = allValues.get(time.getKey());
+                        if (null == vals) {
+                            vals = new ArrayList<>(reqtimes.size() * 2);
+                            allValues.put(time.getKey(), vals);
+                        }
+                        vals.add(time.getValue().toNanos());
+                    }
+                }
+                if (allValues.isEmpty()) {
+                    continue;
+                }
+                Map<String, String> result = new LinkedHashMap<>(allValues.size() * 2);
+                for (Map.Entry<String, List<Long>> vals : allValues.entrySet()) {
+                    Collections.sort(vals.getValue());
+                    List<Long> list = vals.getValue();
+                    result.put(vals.getKey(), String.format("%.3f ms", list.get(list.size() / 2) / 1000000.0f));
+                }
+                out.put(e.getKey() + " (" + count + "×)", result);
+            }
+            return out;
         }));
         Map<X509Certificate, LinkedHashMap> certInfo = new HashMap<>();
         if (null != beans.getImeadValue(GuardFilter.CERTIFICATE_NAME)) {

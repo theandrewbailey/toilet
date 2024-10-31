@@ -7,7 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.HttpHeaders;
 import libWebsiteTools.security.SecurityRepo;
-import libWebsiteTools.db.Exceptionevent;
+import libWebsiteTools.security.Exceptionevent;
 import libWebsiteTools.rss.RssChannel;
 import libWebsiteTools.rss.RssItem;
 import org.w3c.dom.Document;

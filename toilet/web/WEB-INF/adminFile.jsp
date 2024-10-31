@@ -6,16 +6,16 @@
 <h:file name="filedata" label="File Upload: " labelNextLine="false" required="true" valueMissing="${valueMissing}" multiple="true" />
 <%-- <h:checkbox name="overwrite" label="Overwrite" /> --%>
 <button type="submit"><h:local key="page_upload"/></button>
-<c:if test="${null != uploadedfiles}"><p class="adminform"><h:local key="page_uploadSuccess"/><c:forEach items="${uploadedfiles}" var="uploadedfile"><br/><a href="file/${uploadedfile.filename}" target="_blank" rel="noopener" >${uploadedfile.filename}</a></c:forEach></p></c:if>
+<c:if test="${null != uploadedfiles}"><p class="adminform"><h:local key="page_uploadSuccess"/><c:forEach items="${uploadedfiles}" var="uploadedfile"><br/><a href="file/${uploadedfile.filename}" target="_blank" rel="noopener" class="nocache">${uploadedfile.filename}</a></c:forEach></p></c:if>
 </form>
 <br/>
 <form action="adminFile" method="POST" class="adminform adminContent" accept-charset="UTF-8"><p>Current Files:</p>
     <c:forEach items="${files}" var="dir">
     <details ${opened_dir == dir.key ? "open='true'" : ""} ><summary>${dir.key}</summary><table>
     <c:forEach items="${dir.value}" var="con">
-    <tr class="secondmin"><td><a href="${con.url}" target="_blank" rel="noopener">${con.filename}</a></td>
+    <tr class="secondmin"><td><a href="${con.url}" target="_blank" rel="noopener" class="nocache">${con.filename}</a></td>
     <td><h:filesize length="${con.datasize}"/></td>
-    <td><a href="file/${dir.key}${con.filename}" target="_blank" rel="noopener"><h:time datetime="${con.atime}" pattern="yyyy-MM-dd h:mm a" /></a></td>
+    <td><a href="file/${dir.key}${con.filename}" target="_blank" rel="noopener" class="nocache"><h:time datetime="${con.atime}" pattern="yyyy-MM-dd h:mm a" /></a></td>
     <td>${con.mimetype}&nbsp;<h:button type="submit" name="action" value="delete|${dir.key}${con.filename}"><h:local key="page_delete"/></h:button></td></tr>
     </c:forEach></table></details></c:forEach>
 </form>

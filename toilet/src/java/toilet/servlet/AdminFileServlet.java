@@ -11,7 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import java.time.Instant;
 import libWebsiteTools.file.Fileupload;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.bean.ToiletBeanAccess;
 
@@ -43,7 +43,8 @@ public class AdminFileServlet extends AdminServlet {
             Fileupload deleted = beans.getFile().delete(del.split("\\|")[1]);
             String[] split = splitDirectoryAndName(deleted.getFilename());
             request.setAttribute("opened_dir", split[0]);
-            beans.reset();
+            beans.getFile().evict();
+            beans.getGlobalCache().clear();
         }
         showFileList(request, response, beans.getFile().getFileMetadata(null));
     }

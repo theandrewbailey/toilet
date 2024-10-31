@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
-import libWebsiteTools.db.Repository;
+import libWebsiteTools.Repository;
 import toilet.db.Article;
 import toilet.db.Comment;
 

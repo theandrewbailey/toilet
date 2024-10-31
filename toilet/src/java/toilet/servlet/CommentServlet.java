@@ -19,7 +19,7 @@ import java.time.Duration;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.security.SecurityRepo;
-import libWebsiteTools.cache.PageCache;
+import libWebsiteTools.turbo.PageCache;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
@@ -30,7 +30,7 @@ import toilet.db.Article;
 import toilet.db.Comment;
 import toilet.rss.CommentRss;
 import libWebsiteTools.rss.DynamicFeed;
-import libWebsiteTools.security.RequestTimer;
+import libWebsiteTools.turbo.RequestTimer;
 
 /**
  *

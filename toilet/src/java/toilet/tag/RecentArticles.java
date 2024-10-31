@@ -35,10 +35,12 @@ public class RecentArticles extends SimpleTagSupport {
             }
         }
         ToiletBeanAccess beans = (ToiletBeanAccess) req.getAttribute(libWebsiteTools.AllBeanAccess.class.getCanonicalName());
+//        Instant start = Instant.now();
         List<Article> latest = beans.getArts().getBySection(category, 1, number, excludes);
         if (2 > latest.size()) {
             latest = beans.getArts().getBySection(category, 1, number, null);
         }
+//        RequestTimer.addTiming(req, "recent-" + category, Duration.between(start, Instant.now()));
         for (Article e : latest) {
             getJspContext().setAttribute(getVar(), e);
             getJspBody().invoke(null);

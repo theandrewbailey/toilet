@@ -29,8 +29,8 @@ import javax.sql.DataSource;
 import jakarta.ws.rs.core.HttpHeaders;
 import java.util.Map;
 import java.util.Properties;
-import libWebsiteTools.cache.PageCacheProvider;
-import libWebsiteTools.db.Repository;
+import libWebsiteTools.turbo.PageCacheProvider;
+import libWebsiteTools.Repository;
 import libWebsiteTools.file.FileRepository;
 import libWebsiteTools.imead.IMEADDatabase;
 import libWebsiteTools.imead.IMEADHolder;
@@ -40,15 +40,14 @@ import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.sitemap.SiteMapper;
+import libWebsiteTools.turbo.PerfStats;
 import toilet.AllBeanAccess;
 import toilet.SitemapProvider;
 import toilet.db.Comment;
-import toilet.db.Section;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
 import toilet.rss.ErrorRss;
 import toilet.servlet.AdminImeadServlet;
-import static toilet.servlet.AdminImeadServlet.getProperties;
 import toilet.servlet.AdminServletPermission;
 
 /**
@@ -74,9 +73,10 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     private FeedBucket feeds;
     private ArticleRepository arts;
     private Repository<Comment> comms;
-    private Repository<Section> sects;
+    private SectionRepository sects;
     private BackupDaemon backup;
     private SiteMapper mapper;
+    private PerfStats perfs;
     private Boolean firstTime;
     private HashMap<String, ToiletBeanAccess> altHosts;
     private final Map<String, String> originalPasswords = new HashMap<>();
@@ -90,7 +90,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
         }
         if (originalPasswords.isEmpty()) {
             try {
-                Properties IMEAD = getProperties(req.getServletContext().getResourceAsStream(AdminImeadServlet.INITIAL_PROPERTIES_FILE));
+                Properties IMEAD = AdminImeadServlet.getProperties(req.getServletContext().getResourceAsStream(AdminImeadServlet.INITIAL_PROPERTIES_FILE));
                 for (AdminServletPermission p : AdminServletPermission.values()) {
                     originalPasswords.put(p.getKey(), IMEAD.get(p.getKey()).toString());
                 }
@@ -143,18 +143,13 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     @PostConstruct
     @SuppressWarnings("unused")
     private void init() {
-        try {
-            ArticleRss a = new ArticleRss();
-            a.createFeed(this, Integer.valueOf(this.getImeadValue(ArticleRss.ARTICLE_COUNT)), null);
-            getFeeds().upsert(Arrays.asList(a));
-        } catch (RuntimeException ex) {
-        }
-        try {
-            CommentRss c = new CommentRss();
-            c.createFeed(this, null);
-            getFeeds().upsert(Arrays.asList(c));
-        } catch (Exception ex) {
-        }
+        ArticleRss a = new ArticleRss();
+        a.createFeed(this, Integer.valueOf(this.getImeadValue(ArticleRss.ARTICLE_COUNT)), null);
+        getFeeds().upsert(Arrays.asList(a));
+
+        CommentRss c = new CommentRss();
+        c.createFeed(this, null);
+        getFeeds().upsert(Arrays.asList(c));
         //HashMap<String, DataSource> dataSources = traverseContext(null, "");
         getFeeds().upsert(Arrays.asList(new ErrorRss()));
         // TODO: dyamically create entity managers for each java/toilet/* database pools
@@ -237,10 +232,12 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
      */
     @Override
     public synchronized void reset() {
+        toiletPU.getCache().evictAll();
         getImead().evict();
         getArts().evict();
         getSects().evict();
         getFile().evict();
+        getPerfStats().evict();
         getGlobalCache().clear();
         firstTime = null;
     }
@@ -275,7 +272,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     }
 
     @Override
-    public Repository<Section> getSects() {
+    public SectionRepository getSects() {
         if (null == sects) {
             sects = new SectionDatabase(toiletPU, getImead());
         }
@@ -350,5 +347,13 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
             mapper.addSource(new SitemapProvider(this));
         }
         return mapper;
+    }
+
+    @Override
+    public PerfStats getPerfStats() {
+        if (null == perfs) {
+            perfs = new PerfStats();
+        }
+        return perfs;
     }
 }

@@ -16,18 +16,23 @@
                 <tr class="secondmin"><td class="secondmin">${info.key}</td><td>${info.value}</td></tr></c:forEach>
         </table></details>
     </c:forEach></details></c:forEach>
+    <details class="performance"><summary>Server-Timings</summary><ul>
+    <c:forEach items="${performance.get()}" var="perf"><li><details class="perf"><summary>${perf.key}</summary>
+        <table><c:forEach items="${perf.value}" var="perfVal">
+        <tr><td>${perfVal.key}</td><td>${perfVal.value}</td></tr></c:forEach></table>
+    </details></li></c:forEach></ul></details>
     <details class="cached"><summary><h:local key="page_health_cache_count"><h:param object="${cached.get().size()-1}"/></h:local></summary>
         <ul><c:forEach items="${cached.get()}" var="pageEnt"><li>${pageEnt}</li></c:forEach></ul>
     </details>
     <details class="articles"><summary><h:local key="page_health_article_count"><h:param object="${articles.get().size()}"/></h:local></summary><table>
-    <c:forEach items="${articles.get()}" var="art"><tr class="secondmin"><td><t:articleUrl article="${art}"/></td><td><c:if test="${art.sectionid.name != ' '}">${art.sectionid.name}</c:if></td><td><h:time datetime="${art.posted}" pattern="EEE MM/dd/yy h:mm a"/></td></tr>
+    <c:forEach items="${articles.get()}" var="art"><tr class="secondmin"><td><t:articleUrl article="${art}" cssClass="nocache"/></td><td><c:if test="${art.sectionid.name != ' '}">${art.sectionid.name}</c:if></td><td><h:time datetime="${art.posted}" pattern="EEE MM/dd/yy h:mm a"/></td></tr>
     </c:forEach></table></details>
     <details class="comments"><summary><h:local key="page_health_comment_count"><h:param object="${comments.get().size()}"/></h:local></summary><table>
-    <c:forEach items="${comments.get()}" var="comm"><tr class="secondmin"><td><h:time datetime="${comm.posted}" pattern="EEE MM/dd/yy h:mm a"/></td><td>${comm.postedname}</td><td><t:articleUrl article="${comm.articleid}"/></td></tr>
+    <c:forEach items="${comments.get()}" var="comm"><tr class="secondmin"><td><h:time datetime="${comm.posted}" pattern="EEE MM/dd/yy h:mm a"/></td><td>${comm.postedname}</td><td><t:articleUrl article="${comm.articleid}" cssClass="nocache"/></td></tr>
     </c:forEach></table></details>
     <details class="files"><summary><h:local key="page_health_file_count"><h:param object="${files.get().size()}"/></h:local></summary>
     <table><c:forEach items="${files.get()}" var="file">
-    <tr class="secondmin"><td><a href="${file.url}" target="_blank" rel="noopener">${file.filename}</a></td>
+    <tr class="secondmin"><td><a href="${file.url}" target="_blank" rel="noopener" class="nocache">${file.filename}</a></td>
     <td><h:filesize length="${file.datasize}"/></td><td>${file.mimetype}</td><td><h:time datetime="${file.atime}" pattern="yyyy-MM-dd h:mm a" /></td></tr></c:forEach></table>
     </details>
 </main>

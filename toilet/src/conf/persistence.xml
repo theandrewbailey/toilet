@@ -3,8 +3,8 @@
   <persistence-unit name="java/toilet/default" transaction-type="RESOURCE_LOCAL">
     <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
     <non-jta-data-source>java/toilet/default</non-jta-data-source>
-    <class>libWebsiteTools.db.Exceptionevent</class>
-    <class>libWebsiteTools.db.Honeypot</class>
+    <class>libWebsiteTools.security.Exceptionevent</class>
+    <class>libWebsiteTools.security.Honeypot</class>
     <class>libWebsiteTools.file.Fileupload</class>
     <class>libWebsiteTools.imead.Localization</class>
     <class>toilet.db.Article</class>

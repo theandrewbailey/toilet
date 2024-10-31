@@ -13,7 +13,7 @@ import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
 import toilet.bean.ToiletBeanAccess;
 
-@WebServlet(name = "FileServlet", description = "Handles uploading files, and serves files through inherited class", urlPatterns = {"/file", "/file/*", "/fileImmutable/*"})
+@WebServlet(name = "FileServlet", description = "Handles uploading files, and serves files through inherited class", urlPatterns = {"/file/*", "/fileImmutable/*", "/file"})
 @MultipartConfig(maxRequestSize = 1024 * 1024 * 1024) // 1 gigabyte
 public class FileServlet extends BaseFileServlet {
 

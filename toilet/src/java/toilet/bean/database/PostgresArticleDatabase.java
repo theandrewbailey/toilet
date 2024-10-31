@@ -4,10 +4,14 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Query;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import libWebsiteTools.imead.IMEADHolder;
+import toilet.bean.ArticleRepository;
 import toilet.db.Article;
 
 /**
@@ -16,23 +20,35 @@ import toilet.db.Article;
  */
 public class PostgresArticleDatabase extends ArticleDatabase {
 
+    private final Map<String, List<Article>> searchCache = Collections.synchronizedMap(new LinkedHashMap<>(100));
+
     public PostgresArticleDatabase(EntityManagerFactory toiletPU, IMEADHolder imead) {
         super(toiletPU, imead);
+    }
+
+    @Override
+    public ArticleRepository evict() {
+        searchCache.clear();
+        return super.evict();
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public List<Article> search(String searchTerm, Integer limit) {
-        EntityManager em = toiletPU.createEntityManager();
-        try {
+        if (searchCache.containsKey(searchTerm)) {
+            return searchCache.get(searchTerm);
+        }
+        try (EntityManager em = toiletPU.createEntityManager()) {
             Query q = em.createNativeQuery("SELECT r.* FROM toilet.article r, websearch_to_tsquery(?1) query WHERE query @@ r.searchindexdata ORDER BY ts_rank_cd(r.searchindexdata, query) DESC, r.posted", Article.class);
             q.setParameter(1, searchTerm);
             if (null != limit) {
                 q.setMaxResults(limit);
             }
+            if (60 < searchCache.size()) {
+                searchCache.remove(searchCache.keySet().iterator().next());
+            }
+            searchCache.put(searchTerm, q.getResultList());
             return q.getResultList();
-        } finally {
-            em.close();
         }
     }
 
@@ -41,9 +57,8 @@ public class PostgresArticleDatabase extends ArticleDatabase {
         if (null == searchTerm || searchTerm.isEmpty()) {
             return null;
         }
-        EntityManager em = toiletPU.createEntityManager();
         List<String> suggestions = new ArrayList<>();
-        try {
+        try (EntityManager em = toiletPU.createEntityManager()) {
             Query q = em.createNativeQuery("SELECT word, similarity(?1, word) FROM toilet.articlewords WHERE (word % ?1) = TRUE ORDER BY similarity DESC");
             List results = q.setParameter(1, searchTerm).setMaxResults(limit).getResultList();
             Iterator iter = results.iterator();
@@ -64,20 +79,17 @@ public class PostgresArticleDatabase extends ArticleDatabase {
             }
             return suggestions;
         } catch (NoSuchElementException | NullPointerException n) {
-        } finally {
-            em.close();
         }
         return null;
     }
 
     @Override
     public void refreshSearch() {
-        EntityManager em = toiletPU.createEntityManager();
-        em.getTransaction().begin();
-        em.createNativeQuery("REFRESH MATERIALIZED VIEW toilet.articlewords").executeUpdate();
-        em.createNativeQuery("ANALYZE toilet.articlewords").executeUpdate();
-        em.getTransaction().commit();
-        em.close();
+        try (EntityManager em = toiletPU.createEntityManager()) {
+            em.getTransaction().begin();
+            em.createNativeQuery("REFRESH MATERIALIZED VIEW toilet.articlewords").executeUpdate();
+            em.createNativeQuery("ANALYZE toilet.articlewords").executeUpdate();
+            em.getTransaction().commit();
+        }
     }
-
 }

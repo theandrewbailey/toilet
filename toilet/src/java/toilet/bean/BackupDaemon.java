@@ -259,171 +259,168 @@ public class BackupDaemon implements Runnable {
      * takes a zip file backup of the site and restores everything
      *
      * @param zip
+     * @throws java.io.IOException
      */
-    public void restoreFromZip(ZipInputStream zip) {
+    public void restoreFromZip(ZipInputStream zip) throws IOException {
         final Map<String, String> mimes = new ConcurrentHashMap<>(1000);
         final Queue<Future> fileTasks = new ConcurrentLinkedQueue<>();
         final Queue<Future> altTasks = new ConcurrentLinkedQueue<>();
         Future<Queue<Future<Article>>> masterArticleTask = null;
         Future<List<Comment>> masterCommentTask = null;
-        try {
-            for (ZipEntry zipFile = zip.getNextEntry(); zipFile != null; zipFile = zip.getNextEntry()) {
-                if (zipFile.isDirectory()) {
-                    continue;
-                }
-                LOG.log(Level.INFO, "Processing file: {0}", zipFile.getName());
-                switch (zipFile.getName()) {
-                    case ArticleRss.NAME:
-                        final InputStream articleStream = new ByteArrayInputStream(FileUtil.getByteArray(zip));
-                        masterArticleTask = beans.getExec().submit(() -> {
-                            final Queue<Future<Article>> conversionTasks = new ConcurrentLinkedQueue<>();
-                            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-                            dbf.setIgnoringElementContentWhitespace(true);
-                            Element articleRoot = dbf.newDocumentBuilder().parse(articleStream).getDocumentElement();
-                            for (Node item : new XmlNodeSearcher(articleRoot.getFirstChild(), "item")) {
-                                conversionTasks.add(beans.getExec().submit(() -> {
-                                    Article art = new Article();
-                                    art.setComments(Boolean.FALSE);
-                                    for (Node component : new XmlNodeSearcher(item, "link")) {
-                                        art.setArticleid(Integer.decode(IndexFetcher.getArticleIdFromURI(component.getTextContent().trim())));
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, "title")) {
-                                        art.setArticletitle(component.getTextContent().trim());
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, "pubDate")) {
-                                        art.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, component.getTextContent().trim()));
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, "category")) {
-                                        art.setSectionid(new Section(null, component.getTextContent().trim()));
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, "comments")) {
-                                        art.setComments(Boolean.TRUE);
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, "author")) {
-                                        art.setPostedname(component.getTextContent().trim());
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.TAB_METADESC_ELEMENT_NAME)) {
-                                        try {
-                                            art.setDescription(URLDecoder.decode(component.getTextContent().trim(), "UTF-8"));
-                                        } catch (UnsupportedEncodingException enc) {
-                                            throw new JVMNotSupportedError(enc);
-                                        }
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.MARKDOWN_ELEMENT_NAME)) {
-                                        art.setPostedmarkdown(component.getTextContent().trim());
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, "description")) {
-                                        art.setPostedhtml(component.getTextContent().trim());
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.SUGGESTION_ELEMENT_NAME)) {
-                                        art.setSuggestion(component.getTextContent().trim());
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.SUMMARY_ELEMENT_NAME)) {
-                                        art.setSummary(component.getTextContent().trim());
-                                    }
-                                    for (Node component : new XmlNodeSearcher(item, ToiletRssItem.IMAGEURL_ELEMENT_NAME)) {
-                                        art.setImageurl(component.getTextContent().trim());
-                                    }
-                                    art.setCommentCollection(null);
-                                    // conversion
-                                    if (null == art.getPostedhtml() || null == art.getPostedmarkdown()) {
-                                        ArticleProcessor.convert(art);
-                                    }
-                                    return art;
-                                }));
-                            }
-                            beans.getArts().delete(null);
-                            return conversionTasks;
-                        });
-                        break;
-                    case CommentRss.NAME:
-                        final InputStream commentStream = new ByteArrayInputStream(FileUtil.getByteArray(zip));
-                        masterCommentTask = beans.getExec().submit(() -> {
-                            final List<Comment> comments = new ArrayList<>();
-                            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-                            dbf.setIgnoringElementContentWhitespace(true);
-                            Element commentRoot = dbf.newDocumentBuilder().parse(commentStream).getDocumentElement();
-                            for (Node item : new XmlNodeSearcher(commentRoot.getFirstChild(), "item")) {
-                                Comment comm = new Comment(comments.size() + 1);
-                                for (Node component : new XmlNodeSearcher(item, "description")) {
-                                    comm.setPostedhtml(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
+        for (ZipEntry zipFile = zip.getNextEntry(); zipFile != null; zipFile = zip.getNextEntry()) {
+            if (zipFile.isDirectory()) {
+                continue;
+            }
+            LOG.log(Level.INFO, "Processing file: {0}", zipFile.getName());
+            switch (zipFile.getName()) {
+                case ArticleRss.NAME:
+                    final InputStream articleStream = new ByteArrayInputStream(FileUtil.getByteArray(zip));
+                    masterArticleTask = beans.getExec().submit(() -> {
+                        final Queue<Future<Article>> conversionTasks = new ConcurrentLinkedQueue<>();
+                        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                        dbf.setIgnoringElementContentWhitespace(true);
+                        Element articleRoot = dbf.newDocumentBuilder().parse(articleStream).getDocumentElement();
+                        for (Node item : new XmlNodeSearcher(articleRoot.getFirstChild(), "item")) {
+                            conversionTasks.add(beans.getExec().submit(() -> {
+                                Article art = new Article();
+                                art.setComments(Boolean.FALSE);
+                                for (Node component : new XmlNodeSearcher(item, "link")) {
+                                    art.setArticleid(Integer.decode(IndexFetcher.getArticleIdFromURI(component.getTextContent().trim())));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "title")) {
+                                    art.setArticletitle(component.getTextContent().trim());
                                 }
                                 for (Node component : new XmlNodeSearcher(item, "pubDate")) {
-                                    comm.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, component.getTextContent().trim()));
+                                    art.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, component.getTextContent().trim()));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "category")) {
+                                    art.setSectionid(new Section(null, component.getTextContent().trim()));
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "comments")) {
+                                    art.setComments(Boolean.TRUE);
                                 }
                                 for (Node component : new XmlNodeSearcher(item, "author")) {
-                                    comm.setPostedname(component.getTextContent());
+                                    art.setPostedname(component.getTextContent().trim());
                                 }
-                                for (Node component : new XmlNodeSearcher(item, "link")) {
-                                    comm.setArticleid(new Article(Integer.decode(IndexFetcher.getArticleIdFromURI(component.getTextContent()))));
-                                    break;
+                                for (Node component : new XmlNodeSearcher(item, ToiletRssItem.TAB_METADESC_ELEMENT_NAME)) {
+                                    try {
+                                        art.setDescription(URLDecoder.decode(component.getTextContent().trim(), "UTF-8"));
+                                    } catch (UnsupportedEncodingException enc) {
+                                        throw new JVMNotSupportedError(enc);
+                                    }
                                 }
-                                comments.add(comm);
+                                for (Node component : new XmlNodeSearcher(item, ToiletRssItem.MARKDOWN_ELEMENT_NAME)) {
+                                    art.setPostedmarkdown(component.getTextContent().trim());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, "description")) {
+                                    art.setPostedhtml(component.getTextContent().trim());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, ToiletRssItem.SUGGESTION_ELEMENT_NAME)) {
+                                    art.setSuggestion(component.getTextContent().trim());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, ToiletRssItem.SUMMARY_ELEMENT_NAME)) {
+                                    art.setSummary(component.getTextContent().trim());
+                                }
+                                for (Node component : new XmlNodeSearcher(item, ToiletRssItem.IMAGEURL_ELEMENT_NAME)) {
+                                    art.setImageurl(component.getTextContent().trim());
+                                }
+                                art.setCommentCollection(null);
+                                // conversion
+                                if (null == art.getPostedhtml() || null == art.getPostedmarkdown()) {
+                                    ArticleProcessor.convert(art);
+                                }
+                                return art;
+                            }));
+                        }
+                        beans.getArts().delete(null);
+                        return conversionTasks;
+                    });
+                    break;
+                case CommentRss.NAME:
+                    final InputStream commentStream = new ByteArrayInputStream(FileUtil.getByteArray(zip));
+                    masterCommentTask = beans.getExec().submit(() -> {
+                        final List<Comment> comments = new ArrayList<>();
+                        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+                        dbf.setIgnoringElementContentWhitespace(true);
+                        Element commentRoot = dbf.newDocumentBuilder().parse(commentStream).getDocumentElement();
+                        for (Node item : new XmlNodeSearcher(commentRoot.getFirstChild(), "item")) {
+                            Comment comm = new Comment(comments.size() + 1);
+                            for (Node component : new XmlNodeSearcher(item, "description")) {
+                                comm.setPostedhtml(component.getTextContent().replace("&lt;", "<").replace("&gt;", ">"));
                             }
-                            for (Comment c : comments) {
-                                c.setCommentid(null);
+                            for (Node component : new XmlNodeSearcher(item, "pubDate")) {
+                                comm.setPosted(FeedBucket.parseTimeFormat(DateTimeFormatter.ISO_OFFSET_DATE_TIME, component.getTextContent().trim()));
                             }
-                            return comments;
-                        });
-                        break;
-                    case BackupDaemon.MIMES_TXT:
-                        String mimeString = new String(FileUtil.getByteArray(zip));
+                            for (Node component : new XmlNodeSearcher(item, "author")) {
+                                comm.setPostedname(component.getTextContent());
+                            }
+                            for (Node component : new XmlNodeSearcher(item, "link")) {
+                                comm.setArticleid(new Article(Integer.decode(IndexFetcher.getArticleIdFromURI(component.getTextContent()))));
+                                break;
+                            }
+                            comments.add(comm);
+                        }
+                        for (Comment c : comments) {
+                            c.setCommentid(null);
+                        }
+                        return comments;
+                    });
+                    break;
+                case BackupDaemon.MIMES_TXT:
+                    String mimeString = new String(FileUtil.getByteArray(zip));
+                    altTasks.add(beans.getExec().submit(() -> {
+                        for (String mimeEntry : mimeString.split("\n")) {
+                            try {
+                                String[] parts = mimeEntry.split(": ");
+                                mimes.put(parts[0], parts[1]);
+                            } catch (ArrayIndexOutOfBoundsException a) {
+                            }
+                        }
+                        return null;
+                    }));
+                    break;
+                default:
+                    Matcher imeadBackup = IMEAD_BACKUP_FILE.matcher(zipFile.getName());
+                    if (imeadBackup.find()) {
+                        String properties = new String(FileUtil.getByteArray(zip));
                         altTasks.add(beans.getExec().submit(() -> {
-                            for (String mimeEntry : mimeString.split("\n")) {
-                                try {
-                                    String[] parts = mimeEntry.split(": ");
-                                    mimes.put(parts[0], parts[1]);
-                                } catch (ArrayIndexOutOfBoundsException a) {
+                            String locale = null != imeadBackup.group(1) ? imeadBackup.group(1) : "";
+                            Properties props = new Properties();
+                            try {
+                                props.load(new StringReader(properties));
+                                ArrayList<Localization> localizations = new ArrayList<>(props.size() * 2);
+                                for (String key : props.stringPropertyNames()) {
+                                    localizations.add(new Localization(locale, key, props.getProperty(key)));
                                 }
+                                beans.getImead().upsert(localizations);
+                            } catch (IOException ex) {
+                                beans.getError().logException(null, "Can't restore properties", "Can't restore properties for locale " + locale, ex);
+                            }
+                            return props;
+                        }));
+                    } else if (zipFile.getName().startsWith(CONTENT_DIR)) {
+                        Fileupload incomingFile = new Fileupload();
+                        incomingFile.setAtime(Instant.ofEpochMilli(zipFile.getTime()).atOffset(ZoneOffset.UTC));
+                        incomingFile.setFilename(zipFile.getName().replace(CONTENT_DIR + "/", ""));
+                        incomingFile.setMimetype(zipFile.getComment());
+                        incomingFile.setFiledata(FileUtil.getByteArray(zip));
+                        fileTasks.add(beans.getExec().submit(() -> {
+                            incomingFile.setEtag(HashUtil.getSHA256Hash(incomingFile.getFiledata()));
+                            if (null == incomingFile.getMimetype()) {
+                                incomingFile.setMimetype(FileRepository.DEFAULT_MIME_TYPE);
+                            }
+                            Fileupload existingFile = beans.getFile().get(incomingFile.getFilename());
+                            if (null == existingFile || !incomingFile.getEtag().equals(existingFile.getEtag())) {
+                                LOG.log(Level.INFO, "Existing file different, updating {0}", incomingFile.getFilename());
+                                beans.getFile().upsert(List.of(incomingFile));
                             }
                             return null;
                         }));
-                        break;
-                    default:
-                        Matcher imeadBackup = IMEAD_BACKUP_FILE.matcher(zipFile.getName());
-                        if (imeadBackup.find()) {
-                            String properties = new String(FileUtil.getByteArray(zip));
-                            altTasks.add(beans.getExec().submit(() -> {
-                                String locale = null != imeadBackup.group(1) ? imeadBackup.group(1) : "";
-                                Properties props = new Properties();
-                                try {
-                                    props.load(new StringReader(properties));
-                                    ArrayList<Localization> localizations = new ArrayList<>(props.size() * 2);
-                                    for (String key : props.stringPropertyNames()) {
-                                        localizations.add(new Localization(locale, key, props.getProperty(key)));
-                                    }
-                                    beans.getImead().upsert(localizations);
-                                } catch (IOException ex) {
-                                    beans.getError().logException(null, "Can't restore properties", "Can't restore properties for locale " + locale, ex);
-                                }
-                                return props;
-                            }));
-                        } else if (zipFile.getName().startsWith(CONTENT_DIR)) {
-                            Fileupload incomingFile = new Fileupload();
-                            incomingFile.setAtime(Instant.ofEpochMilli(zipFile.getTime()).atOffset(ZoneOffset.UTC));
-                            incomingFile.setFilename(zipFile.getName().replace(CONTENT_DIR + "/", ""));
-                            incomingFile.setMimetype(zipFile.getComment());
-                            incomingFile.setFiledata(FileUtil.getByteArray(zip));
-                            fileTasks.add(beans.getExec().submit(() -> {
-                                incomingFile.setEtag(HashUtil.getSHA256Hash(incomingFile.getFiledata()));
-                                if (null == incomingFile.getMimetype()) {
-                                    incomingFile.setMimetype(FileRepository.DEFAULT_MIME_TYPE);
-                                }
-                                Fileupload existingFile = beans.getFile().get(incomingFile.getFilename());
-                                if (null == existingFile || !incomingFile.getEtag().equals(existingFile.getEtag())) {
-                                    LOG.log(Level.INFO, "Existing file different, updating {0}", incomingFile.getFilename());
-                                    beans.getFile().upsert(List.of(incomingFile));
-                                }
-                                return null;
-                            }));
-                        }
-                        break;
-                }
+                    }
+                    break;
             }
-            zip.close();
-        } catch (IOException ix) {
-            throw new RuntimeException(ix);
         }
+        zip.close();
         UtilStatic.finish(altTasks).clear();
         UtilStatic.finish(fileTasks).clear();
         altTasks.add(beans.getExec().submit(() -> {

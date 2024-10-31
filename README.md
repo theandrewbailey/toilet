@@ -1,6 +1,6 @@
 # Toilet Blog Engine
 
-This code powers [theandrewbailey.com](https://theandrewbailey.com/). This is built with Netbeans. It runs on [Java](https://openjdk.org/), [Payara](https://www.payara.fish/), [Postgres](https://www.postgresql.org/), and [Linux](https://www.debian.org/). (JaPPL stack?) It should run on other Linux distros and Jakarta EE containers without much difficulty (untested), and other databases with a bit of effort (particularly around full text search). Pull requests for such compatibility welcome!
+This is a personal (as in, one author) blog system. It powers [theandrewbailey.com](https://theandrewbailey.com/). This is built with Netbeans. It runs on [Java (OpenJDK 17)](https://openjdk.org/), [Payara (6.2023)](https://www.payara.fish/), [Postgres (15)](https://www.postgresql.org/), and Linux [(Debian 12 Bookworm)](https://www.debian.org/). (JaPPL stack?) It should run on other Linux distros and Jakarta EE containers without much difficulty (untested), and other databases with a bit of effort (particularly around full text search). Pull requests for such compatibility welcome!
 
 ## Features
 
@@ -84,7 +84,7 @@ I'm using [HAProxy](https://www.haproxy.org/) in front of Payara to handle port 
 
 * Port numbers can be changed in the admin console. (Configurations > server-config > HTTP Service > HTTP Listeners > http-listener-1, http-listener-2)
 
-* TLS certificates (like from Let's Encrypt) must be added in `~/payara6/glassfish/domains/toiletPayara-(number)/config/keystore.p12` which uses the Payara master password (if using the script, it's the same as admin console login). You can setup a HTTPS-only redirect in Configurations > server-config > Network Config > Network Listeners > http-listener-1 > HTTP tab > Redirect Port.
+* TLS certificates (like from Let's Encrypt) must be added in `~/payara6/glassfish/domains/toiletPayara-xxxxx/config/keystore.p12` which uses the Payara master password (if using the script, it's the same as admin console login). You can setup a HTTPS-only redirect in Configurations > server-config > Network Config > Network Listeners > http-listener-1 > HTTP tab > Redirect Port.
 
 ## Notes
 

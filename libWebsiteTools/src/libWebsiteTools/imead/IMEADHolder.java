@@ -13,7 +13,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.Map.Entry;
-import libWebsiteTools.db.Repository;
+import libWebsiteTools.Repository;
 
 /**
  * Internationalization Made Easy And Dynamic

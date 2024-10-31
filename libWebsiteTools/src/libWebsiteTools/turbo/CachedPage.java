@@ -1,4 +1,4 @@
-package libWebsiteTools.cache;
+package libWebsiteTools.turbo;
 
 import java.time.OffsetDateTime;
 import java.util.Arrays;
@@ -13,7 +13,6 @@ import jakarta.ws.rs.core.CacheControl;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.ext.RuntimeDelegate;
 import libWebsiteTools.security.GuardFilter;
-import libWebsiteTools.security.RequestTimer;
 
 /**
  *

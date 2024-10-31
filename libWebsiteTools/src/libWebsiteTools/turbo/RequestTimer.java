@@ -1,15 +1,19 @@
-package libWebsiteTools.security;
+package libWebsiteTools.turbo;
 
+import jakarta.ejb.EJB;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletRequestEvent;
 import jakarta.servlet.ServletRequestListener;
 import jakarta.servlet.annotation.WebListener;
+import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import libWebsiteTools.AllBeanAccess;
 
 /**
  *
@@ -22,6 +26,8 @@ public class RequestTimer implements ServletRequestListener {
     private static final String START_TIME_PARAM = "$_LIBWEBSITETOOLS_START_TIME";
     private static final String FRONT_TIME_PARAM = "$_LIBWEBSITETOOLS_FRONT_TIME";
     private static final String REQUEST_TIMINGS_PARAM = "$_LIBWEBSITETOOLS_REQUEST_TIMINGS";
+    @EJB
+    private AllBeanAccess allBeans;
 
     public static OffsetDateTime getStartTime(ServletRequest req) {
         OffsetDateTime time = (OffsetDateTime) req.getAttribute(START_TIME_PARAM);
@@ -74,16 +80,39 @@ public class RequestTimer implements ServletRequestListener {
             addTiming(req, "front", d);
         }
         addTiming(req, "total", getElapsed(getStartTime(req)));
-        for (Map.Entry<String, Duration> timing : getTimings(req).entrySet()) {
+        Map<String, Duration> timings = getTimings(req);
+        for (Map.Entry<String, Duration> timing : timings.entrySet()) {
             parts.add(timing.getKey() + String.format(";dur=%.3f", timing.getValue().toNanos() / 1000000.0));
         }
-        String header = String.join(", ", parts);
-        return header;
+        timings.put(cached ? "hit" : "miss", null);
+        return String.join(", ", parts);
     }
 
     @Override
     public void requestInitialized(ServletRequestEvent sre) {
         HttpServletRequest req = (HttpServletRequest) sre.getServletRequest();
         getStartTime(req);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void requestDestroyed(ServletRequestEvent sre) {
+        HttpServletRequest req = (HttpServletRequest) sre.getServletRequest();
+        Map<String, Duration> timings = getTimings(req);
+        if (!timings.isEmpty()) {
+            boolean cached = timings.containsKey("hit");
+            if (cached) {
+                timings.remove("hit");
+            } else {
+                timings.remove("miss");
+            }
+            RequestTimes requestTimes = new RequestTimes(req.getRequestURI(), timings, (OffsetDateTime) req.getAttribute(FRONT_TIME_PARAM), cached);
+            AllBeanAccess beans = allBeans.getInstance(req);
+            Object servletName = req.getAttribute(WebServlet.class.getCanonicalName());
+            if (null == servletName) {
+                servletName = requestTimes.getUrl();
+            }
+            beans.getPerfStats().submit(requestTimes, servletName.toString());
+        }
     }
 }

@@ -25,7 +25,7 @@ import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
-import libWebsiteTools.db.Repository;
+import libWebsiteTools.Repository;
 
 /**
  * The feed bucket, the source from which all RSS feeds come. Does what the

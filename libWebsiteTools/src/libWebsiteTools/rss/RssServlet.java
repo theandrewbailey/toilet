@@ -11,7 +11,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.transform.Transformer;
@@ -20,6 +19,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import libWebsiteTools.AllBeanAccess;
+import libWebsiteTools.BaseServlet;
 import org.w3c.dom.Document;
 
 /**
@@ -31,7 +31,7 @@ import org.w3c.dom.Document;
  * @author: Andrew Bailey (praetor_alpha) praetoralpha 'at' gmail.com
  */
 @WebServlet(name = "RssServlet", description = "RSS host servlet, writes XML DOM for RSS feeds", urlPatterns = {"/rss/*"}, loadOnStartup = 1)
-public class RssServlet extends HttpServlet {
+public class RssServlet extends BaseServlet {
 
     public static final String INDENT = "RSS.indent";
     public static final Pattern RSS_NAME_REGEX = Pattern.compile("^.+?/rss/([^\\?]+?)(?:\\?.*)?$");
@@ -128,30 +128,5 @@ public class RssServlet extends HttpServlet {
             LOG.log(Level.SEVERE, "Error occured while retrieving RSS feed " + getRssName(request.getRequestURI()), ex);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
-    }
-
-    @Override
-    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doOptions(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-    }
-
-    @Override
-    protected void doTrace(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     }
 }

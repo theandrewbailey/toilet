@@ -20,8 +20,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MultivaluedHashMap;
+import java.time.Duration;
+import java.time.Instant;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.tag.HtmlMeta;
+import libWebsiteTools.turbo.RequestTimer;
 import toilet.IndexFetcher;
 import toilet.UtilStatic;
 import toilet.bean.ToiletBeanAccess;
@@ -54,7 +57,9 @@ public class SearchServlet extends ToiletServlet {
                 response.sendError(422);
                 return;
             }
+            Instant start = Instant.now();
             List<Article> results = beans.getArts().search(searchTerm, articleLimit);
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             Locale loc = Local.resolveLocales(beans.getImead(), request).get(0);
             try {
                 if (!results.stream().anyMatch((art) -> {
@@ -114,6 +119,7 @@ public class SearchServlet extends ToiletServlet {
             MultivaluedHashMap<Integer, String> countResults = new MultivaluedHashMap<>();
             LinkedHashMap<String, List<String>> wordMap = new LinkedHashMap<>(last2.size());
             baseJoin = new StringJoiner(" ");
+            Instant start = Instant.now();
             for (String word : last2) {
                 baseJoin.add(word);
                 if (word.startsWith("\"") || word.startsWith("-") || word.contains("|")) {
@@ -129,6 +135,7 @@ public class SearchServlet extends ToiletServlet {
                     countResults.add(Integer.MIN_VALUE, base + word);
                 }
             }
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             Collection<List<String>> values = wordMap.values();
             Iterator<List<String>> viter = values.iterator();
             List<String> firsts = viter.next();
