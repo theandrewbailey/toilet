@@ -1,29 +1,32 @@
 # Toilet Blog Engine
 
-This is a personal (as in, one author) blog system. It powers [theandrewbailey.com](https://theandrewbailey.com/). This is built with Netbeans. It runs on [Java (OpenJDK 17)](https://openjdk.org/), [Payara (6.2023)](https://www.payara.fish/), [Postgres (15)](https://www.postgresql.org/), and Linux [(Debian 12 Bookworm)](https://www.debian.org/). (JaPPL stack?) It should run on other Linux distros and Jakarta EE containers without much difficulty (untested), and other databases with a bit of effort (particularly around full text search). Pull requests for such compatibility welcome!
+This is a personal (as in, one author) blog system. It powers [theandrewbailey.com](https://theandrewbailey.com/). This is built with Netbeans. It runs on [Java](https://openjdk.org/), [Payara](https://www.payara.fish/), [Postgres](https://www.postgresql.org/), and Linux [(Debian)](https://www.debian.org/). It should run on other Linux distros and Jakarta EE containers without much difficulty (untested), and other databases with a bit of effort (particularly around full text search). Pull requests for such compatibility welcome!
 
 ## Features
 
 Write blog posts in markdown. When an article is posted, the first paragraph and image are pulled into a link and summary shown on the homepage. [This uses commonmark-java (with all first-party modules enabled) for Markdown functionality.](https://github.com/commonmark/commonmark-java)
 
-This code serves RSS feeds automatically! Feeds are served for all articles, articles by category, all comments, and per-article comments. RSS feeds are also used to backup and restore articles and comments.
+This code serves RSS feeds. Feeds are served for all articles, articles by category, all comments, and per-article comments. RSS feeds are also used to backup and restore articles and comments.
 
-[This uses Postgres' full text search functionality.](https://www.postgresql.org/docs/current/textsearch.html) The search box features custom spellcheck and autocomplete [(thanks to trigrams)](https://www.postgresql.org/docs/current/pgtrgm.html). When an article is shown, its title is searched (can be overridden), and those results are shown at the end of the article as a 'you might also like' feature. The links are presented similarly to the homepage.
+[This uses Postgres' full text search functionality.](https://www.postgresql.org/docs/current/textsearch.html) [The search box features custom spellcheck and autocomplete.](https://www.postgresql.org/docs/current/pgtrgm.html) On an article page, its title is searched (can be overridden), and those results are shown at the end of the article as a 'you might also like' feature. The links are presented similarly to the homepage.
 
-Links in the homepage, sidebar, and the 'you might also like' area won't list the same article between them (if you have enough articles).
+Links on the homepage, sidebar, and the 'you might also like' area won't list the same article between them (if you have enough articles).
 
 This code is optimized for page load speed:
 
-* Pages and files are compressed with gzip, [brotli](https://github.com/google/brotli) (via [Brotli4j](https://github.com/hyperxpro/Brotli4j)), and [zstd](https://facebook.github.io/zstd/) (via [zstd-jni](https://github.com/luben/zstd-jni)).
+* Pages and files are compressed with gzip, [brotli](https://github.com/google/brotli) (via [Brotli4j](https://github.com/hyperxpro/Brotli4j)), and [zstd](https://github.com/facebook/zstd) (via [zstd-jni](https://github.com/luben/zstd-jni)).
 
-* Images will lazy load [(via `<img loading="lazy">`)](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#loading), except for all images of an article, and the first 2 images of the homepage.
+* Images will lazy load [(via `<img loading="lazy">`)](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#loading), except for all images of an article, and the first 2 images of the homepage. When left alone, lazy load images will load in, one by one, every 5 seconds or so (based on initial page load time) until all images are fully loaded.
 
-* When posting an article with an image, other image uploads are searched by file type (see `site_imagePriority` configuration), and size (named *image*×*n*, [see avifify.sh for more](https://gist.github.com/theandrewbailey/4e05e20a229ef2f2c1f9a6d0e326ec2a)). All images (even if no others are found) will be placed in [a `<picture>` element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/picture) with the original.
-
-* HTTP cache headers are set on every page, and are set to 100,000 seconds (a bit more than a day). Etag headers use a hash of the meaningful data served.
+* [HTTP cache headers are set on every page](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching), and are set to 100,000 seconds (a bit more than a day). [HTTP Etag headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag) use a SHA-256 hash of the meaningful data served.
 	* Images, CSS, and JS have unique URLs based on upload time and are served with Cache-Control: immutable
 
 * Up to 100 pages are stored in an internal cache, and are automatically dropped when not requested for a while (must get more than 1 hit per hour to stay).
+
+* Internal links are preloaded on hover or select. Clicking those links will swap the page with the preloaded version.
+
+* Responsive images supported. Images must be prepared externally, because this code will not resize and encode automatically ([see avifify.sh for more](https://gist.github.com/theandrewbailey/4e05e20a229ef2f2c1f9a6d0e326ec2a)). When posting an article with images, image uploads are searched by name, file type (see `site_imagePriority` configuration), and size (named *image*×*n*). All matched images will be placed in [a `<picture>` element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/picture) with the original.
+	* Lowest resolution images are displayed in article summaries. The preload function will replace them with higher resolution images on hover if available.
 
 * [Server-Timing](https://developer.mozilla.org/en-US/docs/Web/API/Performance_API/Server_timing) headers are set on every page with a breakdown of some important performance impacting steps.
 
@@ -31,7 +34,7 @@ Security is important!
 
 * All headers checked by [SecurityHeaders.com](https://securityheaders.com/) are supported, including [content security policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP), [feature policy, and permissions policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Permissions_Policy).
 
-* [Subresource integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) is automatically calculated for all CSS and JS uploaded and served.
+* [Subresource integrity](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) is used for all CSS and JS files.
 
 * All form fields are obfuscated on a per-visitor/session basis.
 
@@ -43,7 +46,7 @@ Security is important!
 
 1. Download `toilet.war` release and [`setupUsTheBlog.sh`](https://github.com/theandrewbailey/toilet/blob/master/setupUsTheBlog.sh) from the repository. Run `setupUsTheBlog.sh`.
 	1. This script will create will create a directory, `~/toilet`, and dump most stuff there. (Feel free to create it yourself and put the war and script there.) Payara will be extracted to `~/payara6`.
-	1. This script will build zopfli and brotli, setup a Postgres database, download Payara, setup a domain on Payara (and slightly optimize it), and deploy `toilet.war`.
+	1. This script will setup a Postgres database, download Payara, setup a domain on Payara (and slightly optimize it), and deploy `toilet.war`.
 	1. The last 7 or so lines are important. Save them somewhere.
 1. Setup Toilet.
 	1. Go to the toilet homepage. The script will let you know the URL, like https://localhost:22981
