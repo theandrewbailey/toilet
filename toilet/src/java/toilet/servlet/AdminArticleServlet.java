@@ -24,8 +24,8 @@ import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
 import toilet.bean.ArticleRepository;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Article;
-import toilet.db.Section;
+import toilet.bean.database.Article;
+import toilet.bean.database.Section;
 import static toilet.servlet.ArticleServlet.getArticleSuggestions;
 import toilet.tag.ArticleUrl;
 
@@ -96,7 +96,7 @@ public class AdminArticleServlet extends AdminServlet {
         Article art = (Article) req.getSession().getAttribute(Article.class.getSimpleName());
         boolean isNewArticle = null == art.getArticleid();
         if (isNewArticle) {
-            int nextID = beans.getArts().count().intValue();
+            int nextID = beans.getArts().count(null).intValue();
             art.setArticleid(++nextID);
             req.setAttribute("isNewArticle", true);
         } else {

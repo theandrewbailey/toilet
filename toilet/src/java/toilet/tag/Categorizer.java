@@ -10,7 +10,7 @@ import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Section;
+import toilet.bean.database.Section;
 
 /**
  *

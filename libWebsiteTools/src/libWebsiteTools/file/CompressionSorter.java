@@ -64,7 +64,7 @@ public abstract class CompressionSorter implements CompressionAlgorithm<HttpServ
 
     @Override
     public HttpServletResponse setResult(HttpServletResponse res, byte[] compressedData) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
     @Override

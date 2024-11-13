@@ -31,10 +31,10 @@ import java.util.Map;
 import java.util.Properties;
 import libWebsiteTools.turbo.PageCacheProvider;
 import libWebsiteTools.Repository;
+import libWebsiteTools.file.FileDatabase;
 import libWebsiteTools.file.FileRepository;
 import libWebsiteTools.imead.IMEADDatabase;
 import libWebsiteTools.imead.IMEADHolder;
-import libWebsiteTools.postgres.PostgresFileDatabase;
 import libWebsiteTools.rss.FeedBucket;
 import libWebsiteTools.security.GuardFilter;
 import libWebsiteTools.security.HashUtil;
@@ -43,7 +43,8 @@ import libWebsiteTools.sitemap.SiteMapper;
 import libWebsiteTools.turbo.PerfStats;
 import toilet.AllBeanAccess;
 import toilet.SitemapProvider;
-import toilet.db.Comment;
+import toilet.bean.database.Comment;
+import toilet.bean.database.Section;
 import toilet.rss.ArticleRss;
 import toilet.rss.CommentRss;
 import toilet.rss.ErrorRss;
@@ -73,7 +74,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     private FeedBucket feeds;
     private ArticleRepository arts;
     private Repository<Comment> comms;
-    private SectionRepository sects;
+    private Repository<Section> sects;
     private BackupDaemon backup;
     private SiteMapper mapper;
     private PerfStats perfs;
@@ -272,7 +273,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     }
 
     @Override
-    public SectionRepository getSects() {
+    public Repository<Section> getSects() {
         if (null == sects) {
             sects = new SectionDatabase(toiletPU, getImead());
         }
@@ -311,7 +312,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
     @Override
     public FileRepository getFile() {
         if (null == file) {
-            file = new PostgresFileDatabase(toiletPU);
+            file = new FileDatabase(toiletPU);
         }
         return file;
     }

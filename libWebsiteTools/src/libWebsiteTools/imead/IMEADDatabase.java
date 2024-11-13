@@ -119,8 +119,13 @@ public class IMEADDatabase extends IMEADHolder {
         }
     }
 
+    /**
+     *
+     * @param term ignored
+     * @return
+     */
     @Override
-    public Long count() {
+    public Long count(Object term) {
         try (EntityManager em = PU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Localization.count", Long.class);
             return qn.getSingleResult();

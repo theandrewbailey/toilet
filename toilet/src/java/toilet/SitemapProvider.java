@@ -9,8 +9,8 @@ import java.util.List;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.sitemap.ChangeFreq;
 import libWebsiteTools.sitemap.UrlMap;
-import toilet.db.Article;
-import toilet.db.Section;
+import toilet.bean.database.Article;
+import toilet.bean.database.Section;
 import toilet.tag.ArticleUrl;
 
 /**

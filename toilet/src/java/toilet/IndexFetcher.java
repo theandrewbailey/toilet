@@ -8,8 +8,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import libWebsiteTools.JVMNotSupportedError;
 import toilet.bean.ArticleRepository;
-import toilet.db.Article;
-import toilet.db.Section;
+import toilet.bean.database.Article;
+import toilet.bean.database.Section;
 
 /**
  *
@@ -115,15 +115,16 @@ public class IndexFetcher {
         // get total of all, to display number of pages limit
         if (count == 0) {
             double counted = 0;
-            if (null == section) {
-                counted = beans.getArts().count();
-            } else {
-                Section thisSection = beans.getSects().get(section);
-                if (null != thisSection) {
-//                    counted = thisSection.getArticleCollection().size();
-                    counted = beans.getSects().count(section);
-                }
-            }
+            counted = beans.getSects().count(section);
+//            if (null == section) {
+//                counted = beans.getArts().count(null);
+//            } else {
+//                Section thisSection = beans.getSects().get(section);
+//                if (null != thisSection) {
+////                    counted = thisSection.getArticleCollection().size();
+//                    counted = beans.getSects().count(section);
+//                }
+//            }
             count = (int) Math.ceil(counted / ppp);
         }
         // wierd algoritim to determine how many pagination links to other pages on this page

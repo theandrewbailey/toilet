@@ -11,8 +11,8 @@ import java.util.regex.Pattern;
 import libWebsiteTools.security.HashUtil;
 import libWebsiteTools.JVMNotSupportedError;
 import libWebsiteTools.Repository;
-import toilet.db.Article;
-import toilet.db.Comment;
+import toilet.bean.database.Article;
+import toilet.bean.database.Comment;
 
 /**
  *
@@ -32,22 +32,6 @@ public interface ArticleRepository extends Repository<Article> {
      * @return A list that represents a single page of articles
      */
     public abstract List<Article> getBySection(String sect, Integer page, Integer perPage, List<Integer> exclude);
-
-    /**
-     *
-     * @param searchTerm Perform a search based on this term
-     * @param limit Return maximum of this many. Can be null to return all possible matches.
-     * @return Articles that match the searchTerm, sorted by relevance
-     */
-    public abstract List<Article> search(String searchTerm, Integer limit);
-
-    /**
-     *
-     * @param searchTerm A possible search term
-     * @param limit Only return this many
-     * @return A list of search terms that might be better (e.g. fixed spelling)
-     */
-    public abstract List<String> getSearchSuggestion(String searchTerm, Integer limit);
 
     /**
      * Perform any kind of re-index operation necessary for search. Needs done

@@ -20,9 +20,10 @@ import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.tag.HtmlMeta;
+import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 import toilet.tag.Categorizer;
 
 @WebServlet(name = "IndexServlet", description = "Gets all the posts of a single group, defaults to Home", urlPatterns = {"/index/*", "/index", "/"})
@@ -31,22 +32,26 @@ public class IndexServlet extends ToiletServlet {
     public static final String HOME_JSP = "/WEB-INF/category.jsp";
 
     private IndexFetcher getIndexFetcher(HttpServletRequest req) {
-        ToiletBeanAccess beans = allBeans.getInstance(req);
-        String URI = req.getRequestURI();
-        if (URI.startsWith(getServletContext().getContextPath())) {
-            URI = URI.substring(getServletContext().getContextPath().length());
+        IndexFetcher f = (IndexFetcher) req.getAttribute(IndexFetcher.class.getCanonicalName());
+        if (null == f) {
+            Instant start = Instant.now();
+            ToiletBeanAccess beans = allBeans.getInstance(req);
+            String URI = req.getRequestURI();
+            if (URI.startsWith(getServletContext().getContextPath())) {
+                URI = URI.substring(getServletContext().getContextPath().length());
+            }
+            f = new IndexFetcher(beans, URI);
+            RequestTimer.addTiming(req, "query", Duration.between(start, Instant.now()));
+            req.setAttribute(IndexFetcher.class.getCanonicalName(), f);
         }
-        return new IndexFetcher(beans, URI);
+        return f;
     }
 
     @Override
     protected long getLastModified(HttpServletRequest request) {
         OffsetDateTime latest = OffsetDateTime.of(2000, 1, 1, 1, 1, 1, 1, ZoneOffset.UTC);
         try {
-            Instant start = Instant.now();
             IndexFetcher f = getIndexFetcher(request);
-            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
-            request.setAttribute(IndexFetcher.class.getCanonicalName(), f);
             for (Article a : f.getArticles()) {
                 if (a.getModified().isAfter(latest)) {
                     latest = a.getModified();
@@ -59,13 +64,7 @@ public class IndexServlet extends ToiletServlet {
 
     @Override
     protected void doHead(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        IndexFetcher f = (IndexFetcher) request.getAttribute(IndexFetcher.class.getCanonicalName());
-        if (null == f) {
-            Instant start = Instant.now();
-            f = getIndexFetcher(request);
-            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
-            request.setAttribute(IndexFetcher.class.getCanonicalName(), f);
-        }
+        IndexFetcher f = getIndexFetcher(request);
         Collection<Article> articles = f.getArticles();
         if (articles.isEmpty()) {
             if (HttpMethod.HEAD.equals(request.getMethod())) {
@@ -95,7 +94,7 @@ public class IndexServlet extends ToiletServlet {
             return;
         }
         doHead(request, response);
-        IndexFetcher f = (IndexFetcher) request.getAttribute(IndexFetcher.class.getCanonicalName());
+        IndexFetcher f = getIndexFetcher(request);
         if (null != f && !response.isCommitted()) {
             Collection<Article> articles = f.getArticles();
             articles.stream().limit(2).forEach((art) -> {
@@ -107,7 +106,7 @@ public class IndexServlet extends ToiletServlet {
                 request.setAttribute("pagen_last", f.getLast());
                 request.setAttribute("pagen_current", f.getPage());
                 request.setAttribute("pagen_count", f.getCount());
-            } else if (null == f.getSection() && 0 == beans.getArts().count()) {
+            } else if (null == f.getSection() && 0 == beans.getArts().count(null)) {
                 String message = MessageFormat.format(beans.getImead().getLocal("page_noPosts", Local.resolveLocales(beans.getImead(), request)), new Object[]{request.getAttribute(SecurityRepo.BASE_URL).toString() + "adminLogin"});
                 request.setAttribute(CoronerServlet.ERROR_MESSAGE_PARAM, message);
                 request.getServletContext().getRequestDispatcher(CoronerServlet.ERROR_JSP).forward(request, response);

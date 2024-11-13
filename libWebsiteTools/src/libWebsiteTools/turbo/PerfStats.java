@@ -31,13 +31,11 @@ public class PerfStats {
                 timeStore.remove(timeStore.keySet().iterator().next());
             }
             timeStore.put(url, list);
-        } else if (LIMIT <= list.size()) {
-            synchronized (list) {
-                list.sort(null);
-                list.poll();
-            }
         }
         synchronized (list) {
+            while (LIMIT <= list.size()) {
+                list.poll();
+            }
             list.add(timings);
         }
     }

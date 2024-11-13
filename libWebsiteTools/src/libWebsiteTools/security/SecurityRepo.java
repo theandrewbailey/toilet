@@ -103,6 +103,11 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     }
 
     @Override
+    public List<Exceptionevent> search(Object term, Integer limit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Collection<Exceptionevent> upsert(Collection<Exceptionevent> entities) {
         try (EntityManager em = PU.createEntityManager()) {
             em.getTransaction().begin();
@@ -204,7 +209,7 @@ public class SecurityRepo implements Repository<Exceptionevent> {
     }
 
     @Override
-    public Long count() {
+    public Long count(Object term) {
         throw new UnsupportedOperationException();
     }
 

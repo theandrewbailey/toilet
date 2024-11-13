@@ -17,12 +17,4 @@ public interface FileRepository extends Repository<Fileupload> {
      * @return metadata of requested names, or everything for null
      */
     List<Fileupload> getFileMetadata(List<String> names);
-
-    /**
-     *
-     * @param searchTerm
-     * @return files that contain searchTerm
-     */
-    List<Fileupload> search(String searchTerm);
-    
 }

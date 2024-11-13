@@ -38,7 +38,7 @@ import libWebsiteTools.tag.AbstractInput;
 import toilet.AllBeanAccess;
 import toilet.ArticleProcessor;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 
 /**
  *

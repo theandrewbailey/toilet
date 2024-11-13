@@ -1,4 +1,3 @@
-/* Toiletwave. トイレ周波美学 */
 html,body,blockquote,button,div,span,article,section,header,figure,figcaption,footer,h1,h2,h3,iframe,nav,p,picture,pre,abbr,a,form,input,textarea,label,time,fieldset,legend,ul,li,img,table,thead,tbody,tr,td,code,br,strong,main,sup,sub,.reset{
   margin: 0.0rem;
   border: 0.0rem;
@@ -9,7 +8,7 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   box-sizing: border-box;
   background-color: transparent;
   text-decoration-skip-ink: none;
-}article,footer,header,nav,section,main,figure,figcaption,aside li>a,.spruceBox{
+}article,footer,header,nav,section,main,figure,figcaption,aside li>a{
   display: block;
   width: -webkit-fill-available;
   width: -moz-available;
@@ -18,8 +17,6 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   font-family: "Times New Roman", "SimSun", "NSimSun", serif;
   font-size: 16pt;
   line-height: 1.2em;
-}a{
-  color: #0000FF;
 }a:focus,input:focus,textarea:focus,select:focus,button:focus{
   outline: gray dotted 1px;
 }strong{
@@ -37,6 +34,8 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
 }body>header{
   text-align: center;
   text-transform: full-width;
+}body>header>h1>a:after{
+  margin-left: -1px;
 }p,pre,li,.pagenation{
   margin: 0.0rem 0.0rem 1.0rem 0.0rem;
 }img{
@@ -60,6 +59,8 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   list-style: decimal outside none;
 }.indexPage>article{
   margin-bottom: 2rem;
+}.placeholder{
+  position: absolute;
 }article>footer,.articleFooter{
   font-size: 0.9rem;
 }article>p{
@@ -120,57 +121,6 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   margin: 0.0rem 0.7rem 0.0rem 0.0rem;
   list-style: none outside none;
   white-space: nowrap;
-}.error{
-  font-size: 1.5rem;
-}aside.noPrint h1{
-  font-size: 1.1rem;
-}.side_bottom>ol{
-  margin-left: -1rem;
-}aside>*{
-  padding: 0.3em 0.3em 0.0em 0.3em;
-}aside li,.spruceBox,.adminform{
-  font-size: 0.8rem;
-}aside li>a,.spruceBox{
-  display: block;
-}p.secondmin,.secondmin>td,.secondmin>td:first-child{
-  padding-left: 0.5rem;
-}/* SCREEN STYLES */
-@media screen{html{
-  padding: 0.5rem;
-  color: #620d55;
-  background-color: #e9fbff;
-}html.reset{
-  background-color: rgba(233, 251, 255, 0);
-  min-width: unset;
-}body{
-  width: 100%;
-}body>*{
-  margin: 0.0rem auto 0.0rem auto;
-  min-width: 300px;
-}figure{
-  max-width: -webkit-max-content;
-  max-width: max-content;
-  position: relative;
-  width: auto;
-}a.withFigure>figure>picture>img{
-  min-height: 7rem;
-  max-height: 25rem;
-}.indexPage>article>a.withFigure{
-  display: block;
-  max-width: max-content;
-}input,textarea,select,input[type="submit"],button{
-  background-color: #fff;
-  border-style: inset;
-  border-color: #808080 #d3d3d3 #d3d3d3 #808080;
-}input[type="submit"],button{
-  border-style: outset;
-  border-color: #d3d3d3 #808080 #808080 #d3d3d3;
-  background: #c0c0c0;
-  color: black;
-}input[type="submit"]:active:hover,button:active:hover{
-  border-style: inset;
-  background: #999999;
-  border-color: #808080 #d3d3d3 #d3d3d3 #808080;
 }.seeAlso h1{
   font-size: 1.5rem;
 }.seeAlso>ul>li{
@@ -181,11 +131,18 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   overflow: hidden;
 }.seeAlso>ul>li.withFigure{
   vertical-align: top;
+}.seeAlso>ul>li.withFigure figure{
+  overflow: visible;
 }.seeAlso>ul>li.withFigure figcaption{
   bottom: 0;
   left: 0;
   position: sticky;
-  background: #e9fbff;
+}.seeAlso>ul>li.withFigure figcaption h1{
+  position: absolute;
+  left: 0rem;
+  bottom: -1.5rem;
+  width: 100%;
+  text-decoration: underline;
 }.seeAlso>ul img{
   height: 10.25rem;
   width: 15rem;
@@ -200,13 +157,82 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   text-decoration: underline 1px;
   position: absolute;
   bottom: 0;
+}.error,.errorPage{
+  font-size: 1.5rem;
+}.errorPage figure{
+  overflow: visible;
+}aside.noPrint h1{
+  font-size: 1.1rem;
+}.side_bottom>ol{
+  margin-left: -1rem;
+}aside>*{
+  padding: 0.3em 0.3em 0.0em 0.3em;
+}aside li,.adminform{
+  font-size: 0.8rem;
+}aside li>a{
+  display: block;
+}.suggestionList{
+  display: none;
+  margin: 0rem 0rem 0rem -1rem;
+}.suggestionList.show{
+  display: block;
+}.suggestionList>li{
+  margin: 1rem 0rem 1rem 0rem;
+}p.secondmin,.secondmin>td,.secondmin>td:first-child{
+  padding-left: 0.5rem;
+}/* SCREEN STYLES */
+@media screen{html{
+  --text-color: #620d55;
+  --background-color: #e9fbff;
+  --link-color: #0000FF;
+  --ui-border-light: #d3d3d3;
+  --ui-border-dark: #808080;
+  --ui-textbox: #fff;
+  --button: #c0c0c0;
+  --button-hover: #999999;
+  padding: 0.5rem;
+  color: var(--text-color);
+  background-color: var(--background-color);
+}html.reset{
+  background-color: rgba(233, 251, 255, 0);
+  min-width: unset;
+}body{
+  width: 100%;
+}body>*{
+  margin: 0.0rem auto 0.0rem auto;
+  min-width: 300px;
+}figure{
+  position: relative;
+  width: auto;
+}a{
+  color: var(--link-color);
+}a.withFigure>figure>picture>img{
+  min-height: 7rem;
+  max-height: 25rem;
+}.indexPage>article>a.withFigure{
+  display: block;
+  width: fit-content;
+}.seeAlso>ul>li.withFigure figcaption{
+  background-color: var(--background-color);
+}.seeAlso>ul>li.withFigure figcaption h1{
+  background-color: var(--background-color);
+}input,textarea,select,input[type="submit"],button{
+  background-color: var(--ui-textbox);
+  border-style: inset;
+  border-color: var(--ui-border-dark) var(--ui-border-light) var(--ui-border-light) var(--ui-border-dark);
+}input[type="submit"],button{
+  border-style: outset;
+  border-color: var(--ui-border-light) var(--ui-border-dark) var(--ui-border-dark) var(--ui-border-light);
+  background: var(--button);
+  color: black;
+}input[type="submit"]:active:hover,button:active:hover{
+  border-style: inset;
+  background: var(--button-hover);
+  border-color: var(--ui-border-dark) var(--ui-border-light) var(--ui-border-light) var(--ui-border-dark);
 }aside{
-  background-image: linear-gradient(#fbf,#e9fbff);
+  background-image: linear-gradient(#fbf,var(--background-color));
 }#searchTerm{
   width: 100%;
-}.error{
-  background-color: #ffa07a;
-  color: #000088;
 }body>footer{
   clear: both;
 }} /* DESKTOP STYLES */
@@ -220,11 +246,13 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   content: "";
   display: table;
   clear: both;
+}.indexPage>article>.withFigure>figure{
+  min-width: 600px;
+  min-height: 300px;
+}a.withFigure>figure{
+  min-height: 7rem;
 }main{
   float: left;
-}img.stretch{
-  width: -webkit-fill-available;
-  width: -moz-available;
 }aside{
   float: right;
   width: 200px;
@@ -248,4 +276,8 @@ html,body,blockquote,button,div,span,article,section,header,figure,figcaption,fo
   flex-flow: row;
 }.search>*{
   margin-right: 0.5rem;
+}}/* PRINT STYLES */
+@media print{
+aside,form,body>header>h2,body>footer,.noComment,.pagenation,.noPrint,.seeAlso{
+  display: none;
 }}

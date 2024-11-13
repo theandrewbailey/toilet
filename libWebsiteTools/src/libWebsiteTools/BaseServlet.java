@@ -28,7 +28,10 @@ public abstract class BaseServlet extends HttpServlet {
 
     @Override
     protected void service​(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-        req.setAttribute(WebServlet.class.getCanonicalName(), getClass().getAnnotation(WebServlet.class).urlPatterns()[0]);
+        try {
+            req.setAttribute(WebServlet.class.getCanonicalName(), getClass().getAnnotation(WebServlet.class).urlPatterns()[0]);
+        } catch (NullPointerException nx) {
+        }
         super.service(req, res);
     }
 

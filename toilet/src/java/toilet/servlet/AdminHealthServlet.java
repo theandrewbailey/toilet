@@ -30,8 +30,8 @@ import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.turbo.RequestTimes;
 import toilet.UtilStatic;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Article;
-import toilet.db.Comment;
+import toilet.bean.database.Article;
+import toilet.bean.database.Comment;
 import toilet.rss.ErrorRss;
 
 /**

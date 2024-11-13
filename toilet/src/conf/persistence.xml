@@ -7,9 +7,9 @@
     <class>libWebsiteTools.security.Honeypot</class>
     <class>libWebsiteTools.file.Fileupload</class>
     <class>libWebsiteTools.imead.Localization</class>
-    <class>toilet.db.Article</class>
-    <class>toilet.db.Comment</class>
-    <class>toilet.db.Section</class>
+    <class>toilet.bean.database.Article</class>
+    <class>toilet.bean.database.Section</class>
+    <class>toilet.bean.database.Comment</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="jakarta.persistence.schema-generation.database.action" value="create"/>

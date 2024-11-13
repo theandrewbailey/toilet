@@ -9,7 +9,7 @@ import jakarta.servlet.jsp.PageContext;
 import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.JVMNotSupportedError;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 
 public class ArticleUrl extends SimpleTagSupport {
 

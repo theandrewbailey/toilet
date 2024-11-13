@@ -9,7 +9,7 @@ import libWebsiteTools.Markdowner;
 import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
 import toilet.UtilStatic;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 
 /**
  *

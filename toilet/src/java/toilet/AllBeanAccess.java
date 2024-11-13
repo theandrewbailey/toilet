@@ -4,8 +4,8 @@ import jakarta.ejb.Local;
 import libWebsiteTools.Repository;
 import toilet.bean.ArticleRepository;
 import toilet.bean.BackupDaemon;
-import toilet.bean.SectionRepository;
-import toilet.db.Comment;
+import toilet.bean.database.Comment;
+import toilet.bean.database.Section;
 
 /**
  * Easy way to ensure static functions have access to requisite bean classes.
@@ -19,7 +19,7 @@ public interface AllBeanAccess extends libWebsiteTools.AllBeanAccess {
 
     public Repository<Comment> getComms();
 
-    public SectionRepository getSects();
+    public Repository<Section> getSects();
 
     public BackupDaemon getBackup();
 }

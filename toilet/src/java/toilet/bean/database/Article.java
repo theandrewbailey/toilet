@@ -1,4 +1,4 @@
-package toilet.db;
+package toilet.bean.database;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;
@@ -239,8 +239,9 @@ public class Article implements Serializable, Comparable<Article> {
         return suggestion;
     }
 
-    public void setSuggestion(String suggestion) {
+    public Article setSuggestion(String suggestion) {
         this.suggestion = suggestion;
+        return this;
     }
 
     @Override

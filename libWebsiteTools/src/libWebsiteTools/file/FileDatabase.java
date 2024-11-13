@@ -12,7 +12,7 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.TypedQuery;
 
-public abstract class FileDatabase implements FileRepository {
+public class FileDatabase implements FileRepository {
 
     protected final EntityManagerFactory PU;
     private static final Logger LOG = Logger.getLogger(FileDatabase.class.getName());
@@ -61,13 +61,14 @@ public abstract class FileDatabase implements FileRepository {
 
     /**
      *
-     * @param searchTerm
-     * @return files that contain searchTerm
+     * @param term search files with names like this
+     * @param limit ignored
+     * @return
      */
     @Override
-    public List<Fileupload> search(String searchTerm) {
+    public List<Fileupload> search(Object term, Integer limit) {
         try (EntityManager em = PU.createEntityManager()) {
-            return em.createNamedQuery("Filemetadata.searchByFilenames", Fileupload.class).setParameter("term", searchTerm).getResultList();
+            return em.createNamedQuery("Filemetadata.searchByFilenames", Fileupload.class).setParameter("term", term).getResultList();
         } catch (NoResultException n) {
             return null;
         }
@@ -147,8 +148,13 @@ public abstract class FileDatabase implements FileRepository {
         }
     }
 
+    /**
+     *
+     * @param term ignored
+     * @return
+     */
     @Override
-    public Long count() {
+    public Long count(Object term) {
         try (EntityManager em = PU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Fileupload.count", Long.class);
             return qn.getSingleResult();

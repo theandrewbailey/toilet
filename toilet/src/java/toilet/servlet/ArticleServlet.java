@@ -28,10 +28,11 @@ import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.tag.AbstractInput;
 import libWebsiteTools.tag.HtmlMeta;
 import libWebsiteTools.tag.HtmlTime;
+import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
 import toilet.bean.ArticleRepository;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 import toilet.tag.ArticleUrl;
 import toilet.tag.Categorizer;
 
@@ -201,8 +202,6 @@ public class ArticleServlet extends ToiletServlet {
                 } else if (null == a.getImageurl()) {
                     seeAlso.remove(a);
                     seeAlso.add(a);
-                } else if (null != a.getImageurl()) {
-                    a.setSummary(a.getSummary().replaceAll("w, https?://.*? \\d+", ""));
                 }
             }
             if (!seeAlso.isEmpty()) {

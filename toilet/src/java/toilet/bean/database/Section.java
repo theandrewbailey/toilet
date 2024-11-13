@@ -1,4 +1,4 @@
-package toilet.db;
+package toilet.bean.database;
 
 import java.io.Serializable;
 import jakarta.persistence.Basic;

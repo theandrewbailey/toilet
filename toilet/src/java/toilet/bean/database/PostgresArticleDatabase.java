@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.bean.ArticleRepository;
-import toilet.db.Article;
 
 /**
  *
@@ -32,55 +31,64 @@ public class PostgresArticleDatabase extends ArticleDatabase {
         return super.evict();
     }
 
+    /**
+     *
+     * @param term if string, search articles on this string. if Article with
+     * suggestion field populated, will return search term suggestions.
+     * @param limit
+     * @return
+     */
     @SuppressWarnings("unchecked")
     @Override
-    public List<Article> search(String searchTerm, Integer limit) {
-        if (searchCache.containsKey(searchTerm)) {
-            return searchCache.get(searchTerm);
+    public List<Article> search(Object term, Integer limit) {
+        if (null == term) {
+            throw new IllegalArgumentException("No search term provided");
         }
-        try (EntityManager em = toiletPU.createEntityManager()) {
-            Query q = em.createNativeQuery("SELECT r.* FROM toilet.article r, websearch_to_tsquery(?1) query WHERE query @@ r.searchindexdata ORDER BY ts_rank_cd(r.searchindexdata, query) DESC, r.posted", Article.class);
-            q.setParameter(1, searchTerm);
-            if (null != limit) {
-                q.setMaxResults(limit);
+        if (term instanceof Article) {
+            if (null == ((Article) term).getSuggestion()) {
+                throw new IllegalArgumentException("No search suggestion provided");
             }
-            if (60 < searchCache.size()) {
-                searchCache.remove(searchCache.keySet().iterator().next());
-            }
-            searchCache.put(searchTerm, q.getResultList());
-            return q.getResultList();
-        }
-    }
-
-    @Override
-    public List<String> getSearchSuggestion(String searchTerm, Integer limit) {
-        if (null == searchTerm || searchTerm.isEmpty()) {
-            return null;
-        }
-        List<String> suggestions = new ArrayList<>();
-        try (EntityManager em = toiletPU.createEntityManager()) {
-            Query q = em.createNativeQuery("SELECT word, similarity(?1, word) FROM toilet.articlewords WHERE (word % ?1) = TRUE ORDER BY similarity DESC");
-            List results = q.setParameter(1, searchTerm).setMaxResults(limit).getResultList();
-            Iterator iter = results.iterator();
-            while (iter.hasNext()) {
-                Object[] row = (Object[]) iter.next();
-                if (1 == limit) {
-                    Float sim = (Float) row[1];
-                    if (0.4f < sim) {
-                        suggestions.add(row[0].toString());
-                        break;
-                    }
-                } else {
-                    Float sim = (Float) row[1];
-                    if (0.3f < sim) {
-                        suggestions.add(row[0].toString());
+            List<String> suggestions = new ArrayList<>();
+            try (EntityManager em = toiletPU.createEntityManager()) {
+                Query q = em.createNativeQuery("SELECT word, similarity(?1, word) FROM toilet.articlewords WHERE (word % ?1) = TRUE ORDER BY similarity DESC");
+                List results = q.setParameter(1, ((Article) term).getSuggestion()).setMaxResults(limit).getResultList();
+                Iterator iter = results.iterator();
+                while (iter.hasNext()) {
+                    Object[] row = (Object[]) iter.next();
+                    if (1 == limit) {
+                        Float sim = (Float) row[1];
+                        if (0.4f < sim) {
+                            suggestions.add(row[0].toString());
+                            break;
+                        }
+                    } else {
+                        Float sim = (Float) row[1];
+                        if (0.3f < sim) {
+                            suggestions.add(row[0].toString());
+                        }
                     }
                 }
+                return suggestions.stream().map((suggestion) -> new Article().setSuggestion(suggestion)).toList();
+            } catch (NoSuchElementException | NullPointerException n) {
             }
-            return suggestions;
-        } catch (NoSuchElementException | NullPointerException n) {
+            return null;
+        } else {
+            if (searchCache.containsKey(term.toString())) {
+                return searchCache.get(term.toString());
+            }
+            try (EntityManager em = toiletPU.createEntityManager()) {
+                Query q = em.createNativeQuery("SELECT r.* FROM toilet.article r, websearch_to_tsquery(?1) query WHERE query @@ r.searchindexdata ORDER BY ts_rank_cd(r.searchindexdata, query) DESC, r.posted", Article.class);
+                q.setParameter(1, term);
+                if (null != limit) {
+                    q.setMaxResults(limit);
+                }
+                if (60 < searchCache.size()) {
+                    searchCache.remove(searchCache.keySet().iterator().next());
+                }
+                searchCache.put(term.toString(), q.getResultList());
+                return q.getResultList();
+            }
         }
-        return null;
     }
 
     @Override

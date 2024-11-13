@@ -1,6 +1,5 @@
 package toilet.bean.database;
 
-import toilet.bean.SectionRepository;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,16 +11,16 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.TypedQuery;
+import libWebsiteTools.Repository;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.UtilStatic;
 import toilet.bean.ArticleRepository;
-import toilet.db.Section;
 
 /**
  *
  * @author alpha
  */
-public class SectionDatabase extends SectionRepository {
+public class SectionDatabase implements Repository<Section> {
 
     private final EntityManagerFactory toiletPU;
     private final IMEADHolder imead;
@@ -34,7 +33,7 @@ public class SectionDatabase extends SectionRepository {
 
     @Override
     public Collection<Section> upsert(Collection<Section> entities) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -52,8 +51,13 @@ public class SectionDatabase extends SectionRepository {
     }
 
     @Override
+    public List<Section> search(Object term, Integer limit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Section delete(Object id) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -97,10 +101,16 @@ public class SectionDatabase extends SectionRepository {
         return allSections;
     }
 
+    /**
+     *
+     * @param term ignored
+     * @return
+     */
     @Override
-    public Long count(String section) {
+    public Long count(Object term) {
         try (EntityManager em = toiletPU.createEntityManager()) {
-            TypedQuery<Long> qn = em.createNamedQuery("Article.countBySection", Long.class).setParameter("section", section);
+            TypedQuery<Long> qn = null == term ? em.createNamedQuery("Article.count", Long.class)
+                    : em.createNamedQuery("Article.countBySection", Long.class).setParameter("section", term);
             Long output = qn.getSingleResult();
             return output;
         }
@@ -124,11 +134,5 @@ public class SectionDatabase extends SectionRepository {
         toiletPU.getCache().evict(Section.class);
         allSections = null;
         return this;
-    }
-
-    @Override
-    public Long count() {
-        long count = getAll(null).size();
-        return count;
     }
 }

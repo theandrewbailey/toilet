@@ -28,7 +28,7 @@ import libWebsiteTools.turbo.RequestTimer;
 import toilet.IndexFetcher;
 import toilet.UtilStatic;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 import toilet.tag.ArticleUrl;
 
 @WebServlet(name = "SearchServlet", description = "Searches articles", urlPatterns = {"/search"})
@@ -49,7 +49,7 @@ public class SearchServlet extends ToiletServlet {
             response.sendError(HttpServletResponse.SC_NOT_MODIFIED);
             return;
         }
-        int articleLimit = Integer.parseInt(beans.getImeadValue(IndexFetcher.POSTS_PER_PAGE)) * Integer.parseInt(beans.getImeadValue(IndexFetcher.PAGES_AROUND_CURRENT));
+        int articleLimit = Integer.valueOf(beans.getImeadValue(IndexFetcher.POSTS_PER_PAGE)) * Integer.valueOf(beans.getImeadValue(IndexFetcher.PAGES_AROUND_CURRENT));
         String searchTerm = request.getParameter("searchTerm");
         String searchSuggestion = request.getParameter("suggestion");
         if (null != searchTerm && !searchTerm.isEmpty()) {
@@ -59,13 +59,12 @@ public class SearchServlet extends ToiletServlet {
             }
             Instant start = Instant.now();
             List<Article> results = beans.getArts().search(searchTerm, articleLimit);
-            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             Locale loc = Local.resolveLocales(beans.getImead(), request).get(0);
             try {
                 if (!results.stream().anyMatch((art) -> {
                     return art.getArticletitle().toLowerCase(loc).contains(searchTerm.toLowerCase(loc)) || art.getPostedmarkdown().toLowerCase(loc).contains(searchTerm.toLowerCase(loc));
                 })) {
-                    String suggestion = beans.getArts().getSearchSuggestion(searchTerm, 1).get(0);
+                    String suggestion = beans.getArts().search(new Article().setSuggestion(searchTerm), 1).get(0).getSuggestion();
                     if (!suggestion.equals(searchTerm)) {
                         request.setAttribute("searchSuggestion", suggestion);
                         request.setAttribute("searchURL", "search?searchTerm=" + URLEncoder.encode(suggestion, "UTF-8"));
@@ -73,6 +72,7 @@ public class SearchServlet extends ToiletServlet {
                 }
             } catch (IndexOutOfBoundsException | NullPointerException n) {
             }
+            RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));
             if (results.isEmpty()) {
                 showError(request, response, 42);
                 return;
@@ -125,14 +125,14 @@ public class SearchServlet extends ToiletServlet {
                 if (word.startsWith("\"") || word.startsWith("-") || word.contains("|")) {
                     wordMap.put(word, Arrays.asList(word));
                 } else {
-                    List<String> suggs = beans.getArts().getSearchSuggestion(word, 3);
+                    List<String> suggs = beans.getArts().search(new Article().setSuggestion(word), Integer.valueOf(beans.getImeadValue(IndexFetcher.POSTS_PER_PAGE))).stream().map((art) -> art.getSuggestion()).toList();
                     wordMap.put(word, suggs);
                 }
             }
-            for (String word : beans.getArts().getSearchSuggestion(baseJoin.toString(), 2)) {
-                List<Article> result = beans.getArts().search(base + word, articleLimit);
+            for (Article word : beans.getArts().search(new Article().setSuggestion(baseJoin.toString()), Integer.valueOf(beans.getImeadValue(IndexFetcher.POSTS_PER_PAGE)))) {
+                List<Article> result = beans.getArts().search(base + word.getSuggestion(), articleLimit);
                 if (!result.isEmpty()) {
-                    countResults.add(Integer.MIN_VALUE, base + word);
+                    countResults.add(Integer.MIN_VALUE, base + word.getSuggestion());
                 }
             }
             RequestTimer.addTiming(request, "query", Duration.between(start, Instant.now()));

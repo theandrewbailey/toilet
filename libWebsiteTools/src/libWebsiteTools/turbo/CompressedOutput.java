@@ -257,7 +257,7 @@ public abstract class CompressedOutput extends ServletOutputStream implements Co
 
     @Override
     public void setWriteListener(WriteListener wl) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
 }

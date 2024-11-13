@@ -9,7 +9,7 @@ import jakarta.servlet.jsp.JspException;
 import jakarta.servlet.jsp.PageContext;
 import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import toilet.bean.ToiletBeanAccess;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 
 public class RecentArticles extends SimpleTagSupport {
 

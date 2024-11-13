@@ -28,6 +28,11 @@ public abstract class IMEADHolder implements Repository<Localization> {
     protected final Map<String, Map<Locale, Map<String, String>>> filteredCache = new HashMap<>();
     protected String localizedHash = "";
 
+    @Override
+    public List<Localization> search(Object term, Integer limit) {
+        throw new UnsupportedOperationException();
+    }
+
     public Map<String, String> filter(String regex, List<Locale> locales) {
         if (filteredCache.containsKey(regex) && filteredCache.get(regex).containsKey(locales.get(0))) {
             return filteredCache.get(regex).get(locales.get(0));

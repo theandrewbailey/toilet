@@ -15,9 +15,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import libWebsiteTools.imead.IMEADHolder;
 import toilet.bean.ArticleRepository;
-import toilet.db.Article;
-import toilet.db.Comment;
-import toilet.db.Section;
 
 /**
  *
@@ -186,8 +183,13 @@ public abstract class ArticleDatabase implements ArticleRepository {
         return this;
     }
 
+    /**
+     *
+     * @param term ignored
+     * @return
+     */
     @Override
-    public Long count() {
+    public Long count(Object term) {
         try (EntityManager em = toiletPU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Article.count", Long.class);
             Long output = qn.getSingleResult();

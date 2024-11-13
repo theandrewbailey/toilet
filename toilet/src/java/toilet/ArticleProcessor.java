@@ -21,7 +21,7 @@ import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.Markdowner;
 import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.file.Fileupload;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 import toilet.tag.ArticleUrl;
 
 /**
@@ -120,10 +120,9 @@ public class ArticleProcessor implements Callable<Article> {
                     Matcher stemmer = IMG_MULTIPLIER.matcher(tempImageURL);
                     if (stemmer.find() && null != beans.getImeadValue(FORMAT_PRIORITY)) {
                         String name = BaseFileServlet.getNameFromURL(stemmer.group(1));
-                        List<Fileupload> files = beans.getFile().search(name);
+                        List<Fileupload> files = beans.getFile().search(name, null);
                         for (String mime : beans.getImeadValue(FORMAT_PRIORITY).replaceAll("\r", "").split("\n")) {
                             List<String> srcset = new ArrayList<>();
-                            Map<String, String> attribs = new HashMap<>();
                             files.stream().filter((Fileupload file) -> {
                                 if (mime.equals(file.getMimetype())) {
                                     Matcher sorter = IMG_MULTIPLIER.matcher(file.getFilename());
@@ -139,7 +138,6 @@ public class ArticleProcessor implements Callable<Article> {
                             }).forEach((Fileupload file) -> {
                                 BigDecimal width = UtilStatic.parseDecimal(origAttribs.get("width"), BigDecimal.ZERO);
                                 try {
-                                    attribs.put("type", file.getMimetype());
                                     BigDecimal multiplier = getImageMultiplier(file.getFilename());
                                     if (0 != width.intValue()) {
                                         // optimized for theandrewbailey.com and Google Pagespeed Insights
@@ -156,9 +154,7 @@ public class ArticleProcessor implements Callable<Article> {
                                 }
                             });
                             if (!srcset.isEmpty()) {
-                                attribs.clear();
-                                attribs.put("type", mime);
-                                attribs.put("srcset", String.join(", ", srcset));
+                                Map<String, String> attribs = Map.of("type", mime, "srcset", String.join(", ", srcset));
                                 pictureTag.append(createTag("source", attribs).append("/>"));
                             }
                         }
@@ -173,6 +169,7 @@ public class ArticleProcessor implements Callable<Article> {
                                 art.getArticleid(), ArticleUrl.getUrl("", art, null),
                                 pictureTag.append(createTag("img", origAttribs).append("/>").toString()).append("</picture>").toString(), art.getArticletitle(), paragraph
                         ));
+                        deres(art);
                     }
                 } catch (UnsupportedEncodingException enc) {
                     throw new JVMNotSupportedError(enc);
@@ -242,5 +239,10 @@ public class ArticleProcessor implements Callable<Article> {
             }
         }
         return tag;
+    }
+
+    public static Article deres(Article a) {
+        a.setSummary(a.getSummary().replaceAll("w, https?://.*? \\d+", ""));
+        return a;
     }
 }

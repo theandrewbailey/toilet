@@ -30,6 +30,16 @@ public interface Repository<Entity> {
     public Entity get(Object id);
 
     /**
+     * Search entities on the given term.
+     *
+     * @param term
+     * @param limit will return this many (or everything if null). can be
+     * ignored, but must be noted if so.
+     * @return matching entities
+     */
+    public List<Entity> search(Object term, Integer limit);
+
+    /**
      * Delete a single entity.
      *
      * @param id the primary key of the desired entity.
@@ -64,7 +74,9 @@ public interface Repository<Entity> {
     /**
      * How many things are stored?
      *
+     * @param term count by this search term or group. can be ignored, but must
+     * be noted if so.
      * @return count of how many entities are stored.
      */
-    public Long count();
+    public Long count(Object term);
 }

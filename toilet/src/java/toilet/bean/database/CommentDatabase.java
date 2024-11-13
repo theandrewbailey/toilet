@@ -13,8 +13,6 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.TypedQuery;
 import libWebsiteTools.Repository;
 import toilet.bean.ArticleRepository;
-import toilet.db.Article;
-import toilet.db.Comment;
 
 /**
  *
@@ -72,6 +70,11 @@ public class CommentDatabase implements Repository<Comment> {
     }
 
     @Override
+    public List<Comment> search(Object term, Integer limit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Comment delete(Object commentId) {
         try (EntityManager em = toiletPU.createEntityManager()) {
             em.getTransaction().begin();
@@ -101,7 +104,7 @@ public class CommentDatabase implements Repository<Comment> {
 
     @Override
     public void processArchive(Consumer<Comment> operation, Boolean transaction) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -110,8 +113,13 @@ public class CommentDatabase implements Repository<Comment> {
         return this;
     }
 
+    /**
+     *
+     * @param term ignored
+     * @return
+     */
     @Override
-    public Long count() {
+    public Long count(Object term) {
         LOG.log(Level.FINE, "Counting comments");
         try (EntityManager em = toiletPU.createEntityManager()) {
             TypedQuery<Long> qn = em.createNamedQuery("Comment.count", Long.class);

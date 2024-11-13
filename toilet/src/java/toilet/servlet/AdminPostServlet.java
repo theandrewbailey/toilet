@@ -25,7 +25,7 @@ import libWebsiteTools.tag.AbstractInput;
 import toilet.ArticleProcessor;
 import toilet.bean.ToiletBeanAccess;
 import toilet.bean.BackupDaemon;
-import toilet.db.Article;
+import toilet.bean.database.Article;
 
 /**
  *
