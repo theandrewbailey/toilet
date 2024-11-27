@@ -10,7 +10,12 @@
             <trim-directive-whitespaces>true</trim-directive-whitespaces>
         </jsp-property-group>
     </jsp-config>
-    <session-config><session-timeout>60</session-timeout></session-config>
+    <session-config>
+        <session-timeout>60</session-timeout>
+        <cookie-config>
+            <http-only>true</http-only>
+        </cookie-config>
+    </session-config>
     <error-page>
         <error-code>400</error-code>
         <location>/coroner/400</location>

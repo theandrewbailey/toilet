@@ -183,7 +183,7 @@ public class ArticleServlet extends ToiletServlet {
     @SuppressWarnings("unchecked")
     public static Collection<Article> getArticleSuggestions(ArticleRepository arts, Article art) {
         try {
-            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art), 6));
+            Collection<Article> seeAlso = new LinkedHashSet<>(arts.search(null != art.getSuggestion() ? art.getSuggestion() : ArticleRepository.getArticleSuggestionTerm(art), 7));
             if (7 > seeAlso.size()) {
                 seeAlso.addAll(arts.getBySection(art.getSectionid().getName(), 1, 7, null));
             }

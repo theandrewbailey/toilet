@@ -9,6 +9,8 @@ import java.io.StringWriter;
 public class Button extends AbstractInput {
 
     private String type;
+    private String action;
+    private String method;
 
     @Override
     public StringBuilder createTag() {
@@ -37,6 +39,12 @@ public class Button extends AbstractInput {
         if (null != getValue()) {
             out.append("\" value=\"").append(getValue());
         }
+        if (null != getAction()) {
+            out.append("\" formaction=\"").append(getAction());
+        }
+        if (null != getMethod()) {
+            out.append("\" formmethod=\"").append(getMethod());
+        }
         out.append("\">");
         StringWriter body = new StringWriter(100);
         try {
@@ -54,6 +62,22 @@ public class Button extends AbstractInput {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
     }
 
 }

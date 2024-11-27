@@ -4,6 +4,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.HttpHeaders;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.Duration;
@@ -82,6 +83,7 @@ public class AdminArticleServlet extends AdminServlet {
         response.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(request, Boolean.FALSE));
         beans.getArts().evict();
         beans.getGlobalCache().clear();
+        response.setHeader("Clear-Site-Data", "cache");
         response.sendRedirect(ArticleUrl.getUrl(request.getAttribute(SecurityRepo.BASE_URL).toString(), art, null));
         request.getSession().removeAttribute(Article.class.getSimpleName());
         request.getSession().removeAttribute(AdminServletPermission.class.getCanonicalName());

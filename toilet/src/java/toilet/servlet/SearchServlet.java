@@ -58,7 +58,7 @@ public class SearchServlet extends ToiletServlet {
                 return;
             }
             Instant start = Instant.now();
-            List<Article> results = beans.getArts().search(searchTerm, articleLimit);
+            List<Article> results = new ArrayList<>(beans.getArts().search(searchTerm, articleLimit));
             Locale loc = Local.resolveLocales(beans.getImead(), request).get(0);
             try {
                 if (!results.stream().anyMatch((art) -> {

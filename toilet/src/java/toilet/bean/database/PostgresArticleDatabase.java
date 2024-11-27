@@ -85,7 +85,8 @@ public class PostgresArticleDatabase extends ArticleDatabase {
                 if (60 < searchCache.size()) {
                     searchCache.remove(searchCache.keySet().iterator().next());
                 }
-                searchCache.put(term.toString(), q.getResultList());
+                // cache immutable list to prevent unintended changes
+                searchCache.put(term.toString(), List.copyOf(q.getResultList()));
                 return q.getResultList();
             }
         }
