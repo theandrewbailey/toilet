@@ -3,7 +3,6 @@ package libWebsiteTools.tag;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import jakarta.json.Json;
@@ -15,16 +14,11 @@ import jakarta.servlet.jsp.PageContext;
 import jakarta.servlet.jsp.tagext.SimpleTagSupport;
 import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.security.SecurityRepo;
-import libWebsiteTools.file.BaseFileServlet;
-import libWebsiteTools.file.Fileupload;
-import libWebsiteTools.imead.Local;
 import libWebsiteTools.rss.Feed;
 import libWebsiteTools.rss.DynamicFeed;
 
 /**
- * puts <meta> and <link> tags on pages, including stylesheets. will link all
- * css files described in imead.localization site_css value, unless showCss is
- * false.
+ * puts <meta> and <link> tags on pages.
  *
  * @author alpha
  */
@@ -34,10 +28,6 @@ public class HtmlMeta extends SimpleTagSupport {
     public static final String META_PROPERTY_TAGS = "$_HTML_META_PROPERTY_TAGS";
     public static final String LINK_TAGS = "$_HTML_LINK_TAGS";
     public static final String LDJSON = "$_HTML_LDJSON";
-    private static final String CSS_INTEGRITY_TEMPLATE = "<link rel=\"stylesheet\" href=\"%1$s\" integrity=\"%2$s-%3$s\"/>";
-    private static final String CSS_TEMPLATE = "<link rel=\"stylesheet\" href=\"%1$s\"/>";
-    public static final String SITE_CSS_KEY = "site_css";
-    private boolean showCss = true;
 
     @SuppressWarnings("unchecked")
     public static void addPropertyTag(HttpServletRequest req, String property, String content) {
@@ -93,70 +83,16 @@ public class HtmlMeta extends SimpleTagSupport {
         return crumb;
     }
 
-    @SuppressWarnings("unchecked")
-    public static List<Fileupload> getCssFiles(AllBeanAccess beans, HttpServletRequest req) {
-        try {
-            List files = (List) req.getAttribute(SITE_CSS_KEY);
-            if (files != null) {
-                return files;
-            }
-        } catch (Exception x) {
-        }
-        try {
-            List<String> filenames = new ArrayList<>();
-            List<Fileupload> files = new ArrayList<>();
-            for (String filename : beans.getImead().getLocal(SITE_CSS_KEY, Local.resolveLocales(beans.getImead(), req)).split("\n")) {
-                List<Fileupload> f = beans.getFile().getFileMetadata(Arrays.asList(filename));
-                if (null != f && !f.isEmpty()) {
-                    files.addAll(f);
-                } else {
-                    filenames.add(BaseFileServlet.getNameFromURL(filename));
-                }
-            }
-            files.addAll(beans.getFile().getFileMetadata(filenames));
-            req.setAttribute(SITE_CSS_KEY, files);
-            return files;
-        } catch (Exception x) {
-            return new ArrayList<>();
-        }
-    }
-
     @Override
     @SuppressWarnings("unchecked")
     public void doTag() throws JspException, IOException {
         JspWriter output = getJspContext().getOut();
         HttpServletRequest req = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest());
         AllBeanAccess beans = (AllBeanAccess) req.getAttribute(AllBeanAccess.class.getCanonicalName());
-        if (showCss) {
-            output.println(String.format("<meta charset=\"%s\"/>", ((PageContext) getJspContext()).getResponse().getCharacterEncoding()));
-            Object baseURL = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL);
-            if (null != baseURL) {
-                output.println(String.format("<base href=\"%s\"/>", baseURL.toString()));
-            }
-            for (Fileupload f : getCssFiles(beans, (HttpServletRequest) ((PageContext) getJspContext()).getRequest())) {
-                // TOTAL HACK: this assumes that the CSS is hosted locally 
-                try {
-                    // will create a unique URL based on the file's last update time, so browsers will get and cache a new resource
-                    String url = f.getUrl();
-                    // TOTAL HACK: this assumes that the etag is a base64 sha-2 hash of the file contents ONLY, for subresource integrity
-                    switch (f.getEtag().length()) { // different flavors of sha-2 will have different digest lengths
-                        case 44:
-                            output.println(String.format(CSS_INTEGRITY_TEMPLATE, url, "sha256", f.getEtag()));
-                            break;
-                        case 64:
-                            output.println(String.format(CSS_INTEGRITY_TEMPLATE, url, "sha384", f.getEtag()));
-                            break;
-                        case 88:
-                            output.println(String.format(CSS_INTEGRITY_TEMPLATE, url, "sha512", f.getEtag()));
-                            break;
-                        default: // can't recognize
-                            output.println(String.format(CSS_TEMPLATE, url));
-                            break;
-                    }
-                } catch (IOException | NullPointerException e) {
-                    //output.print(String.format(TEMPLATE, css));
-                }
-            }
+        output.println(String.format("<meta charset=\"%s\"/>", ((PageContext) getJspContext()).getResponse().getCharacterEncoding()));
+        Object baseURL = ((HttpServletRequest) ((PageContext) getJspContext()).getRequest()).getAttribute(SecurityRepo.BASE_URL);
+        if (null != baseURL) {
+            output.println(String.format("<base href=\"%s\"/>", baseURL.toString()));
         }
         try {
             for (Map.Entry<String, String> tag : (List<Map.Entry<String, String>>) getJspContext().findAttribute(META_NAME_TAGS)) {
@@ -185,17 +121,10 @@ public class HtmlMeta extends SimpleTagSupport {
             }
         }
         try {
-            for (Object json: (List) getJspContext().findAttribute(LDJSON)) {
+            for (Object json : (List) getJspContext().findAttribute(LDJSON)) {
                 output.println(String.format("<script type=\"application/ld+json\">%s</script>", json.toString()));
             }
         } catch (NullPointerException n) {
         }
-    }
-
-    /**
-     * @param showCss the showCss to set
-     */
-    public void setShowCss(boolean showCss) {
-        this.showCss = showCss;
     }
 }

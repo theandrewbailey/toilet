@@ -23,9 +23,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import java.time.Instant;
-import libWebsiteTools.turbo.JspFilter;
+import libWebsiteTools.file.BaseFileServlet;
 import libWebsiteTools.security.SecurityRepo;
-import static libWebsiteTools.file.BaseFileServlet.getImmutableURL;
 import libWebsiteTools.file.FileCompressorJob;
 import libWebsiteTools.file.FileUtil;
 import libWebsiteTools.file.Fileupload;
@@ -49,7 +48,6 @@ public class AdminImeadServlet extends AdminServlet {
 
     public static final String INITIAL_PROPERTIES_FILE = "/WEB-INF/IMEAD.properties";
     public static final String ADMIN_IMEAD = "WEB-INF/adminImead.jsp";
-    private static final String CSP_TEMPLATE = "default-src data: 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; report-uri %sreport";
     private static final String ALLOWED_ORIGINS_TEMPLATE = "%s\n^https?://(?:10\\.[0-9]{1,3}\\.|192\\.168\\.)[0-9]{1,3}\\.[0-9]{1,3}(?::[0-9]{1,5})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?google(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?googleusercontent(?:\\.com)?(?:\\.[a-zA-Z]{2}){0,2}(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?feedly\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?slack\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?bing\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yandex(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://images\\.rambler\\.ru(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?yahoo(?:\\.com)?(?:\\.[a-zA-Z]{2})?(?:/.*)?$\n^https?://(?:[a-zA-Z]+\\.)+?duckduckgo\\.com(?:$|/.*)\n^https?://(?:[a-zA-Z]+\\.)+?baidu\\.com(?:$|/.*)";
     private static final Logger LOG = Logger.getLogger(AdminImeadServlet.class.getName());
 
@@ -79,7 +77,6 @@ public class AdminImeadServlet extends AdminServlet {
                 if (originMatcher.matches()) {
                     String currentReg = originMatcher.group(2).replace(".", "\\.");
                     locals.add(new Localization("", SecurityRepo.ALLOWED_ORIGINS, String.format(ALLOWED_ORIGINS_TEMPLATE, currentReg)));
-                    locals.add(new Localization("", JspFilter.CONTENT_SECURITY_POLICY, String.format(CSP_TEMPLATE, canonicalRoot)));
                     locals.add(new Localization("", SecurityRepo.BASE_URL, canonicalRoot));
                 }
                 beans.getImead().upsert(locals);
@@ -289,7 +286,7 @@ public class AdminImeadServlet extends AdminServlet {
             cssFile.setEtag(HashUtil.getSHA256Hash(cssFile.getFiledata()));
             cssFile.setFilename(servedName);
             cssFile.setMimetype(type);
-            cssFile.setUrl(getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), cssFile));
+            cssFile.setUrl(BaseFileServlet.getImmutableURL(beans.getImeadValue(SecurityRepo.BASE_URL), cssFile));
             beans.getFile().upsert(Arrays.asList(cssFile));
             FileCompressorJob.startAllJobs(beans, cssFile);
         }

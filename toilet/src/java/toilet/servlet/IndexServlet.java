@@ -12,7 +12,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.HttpHeaders;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,7 +19,6 @@ import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.turbo.RequestTimer;
 import libWebsiteTools.tag.HtmlMeta;
-import toilet.ArticleProcessor;
 import toilet.IndexFetcher;
 import toilet.bean.ToiletBeanAccess;
 import toilet.bean.database.Article;
@@ -67,12 +65,8 @@ public class IndexServlet extends ToiletServlet {
         IndexFetcher f = getIndexFetcher(request);
         Collection<Article> articles = f.getArticles();
         if (articles.isEmpty()) {
-            if (HttpMethod.HEAD.equals(request.getMethod())) {
-                request.setAttribute(IndexFetcher.class.getCanonicalName(), null);
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            } else {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            }
+            request.setAttribute(IndexFetcher.class.getCanonicalName(), null);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
         String ifNoneMatch = request.getHeader(HttpHeaders.IF_NONE_MATCH);

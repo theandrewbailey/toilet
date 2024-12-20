@@ -4,8 +4,8 @@
 <%@ taglib prefix="h" uri="uri:libwebsitetools:htmlTools" %>
 <%@ taglib prefix="t" uri="uri:toilet" %><!DOCTYPE html>
 <html lang="${$_LIBIMEAD_PRIMARY_LOCALE.toLanguageTag()}" class="reset"><head>
-    <h:meta/>
-    <h:localVar key="page_title"/><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
+<h:stylesheet/><h:meta/>
+<h:localVar key="page_title"/><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
 </head><body class="reset">
 <section id="comments"><c:forEach items="${Article.commentCollection}" var="comm" varStatus="status"><c:if test="${status.last}"><span id="last"></span></c:if>
     <article class="comment" id="${comm.commentid}">

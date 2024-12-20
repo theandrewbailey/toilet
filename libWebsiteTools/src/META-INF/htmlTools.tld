@@ -199,20 +199,18 @@
         <description>will link all javascript files described in imead.localization site_javascript value</description>
         <name>javascript</name>
         <tag-class>libWebsiteTools.tag.HtmlScript</tag-class>
-        <body-content>empty</body-content>
+        <body-content>scriptless</body-content>
+    </tag>
+    <tag>
+        <description>will link all CSS files described in imead.localization site_css value</description>
+        <name>stylesheet</name>
+        <tag-class>libWebsiteTools.tag.StyleSheet</tag-class>
+        <body-content>scriptless</body-content>
     </tag>
     <tag>
         <name>meta</name>
         <tag-class>libWebsiteTools.tag.HtmlMeta</tag-class>
-        <body-content>empty</body-content>        
-        <attribute>
-            <name>showCss</name>
-            <description>will link all css files described in imead.localization site_css value, default true.</description>
-            <required>false</required>
-            <rtexprvalue>true</rtexprvalue>
-            <type>Boolean</type>
-        </attribute>
-
+        <body-content>empty</body-content>
     </tag>
     <tag>
         <name>time</name>

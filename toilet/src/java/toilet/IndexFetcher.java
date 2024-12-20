@@ -9,7 +9,6 @@ import java.util.regex.Pattern;
 import libWebsiteTools.JVMNotSupportedError;
 import toilet.bean.ArticleRepository;
 import toilet.bean.database.Article;
-import toilet.bean.database.Section;
 
 /**
  *

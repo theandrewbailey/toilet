@@ -111,8 +111,8 @@ public class GuardFilter implements Filter {
             }
         }
         if (null == res.getHeader(HttpHeaders.CACHE_CONTROL)) {
-            res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=100000, s-maxage=100");
-            res.setDateHeader(HttpHeaders.EXPIRES, localNow.plusSeconds(100000).toInstant().toEpochMilli());
+            res.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=99999, s-maxage=99");
+            res.setDateHeader(HttpHeaders.EXPIRES, localNow.plusSeconds(99999).toInstant().toEpochMilli());
         }
         // set request language
         String forwardURL = null;

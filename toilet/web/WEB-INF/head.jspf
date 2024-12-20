@@ -3,7 +3,7 @@
 <%@ taglib prefix="h" uri="uri:libwebsitetools:htmlTools" %>
 <%@ taglib prefix="t" uri="uri:toilet" %><!DOCTYPE html>
 <html lang="${$_LIBIMEAD_PRIMARY_LOCALE.toLanguageTag()}"><head>
-<h:meta/>
+<h:stylesheet/><h:meta/>
 <h:localVar key="page_title"/><h:title siteTitle="${page_title}" pageTitle="${title}" siteTitleHide="${siteTitleHide}" />
 </head><body>
 <header><h1><a title="Home" href="${security_baseURL}">${page_title}</a></h1><c:if test="${index != null and index}">

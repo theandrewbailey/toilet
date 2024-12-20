@@ -303,7 +303,7 @@ public class ToiletBeanAccess implements AllBeanAccess, libWebsiteTools.AllBeanA
                     error.getCerts().verifyCertificate(certName);
                 }
             } catch (RuntimeException rx) {
-                error.logException(null, "High security not available: " + rx.getMessage(), null, rx);
+                error.logException(null, "High security not available", null, rx);
             }
         }
         return error;

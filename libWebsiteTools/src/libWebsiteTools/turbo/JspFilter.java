@@ -17,8 +17,11 @@ import libWebsiteTools.AllBeanAccess;
 import libWebsiteTools.imead.Local;
 import libWebsiteTools.imead.LocalizedStringNotFoundException;
 import libWebsiteTools.rss.FeedBucket;
+import libWebsiteTools.security.SecurityRepo;
 import libWebsiteTools.tag.HtmlMeta;
+import libWebsiteTools.tag.HtmlScript;
 import libWebsiteTools.tag.HtmlTime;
+import libWebsiteTools.tag.StyleSheet;
 
 /**
  *
@@ -27,13 +30,18 @@ import libWebsiteTools.tag.HtmlTime;
 @WebFilter(description = "Adds security headers and potentially adds to cache.", filterName = "JspFilter", dispatcherTypes = {DispatcherType.REQUEST, DispatcherType.FORWARD}, urlPatterns = {"*.jsp"})
 public class JspFilter implements Filter {
 
-    public static final String CONTENT_SECURITY_POLICY = "site_security_csp";
+    //public static final String CONTENT_SECURITY_POLICY = "site_security_csp";
     public static final String FEATURE_POLICY = "site_security_features";
     public static final String PERMISSIONS_POLICY = "site_security_permissions";
     public static final String REFERRER_POLICY = "site_security_referrer";
     public static final String PRIMARY_LOCALE_PARAM = "$_LIBIMEAD_PRIMARY_LOCALE";
+    public static final String CONTENT_SECURITY_POLICY = "Content-Security-Policy";
+    public static final String REPORTING_ENDPOINTS = "Reporting-Endpoints";
     public static final String VARY_HEADER = String.join(", ", new String[]{
         HttpHeaders.ACCEPT_ENCODING, HttpHeaders.ACCEPT_LANGUAGE});
+//    private static final String CSP_TEMPLATE = "default-src 'self'; img-src 'self' data:; font-src data:; object-src 'none'; form-action 'self'; frame-ancestors 'self'; base-uri 'self'; upgrade-insecure-requests; script-src %s; style-src %s; report-uri %sreport; report-to cspend;";
+    private static final String CSP_TEMPLATE = "default-src 'self'; img-src 'self' data:; font-src data:; object-src 'none'; form-action 'self'; frame-ancestors 'self'; base-uri 'self'; upgrade-insecure-requests; script-src %s; style-src %s; report-uri %sreport;";
+    private static final String REPORTING_TEMPLATE = "cspend=\"%sreport\"";
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
@@ -61,11 +69,9 @@ public class JspFilter implements Filter {
             }
         } catch (Exception x) {
         }
-        Object csp = request.getAttribute(CONTENT_SECURITY_POLICY);
         res.setHeader("Accept-Ranges", "none");
         res.setHeader(HttpHeaders.VARY, VARY_HEADER);
         res.setHeader(HttpHeaders.CONTENT_LANGUAGE, primaryLocale.toLanguageTag());
-        res.setHeader("Content-Security-Policy", null == csp ? beans.getImeadValue(CONTENT_SECURITY_POLICY) : csp.toString());
         if (null != beans.getImeadValue(FEATURE_POLICY)) {
             res.setHeader("Feature-Policy", beans.getImeadValue(FEATURE_POLICY));
         }
@@ -103,6 +109,20 @@ public class JspFilter implements Filter {
         RequestTimer.getFrontTime(req);
         try (CompressedServletWrapper wrap = CompressedServletWrapper.getInstance(req, res)) {
             chain.doFilter(req, wrap);
+            // csp calculation probably shouldn't be here...
+//            String stylesheetHashes = String.join(" ", StyleSheet.getHashes(req));
+//            if (stylesheetHashes.isEmpty()) {
+//                stylesheetHashes = "'none'";
+//            }
+            String stylesheetHashes = "'self'";
+            String scriptHashes = String.join(" ", HtmlScript.getHashes(req));
+            if (scriptHashes.isEmpty()) {
+                scriptHashes = "'none'";
+            }
+//            String scriptHashes = "'self'";
+            String csp = String.format(CSP_TEMPLATE, scriptHashes, stylesheetHashes, beans.getImeadValue(SecurityRepo.BASE_URL));
+            res.setHeader(CONTENT_SECURITY_POLICY, csp);
+//            res.setHeader(REPORTING_ENDPOINTS, String.format(REPORTING_TEMPLATE, beans.getImeadValue(SecurityRepo.BASE_URL)));
             wrap.flushBuffer();
             byte[] responseBytes = wrap.getOutputStream().getResult();
             res.setHeader(RequestTimer.SERVER_TIMING, RequestTimer.getTimingHeader(req, Boolean.FALSE));
